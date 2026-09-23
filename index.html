@@ -3,6 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0c7c8c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
+<link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
@@ -219,6 +226,8 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
       <button data-view="import" id="adminNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13V2.5"/><polyline points="6,6.5 10,2.5 14,6.5"/><path d="M3 13v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg><span>Upload / Update Questions</span></button>
       <button data-view="ai"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5 L11.6 7.2 L16.2 8.8 L11.6 10.4 L10 15.1 L8.4 10.4 L3.8 8.8 L8.4 7.2 Z"/><path d="M16 2.5 L16.7 4.4 L18.6 5.1 L16.7 5.8 L16 7.7 L15.3 5.8 L13.4 5.1 L15.3 4.4 Z"/></svg><span>AI Assistant</span></button>
       <button data-view="aiquestions"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="4" rx="1.2"/><rect x="3" y="8.5" width="14" height="4" rx="1.2"/><rect x="3" y="14" width="14" height="4" rx="1.2"/><circle cx="6" cy="5" r=".6" fill="currentColor"/><circle cx="6" cy="10.5" r=".6" fill="currentColor"/><circle cx="6" cy="16" r=".6" fill="currentColor"/></svg><span>AI Questions</span></button>
+      <button data-view="favorites" id="favoritesNav"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17.2 3.8 10.8A4.1 4.1 0 0 1 9.6 5l.4.4.4-.4a4.1 4.1 0 0 1 5.8 5.8Z"/></svg><span>Favourite Questions</span></button>
+      <button data-view="analytics" id="analyticsNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="17" x2="3" y2="3"/><line x1="3" y1="17" x2="18" y2="17"/><rect x="6" y="10" width="2.5" height="5" rx=".5"/><rect x="10.5" y="7" width="2.5" height="8" rx=".5"/><rect x="15" y="4" width="2.5" height="11" rx=".5"/></svg><span>Admin Analytics</span></button>
       <button data-view="settings"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round"><line x1="2" y1="5" x2="18" y2="5"/><circle cx="13" cy="5" r="2"/><line x1="2" y1="10" x2="18" y2="10"/><circle cx="7" cy="10" r="2"/><line x1="2" y1="15" x2="18" y2="15"/><circle cx="14" cy="15" r="2"/></svg><span>Settings</span></button>
       <button data-view="account"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="6.5" r="3.2"/><path d="M4 17c.8-3.2 2.8-4.8 6-4.8s5.2 1.6 6 4.8"/></svg><span>Account</span></button>
     </div>
@@ -269,7 +278,9 @@ const CONFIG = {
   localQuestionsKey: 'med64_local_questions_v1',
   aiSettingsKey: 'med64_ai_settings_v1',
   aiQuestionsKey: 'med64_ai_questions_v1',
-  aiChatKey: 'med64_ai_chat_v1'
+  aiChatKey: 'med64_ai_chat_v1',
+  favoritesKey: 'med64_favorite_questions_v1',
+  visitorIdKey: 'med64_visitor_id_v1'
 };
 
 const DEFAULT_SETTINGS = {
@@ -293,6 +304,8 @@ let localQuestions = loadJSON(CONFIG.localQuestionsKey, []);
 let aiQuestions = loadJSON(CONFIG.aiQuestionsKey, []);
 let aiSettings = {...DEFAULT_AI_SETTINGS, ...loadJSON(CONFIG.aiSettingsKey, {})};
 let aiChat = loadJSON(CONFIG.aiChatKey, []);
+let favorites = new Set(loadJSON(CONFIG.favoritesKey, []));
+let analyticsSummary = {total:0,signedIn:0,anonymous:0};
 let aiBusy = false;
 let progress = loadJSON(CONFIG.progressKey, {});
 let settings = {...DEFAULT_SETTINGS, ...loadJSON(CONFIG.settingsKey, {})};
@@ -308,6 +321,36 @@ let moduleVisibility = {};
 let allQuestionBank = [];
 let activeNotifications = [];
 
+function getVisitorId(){
+  let id=localStorage.getItem(CONFIG.visitorIdKey);
+  if(!id){ id='v_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12); localStorage.setItem(CONFIG.visitorIdKey,id); }
+  return id;
+}
+function isFavorite(q){ return favorites.has(key(q)); }
+function saveFavoritesLocal(){ localStorage.setItem(CONFIG.favoritesKey,JSON.stringify([...favorites])); }
+async function toggleFavorite(id){
+  const q=allQuestionBank.find(x=>x.id===id)||bank.find(x=>x.id===id);
+  if(!q)return;
+  if(favorites.has(id)) favorites.delete(id); else favorites.add(id);
+  saveFavoritesLocal();
+  if(currentUser && SUPABASE_ENABLED){
+    if(favorites.has(id)){
+      const {error}=await supabaseClient.from('user_favorites').upsert({user_id:currentUser.id,question_id:id},{onConflict:'user_id,question_id'});
+      if(error) console.warn('Favorite sync failed:',error.message);
+    } else {
+      const {error}=await supabaseClient.from('user_favorites').delete().eq('user_id',currentUser.id).eq('question_id',id);
+      if(error) console.warn('Favorite delete failed:',error.message);
+    }
+  }
+  render();
+}
+async function loadFavorites(){
+  favorites=new Set(loadJSON(CONFIG.favoritesKey,[]));
+  if(currentUser && SUPABASE_ENABLED){
+    const {data,error}=await supabaseClient.from('user_favorites').select('question_id').eq('user_id',currentUser.id);
+    if(!error && Array.isArray(data)){ favorites=new Set(data.map(x=>String(x.question_id))); saveFavoritesLocal(); }
+  }
+}
 
 async function checkAdminRole(){
   isAdmin=false;
@@ -373,6 +416,7 @@ async function afterAuthChanged(){
   applyModuleVisibility();
   await loadSupabaseProgress();
   await loadSupabaseHistory();
+  await loadFavorites();
   await loadGlobalAnalytics();
   render();
 }
@@ -467,6 +511,20 @@ async function loadSupabaseHistory(){
     list:e.exam_data?.list||[],answers:e.exam_data?.answers||{},auto:!!e.exam_data?.auto
   }));
   remoteHistoryLoaded=true;
+}
+
+async function recordExamForAnalytics(result){
+  if(!SUPABASE_ENABLED)return;
+  const visitorId=currentUser ? null : getVisitorId();
+  const {error}=await supabaseClient.rpc('record_exam_submission',{p_exam_id:result.id,p_total:result.total,p_correct:result.correct,p_accuracy:Number(result.accuracy||0),p_visitor_id:visitorId});
+  if(error) console.warn('Exam analytics record failed:',error.message);
+}
+async function loadAdminAnalytics(){
+  if(!(await requireAdmin())) return false;
+  const {data,error}=await supabaseClient.rpc('get_admin_exam_analytics');
+  if(error){toast('Could not load admin analytics: '+error.message,'error');return false;}
+  analyticsSummary=data||{total:0,signedIn:0,anonymous:0};
+  return true;
 }
 
 async function loadGlobalAnalytics(){
@@ -736,12 +794,14 @@ function layout(title,subtitle,body,actions=''){
 function render(){
   updateSidebarFoot();
   const view=location.hash.replace('#','')||'dashboard';
-  const allowed=['dashboard','exam','progress','mistakes','bank','import','ai','aiquestions','settings','account','results','history'];
+  const allowed=['dashboard','exam','progress','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics'];
   const v=allowed.includes(view)?view:'dashboard';
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   const adminNav=document.getElementById('adminNav'); if(adminNav) adminNav.style.display=isAdmin?'flex':'none';
   const bankNav=document.getElementById('bankNav'); if(bankNav) bankNav.style.display=isAdmin?'flex':'none';
-  if(v==='bank' && !isAdmin){ location.hash='dashboard'; return; }
+  const aiQuestionsNav=document.querySelector('[data-view="aiquestions"]'); if(aiQuestionsNav) aiQuestionsNav.style.display=isAdmin?'flex':'none';
+  const analyticsNav=document.getElementById('analyticsNav'); if(analyticsNav) analyticsNav.style.display=isAdmin?'flex':'none';
+  if((['bank','import','aiquestions','analytics'].includes(v)) && !isAdmin){ location.hash='dashboard'; return; }
   if(v==='dashboard') renderDashboard();
   else if(v==='exam') renderExamSetup();
   else if(v==='progress') renderProgress();
@@ -751,6 +811,8 @@ function render(){
   else if(v==='import') renderImport();
   else if(v==='ai') renderAIAssistant();
   else if(v==='aiquestions') renderAIQuestions();
+  else if(v==='favorites') renderFavorites();
+  else if(v==='analytics') renderAdminAnalytics();
   else if(v==='settings') renderSettings();
   else if(v==='account') renderAccount();
   else renderResults();
@@ -1001,7 +1063,7 @@ function renderQuiz(){
         <span><i class="nav-dot current"></i>Current</span>
       </div>
     </div>
-    <div class="question">${esc(q.question)}</div>
+    <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><button class="btn" style="flex:0 0 auto" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div>
     <div class="options">${opts}</div>
     <div class="quiz-footer"><button class="btn" onclick="prevQ()" ${exam.index===0?'disabled':''}>Previous</button>
     <button class="btn primary" onclick="${exam.index===exam.list.length-1?'submitExam(false)':'nextQ()'}">${exam.index===exam.list.length-1?'Submit Exam':'Next'}</button></div>
@@ -1073,6 +1135,9 @@ async function submitExam(auto){
     auto
   };
 
+  if(SUPABASE_ENABLED){
+    await recordExamForAnalytics(result);
+  }
   if(SUPABASE_ENABLED && currentUser){
     await saveExamToSupabase(result);
     for(const q of exam.list){
@@ -1602,6 +1667,24 @@ function downloadTemplate(){
 }
 function downloadBlob(text,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 
+async function renderAdminAnalytics(){
+  if(!(await loadAdminAnalytics())) return;
+  const body=`<div class="grid stats">
+    <div class="card stat"><div class="label">All submitted exams</div><div class="value">${Number(analyticsSummary.total||0)}</div><div class="mini">Signed-in + non-signed-in users</div></div>
+    <div class="card stat"><div class="label">Signed-in submissions</div><div class="value">${Number(analyticsSummary.signedIn||0)}</div><div class="mini">Linked to Supabase accounts</div></div>
+    <div class="card stat"><div class="label">Non-signed-in submissions</div><div class="value">${Number(analyticsSummary.anonymous||0)}</div><div class="mini">Anonymous visitor submissions</div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><div class="category-head"><strong>Submission coverage</strong><button class="btn" onclick="renderAdminAnalytics()">Refresh</button></div><p class="mini" style="margin:8px 0 0">This page is restricted to administrators. Anonymous exams are counted when Supabase is connected and the analytics migration has been applied.</p></div>`;
+  document.getElementById('app').innerHTML=layout('Admin Analytics','Exam submissions across signed-in and non-signed-in users.',body);
+}
+
+function renderFavorites(){
+  const list=bank.filter(q=>isFavorite(q));
+  const cards=list.map(q=>`<div class="category-card"><div class="category-head"><div><b>${esc(q.question)}</b><div class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</div></div><button class="btn" onclick='toggleFavorite(${JSON.stringify(q.id)})'>★ Remove</button></div><div style="margin-top:10px">${q.options.map((o,i)=>`<div class="review-choice"><b>${String.fromCharCode(65+i)}.</b> ${esc(o)}</div>`).join('')}</div></div>`).join('');
+  const body=`<div class="card"><div class="category-head"><strong>${list.length} favourite question${list.length===1?'':'s'}</strong><span class="mini">Your favourites are saved in this browser and synced to your account when signed in.</span></div>${list.length?`<div style="margin-top:14px">${cards}</div>`:'<div class="empty">No favourite questions yet. Mark the star while taking an exam.</div>'}</div>`;
+  document.getElementById('app').innerHTML=layout('Favourite Questions','Keep important questions for quick review.',body);
+}
+
 function renderSettings(){
   const body=`<div class="card"><h3 style="margin-top:0">Exam settings</h3>
   <label><input type="checkbox" id="sImmediate" ${settings.showAnswerImmediately?'checked':''}> Use “Show answer immediately” as the default exam mode</label><br><br>
@@ -1627,6 +1710,7 @@ function renderSettings(){
     </p>
   </div>
   <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="saveSettings()">Save settings</button><button class="btn" onclick="exportProgress()">Export my progress</button>${isAdmin ? '<button class="btn" onclick="exportBank()">Export current bank</button>' : ''}<button class="btn" onclick="exportHistory()">Export exam history</button><button class="btn danger" onclick="clearHistory()">Clear exam history</button></div></div>
+  <div class="card" style="margin-top:16px"><h3 style="margin-top:0">Install MedEx</h3><p class="mini" style="margin:8px 0 12px">Install MedEx as an app on a supported browser. On iPhone/iPad, use the browser's Share menu and choose “Add to Home Screen”.</p><button class="btn primary" id="pwaInstallBtn" onclick="installPWA()">Quick setup / Install MedEx</button></div>
   <div class="card" style="margin-top:16px"><h3 style="margin-top:0">About storage</h3><p class="mini">The question bank is loaded from Supabase when connected, with GitHub as fallback. Signed-in student progress and exam history are stored in Supabase and follow the account across devices. AI questions and chat history are also stored only in this browser. AI requests are relayed through this site's own server-side function — no personal API key is ever stored in or sent from your browser.</p></div>`;
   document.getElementById('app').innerHTML=layout('Settings','Personal browser settings and backups.',body);
 }
@@ -1704,38 +1788,13 @@ async function callAI(contents, generationConfig){
 }
 
 function renderAIAssistant(){
-  ensureAIModelForProvider();
-  const provider=aiSettings.provider||'groq';
-  const models=AI_PROVIDER_MODELS[provider]||AI_PROVIDER_MODELS.groq;
-  const body=`
-  <div class="card">
-    <div class="category-head"><strong>AI Assistant</strong><span class="ai-badge">✦ ${esc(aiProviderLabel(provider))}</span></div>
-    <p class="mini" style="margin:8px 0 0">Choose the AI provider and model used for question generation and AI chat. API keys stay on the Vercel server and are never exposed to website visitors.</p>
-    <div class="grid two" style="margin-top:12px">
-      <div class="field"><label>AI provider</label><select id="aiProvider" onchange="changeAIProvider()">
-        <option value="groq" ${provider==='groq'?'selected':''}>Groq</option>
-        <option value="gemini" ${provider==='gemini'?'selected':''}>Google Gemini</option>
-        <option value="openrouter" ${provider==='openrouter'?'selected':''}>OpenRouter</option>
-      </select></div>
-      <div class="field"><label>AI model</label><select id="aiModel">${models.map(m=>`<option value="${attrJs(m.id)}" ${m.id===aiSettings.model?'selected':''}>${esc(m.label)}</option>`).join('')}</select></div>
-    </div>
-    <details style="margin-top:10px">
-      <summary class="mini" style="cursor:pointer;color:var(--primary2);font-weight:700">Advanced settings</summary>
-      <div class="grid two" style="margin-top:10px">
-        <div class="field"><label>Access code (only if this site requires one)</label><input id="aiAccessCode" type="password" placeholder="Leave blank if none" value="${esc(aiSettings.accessCode)}"></div>
-      </div>
-      <div class="actions" style="margin-top:10px"><button class="btn" onclick="saveAISettings()">Save AI settings</button></div>
-    </details>
+  const body=`<div class="card">
+    <div class="category-head"><strong>Ask AI</strong><span class="ai-badge">✦ Groq</span></div>
+    <p class="mini" style="margin:8px 0 0">Ask medical or exam-prep questions. Groq is the main AI agent for this user-facing assistant; API credentials remain on the server.</p>
   </div>
-
-  <div class="tabbar" style="margin-top:20px">
-    <button class="${aiTab==='generate'?'active':''}" onclick="setAITab('generate')">Generate Questions</button>
-    <button class="${aiTab==='chat'?'active':''}" onclick="setAITab('chat')">Ask AI</button>
-  </div>
-
-  ${aiTab==='generate'?aiGenerateTabHTML():aiChatTabHTML()}`;
-  document.getElementById('app').innerHTML=layout('AI Assistant',`Generate practice questions or ask ${aiProviderLabel(provider)}.`,body);
-  if(aiTab==='chat') scrollChatToBottom();
+  ${aiChatTabHTML()}`;
+  document.getElementById('app').innerHTML=layout('Ask AI','Your medical study assistant powered by Groq.',body);
+  scrollChatToBottom();
 }
 function setAITab(tab){ aiTab=tab; renderAIAssistant(); }
 function changeAIProvider(){
@@ -1928,6 +1987,7 @@ function aiQuestionPreviewCard(q){
   </div>`;
 }
 async function generateAIQuestions(){
+  if(!(await requireAdmin())) return;
   if(aiBusy) return;
   const module=document.getElementById('genModule').value.trim();
   const subject=document.getElementById('genSubject').value.trim();
@@ -2068,7 +2128,7 @@ async function sendAIChat(){
         ? `Answer the user's message in ordinary, readable text. Do NOT return JSON, JSON arrays, code blocks, or a machine-readable object. Use normal sentences, short paragraphs, and bullet points when useful. If the user asks for an explanation, explain it clearly rather than formatting it as JSON.\n\nUser message:\n${m.text}`
         : m.text}]
     }));
-    const reply=await callAI(contents,{maxOutputTokens:4096,responseMimeType:'text/plain'});
+    const previousProvider=aiSettings.provider, previousModel=aiSettings.model; aiSettings.provider='groq'; aiSettings.model='openai/gpt-oss-120b'; const reply=await callAI(contents,{maxOutputTokens:4096,responseMimeType:'text/plain'}); aiSettings.provider=previousProvider; aiSettings.model=previousModel;
     aiChat.push({role:'ai',text:formatAIChatReply(reply)});
   }catch(e){
     aiChat.push({role:'error',text:'Error: '+e.message});
@@ -2092,31 +2152,39 @@ function scrollChatToBottom(){
 }
 
 function renderAIQuestions(){
-  const body=`<div class="card"><div class="category-head"><strong>${aiQuestions.length} AI-generated question${aiQuestions.length===1?'':'s'}</strong><span class="mini">Kept separately until you add them to the main question bank.</span></div>
-  ${aiQuestions.length?`<div class="actions" style="margin-top:12px">
-    <button class="btn primary" onclick="startExam(aiQuestions,null,'AI questions practice')">Practice these questions</button>
-    <button class="btn ok" onclick="addAllAIQuestionsToBank()">Add all to Question Bank</button>
-    ${isAdmin?'<button class="btn primary" onclick="uploadAIQuestionsToSupabase()">Upload JSON to Supabase</button>':''}
-    <button class="btn" onclick="exportAIQuestions()">Export as JSON</button>
-    <button class="btn danger" onclick="clearAllAIQuestions()">Delete all</button>
-  </div>`:''}</div>
-  <div style="margin-top:16px">${aiQuestions.length?aiQuestions.slice().reverse().map(q=>renderAIQuestionRow(q)).join(''):'<div class="card empty">No AI questions yet. Generate some from the AI Assistant page.</div>'}</div>`;
-  document.getElementById('app').innerHTML=layout('AI Questions','Every question Groq has generated for you, independent of the main bank.',body,`<button class="btn primary" onclick="go('ai')">+ Generate more</button>`);
+  if(!isAdmin){ go('dashboard'); return; }
+  ensureAIModelForProvider();
+  const modules=getModules();
+  const generator=`<div class="card"><div class="category-head"><strong>Admin AI Question Generator</strong><span class="ai-badge">✦ ${esc(aiProviderLabel(aiSettings.provider))}</span></div>
+    <p class="mini" style="margin:8px 0 14px">Only administrators can generate and manage AI questions. Groq is the default generator; provider settings are available here for admin use.</p>
+    <div class="grid three">
+      <div class="field"><label>Module</label><select id="genModule" onchange="updateAIGeneratorSubjects()"><option value="">Select module</option>${modules.map(m=>`<option value="${attrJs(m)}">${esc(m)}</option>`).join('')}</select></div>
+      <div class="field"><label>Subject</label><select id="genSubject" onchange="updateAIGeneratorLectures()" disabled><option value="">Select subject</option></select></div>
+      <div class="field"><label>Lecture</label><select id="genLecture" disabled><option value="">Select lecture</option></select></div>
+    </div>
+    <div class="grid three" style="margin-top:10px">
+      <div class="field"><label>Difficulty</label><select id="genDifficulty"><option>Mixed</option><option>Easy</option><option>Medium</option><option>Hard</option></select></div>
+      <div class="field"><label>Thinking level</label><select id="genThinking"><option selected>Higher-order thinking</option><option>Mixed thinking</option></select></div>
+      <div class="field"><label>Number of questions</label><input id="genCount" type="number" min="1" max="100" value="5"></div>
+    </div>
+    <div class="field" style="margin-top:10px"><label>Question source</label><select id="genSourceType" onchange="updateAIGeneratorSourceUI()"><option value="knowledge">AI medical knowledge</option><option value="website">Questions in this website</option></select></div>
+    <div id="genSourceInfo" class="notice" style="margin-top:12px">The AI will create original higher-order questions using medical knowledge for the selected lecture.</div>
+    <div class="actions" style="margin-top:12px"><button class="btn primary" id="genBtn" onclick="generateAIQuestions()">Generate questions</button></div><div id="genResult"></div>
+  </div>`;
+  const body=`${generator}<div class="card" style="margin-top:16px"><div class="category-head"><strong>${aiQuestions.length} AI-generated question${aiQuestions.length===1?'':'s'}</strong><span class="mini">Admin-only question bank.</span></div>
+  ${aiQuestions.length?`<div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startExam(aiQuestions,null,'AI questions practice')">Practice these questions</button><button class="btn ok" onclick="addAllAIQuestionsToBank()">Add all to Question Bank</button><button class="btn primary" onclick="uploadAIQuestionsToSupabase()">Upload to Supabase</button><button class="btn" onclick="exportAIQuestions()">Export as JSON</button><button class="btn danger" onclick="clearAllAIQuestions()">Delete all</button></div>`:''}</div>
+  <div style="margin-top:16px">${aiQuestions.length?aiQuestions.slice().reverse().map(q=>renderAIQuestionRow(q)).join(''):'<div class="card empty">No AI questions yet. Use the generator above.</div>'}</div>`;
+  document.getElementById('app').innerHTML=layout('AI Questions','Admin-only generator and AI question bank.',body);
 }
 function renderAIQuestionRow(q){
   const diffClass=(q.difficulty||'').toLowerCase();
   const inBank=bank.some(b=>b.id===q.id);
-  return `<div class="category-card">
-    <div class="category-head"><b>${esc(q.id)}</b>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        ${q.difficulty?`<span class="diff-pill ${esc(diffClass)}">${esc(q.difficulty)}</span>`:''}
-        ${inBank?'<span class="pill">In bank</span>':`<button class="btn" onclick="addAIQuestionToBank('${attrJs(q.id)}')">Add to bank</button>`}
-        <button class="btn danger" onclick="removeAIQuestion('${attrJs(q.id)}')">Delete</button>
-      </div>
-    </div>
+  return `<div class="category-card"><div class="category-head"><b>${esc(q.id)}</b>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${q.difficulty?`<span class="diff-pill ${esc(diffClass)}">${esc(q.difficulty)}</span>`:''}${inBank?'<span class="pill">In bank</span>':`<button class="btn" onclick="addAIQuestionToBank('${attrJs(q.id)}')">Add to bank</button>`}<button class="btn danger" onclick="removeAIQuestion('${attrJs(q.id)}')">Delete</button></div></div>
     <div class="mini" style="margin-top:6px">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}${q.reference?` · Source: ${esc(q.reference)}`:''}</div>
-    <div style="margin-top:8px">${esc(q.question)}</div>
-    <div class="mini" style="margin-top:8px">Correct answer: <b>${esc(q.options[q.correctIndex]||'')}</b></div>
+    <div style="margin-top:10px;font-weight:700;font-size:16px;line-height:1.5">${esc(q.question)}</div>
+    <div style="margin-top:10px">${q.options.map((o,i)=>`<div class="review-choice ${i===q.correctIndex?'correct':''}"><b>${String.fromCharCode(65+i)}.</b> ${esc(o)}${i===q.correctIndex?' <span class="mini">— Correct</span>':''}</div>`).join('')}</div>
+    ${q.explanation?`<div class="review good" style="margin-top:10px"><b>Explanation:</b> ${esc(q.explanation)}</div>`:''}
   </div>`;
 }
 function addAIQuestionToBank(id){
@@ -2193,6 +2261,14 @@ async function uploadAIQuestionsToSupabase(){
 
 function exportAIQuestions(){downloadBlob(JSON.stringify(aiQuestions,null,2),'med64-ai-questions.json','application/json');}
 
+let deferredInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;});
+async function installPWA(){
+  if(deferredInstallPrompt){ deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt=null; return; }
+  toast('If your browser does not show an install prompt, use its Install app/Add to Home Screen option.','ok');
+}
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('PWA service worker:',e))); }
+
 document.addEventListener('DOMContentLoaded',()=>{
   applyTheme();
   if(SUPABASE_ENABLED){
@@ -2210,7 +2286,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     await loadActiveNotifications();
     await loadQuestions();
     if(currentUser) await afterAuthChanged();
-    else { await loadGlobalAnalytics(); applyModuleVisibility(); render(); }
+    else { await loadFavorites(); await loadGlobalAnalytics(); applyModuleVisibility(); render(); }
   });
 });
 </script>

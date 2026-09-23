@@ -21,3 +21,14 @@ Keep the key only in Vercel Environment Variables. Do not put it in `index.html`
 
 ## Deploy
 Replace your current `index.html` and `api/ai.js` with the files in this package, commit to GitHub, then let Vercel redeploy.
+
+
+# MedEx v8 additions
+
+- Admin-only **Admin Analytics** counts submitted exams from signed-in and non-signed-in users.
+- Admin-only **AI Questions** page contains the AI question generator and full AI question bank.
+- **Ask AI** is available to all users and is routed through Groq (`openai/gpt-oss-120b`) as the main agent.
+- AI question-bank cards display the full question, all options, correct option, and explanation.
+- Users can star/favourite questions; signed-in favourites sync through Supabase.
+- Added PWA manifest, service worker, install/quick-setup button, and MED Ex PNG icons.
+- Apply `supabase_v8_migration.sql` in Supabase SQL Editor to enable anonymous analytics and cloud favourites.
