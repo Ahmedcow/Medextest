@@ -90,42 +90,47 @@ async function callOpenAICompatible({ apiKey, url, model, messages, generationCo
   };
 
   if (wantsJson) {
-    payload.response_format = {
-      type: 'json_schema',
-      json_schema: {
-        name: 'medical_question_batch',
-        strict: true,
-        schema: {
-          type: 'object',
-          additionalProperties: false,
-          properties: {
-            questions: {
-              type: 'array',
-              minItems: 1,
-              maxItems: 1,
-              items: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                  question: { type: 'string' },
-                  options: {
-                    type: 'array',
-                    minItems: 4,
-                    maxItems: 4,
-                    items: { type: 'string' }
-                  },
-                  correctIndex: { type: 'integer', minimum: 0, maximum: 3 },
-                  explanation: { type: 'string' },
-                  difficulty: { type: 'string' }
-                },
-                required: ['question','options','correctIndex','explanation','difficulty']
-              }
-            }
-          },
-          required: ['questions']
+    const schema = {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        questions: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 10,
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              question: { type: 'string' },
+              options: {
+                type: 'array',
+                minItems: 4,
+                maxItems: 4,
+                items: { type: 'string' }
+              },
+              correctIndex: { type: 'integer', minimum: 0, maximum: 3 },
+              explanation: { type: 'string' },
+              difficulty: { type: 'string' }
+            },
+            required: ['question','options','correctIndex','explanation','difficulty']
+          }
         }
-      }
+      },
+      required: ['questions']
     };
+
+    if (providerName === 'Groq') {
+      // Groq supports strict structured outputs on GPT-OSS and Qwen 3.8 27B.
+      const strictModels = new Set(['openai/gpt-oss-20b','openai/gpt-oss-120b','qwen/qwen3.8-27b']);
+      if (strictModels.has(effectiveModel)) {
+        payload.response_format = { type: 'json_schema', json_schema: { name: 'medical_question_batch', strict: true, schema } };
+      } else {
+        payload.response_format = { type: 'json_object' };
+      }
+    } else if (providerName === 'OpenRouter') {
+      payload.response_format = { type: 'json_schema', json_schema: { name: 'medical_question_batch', strict: true, schema } };
+    }
   }
 
   const response = await fetch(url, {
@@ -174,6 +179,30 @@ async function callGemini({ apiKey, model, messages, generationConfig }) {
         : 4096
     }
   };
+
+  if (generationConfig.jsonMode === true) {
+    payload.generationConfig.responseMimeType = 'application/json';
+    payload.generationConfig.responseSchema = {
+      type: 'OBJECT',
+      properties: {
+        questions: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              question: { type: 'STRING' },
+              options: { type: 'ARRAY', items: { type: 'STRING' } },
+              correctIndex: { type: 'INTEGER' },
+              explanation: { type: 'STRING' },
+              difficulty: { type: 'STRING' }
+            },
+            required: ['question','options','correctIndex','explanation','difficulty']
+          }
+        }
+      },
+      required: ['questions']
+    };
+  }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const response = await fetch(url, {
