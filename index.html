@@ -7,6 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MedEx">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
@@ -331,18 +332,35 @@ function saveFavoritesLocal(){ localStorage.setItem(CONFIG.favoritesKey,JSON.str
 async function toggleFavorite(id){
   const q=allQuestionBank.find(x=>x.id===id)||bank.find(x=>x.id===id);
   if(!q)return;
-  if(favorites.has(id)) favorites.delete(id); else favorites.add(id);
+  const favoriteId=String(q.id);
+  if(favorites.has(favoriteId)) favorites.delete(favoriteId); else favorites.add(favoriteId);
   saveFavoritesLocal();
+  const nowFavorite=favorites.has(favoriteId);
+
   if(currentUser && SUPABASE_ENABLED){
-    if(favorites.has(id)){
-      const {error}=await supabaseClient.from('user_favorites').upsert({user_id:currentUser.id,question_id:id},{onConflict:'user_id,question_id'});
+    if(nowFavorite){
+      const {error}=await supabaseClient.from('user_favorites').upsert({user_id:currentUser.id,question_id:favoriteId},{onConflict:'user_id,question_id'});
       if(error) console.warn('Favorite sync failed:',error.message);
     } else {
-      const {error}=await supabaseClient.from('user_favorites').delete().eq('user_id',currentUser.id).eq('question_id',id);
+      const {error}=await supabaseClient.from('user_favorites').delete().eq('user_id',currentUser.id).eq('question_id',favoriteId);
       if(error) console.warn('Favorite delete failed:',error.message);
     }
   }
+
+  // Never call render() while an exam is active: render() maps #exam to the
+  // exam setup screen, which used to make clicking the star appear to end the exam.
+  if(exam && !exam.submitted){
+    const btn=document.querySelector('[data-favorite-id]');
+    if(btn){
+      btn.textContent=nowFavorite?'★':'☆';
+      btn.title=nowFavorite?'Remove from favourites':'Mark as favourite';
+      btn.setAttribute('aria-label',btn.title);
+    }
+    return nowFavorite;
+  }
+
   render();
+  return nowFavorite;
 }
 async function loadFavorites(){
   favorites=new Set(loadJSON(CONFIG.favoritesKey,[]));
@@ -816,6 +834,7 @@ function render(){
   else if(v==='settings') renderSettings();
   else if(v==='account') renderAccount();
   else renderResults();
+  if(v==='settings') updatePWAInstallButton();
 }
 function go(v){ location.hash=v; render(); }
 
@@ -1063,7 +1082,7 @@ function renderQuiz(){
         <span><i class="nav-dot current"></i>Current</span>
       </div>
     </div>
-    <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><button class="btn" style="flex:0 0 auto" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div>
+    <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" style="flex:0 0 auto" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div>
     <div class="options">${opts}</div>
     <div class="quiz-footer"><button class="btn" onclick="prevQ()" ${exam.index===0?'disabled':''}>Previous</button>
     <button class="btn primary" onclick="${exam.index===exam.list.length-1?'submitExam(false)':'nextQ()'}">${exam.index===exam.list.length-1?'Submit Exam':'Next'}</button></div>
@@ -1736,7 +1755,8 @@ let aiTab='generate';
 const AI_PROVIDER_MODELS={
   groq:[
     {id:'openai/gpt-oss-120b',label:'GPT-OSS 120B — high reasoning'},
-    {id:'qwen/qwen3-32b',label:'Qwen 3 32B — structured / high volume'}
+    {id:'qwen/qwen3.8-27b',label:'Qwen 3.8 27B — reasoning + structured JSON'},
+    {id:'qwen/qwen3-32b',label:'Qwen 3 32B — fast reasoning'}
   ],
   gemini:[
     {id:'gemini-3.6-flash',label:'Gemini 3.6 Flash — recommended for MCQ generation'}
@@ -2262,12 +2282,64 @@ async function uploadAIQuestionsToSupabase(){
 function exportAIQuestions(){downloadBlob(JSON.stringify(aiQuestions,null,2),'med64-ai-questions.json','application/json');}
 
 let deferredInstallPrompt=null;
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;});
-async function installPWA(){
-  if(deferredInstallPrompt){ deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt=null; return; }
-  toast('If your browser does not show an install prompt, use its Install app/Add to Home Screen option.','ok');
+let pwaInstallSupported=false;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredInstallPrompt=e;
+  pwaInstallSupported=true;
+  updatePWAInstallButton();
+});
+window.addEventListener('appinstalled',()=>{
+  deferredInstallPrompt=null;
+  pwaInstallSupported=false;
+  updatePWAInstallButton();
+  toast('MedEx was installed successfully.','ok');
+});
+function isStandalonePWA(){
+  return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone===true;
 }
-if('serviceWorker' in navigator){ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('PWA service worker:',e))); }
+function isIOS(){ return /iphone|ipad|ipod/i.test(navigator.userAgent); }
+function isSafari(){
+  const ua=navigator.userAgent;
+  return /safari/i.test(ua) && !/chrome|crios|android|edgios|fxios/i.test(ua);
+}
+function updatePWAInstallButton(){
+  const btn=document.getElementById('pwaInstallBtn');
+  if(!btn)return;
+  if(isStandalonePWA()){ btn.textContent='✓ MedEx is installed'; btn.disabled=true; return; }
+  btn.disabled=false;
+  btn.textContent=deferredInstallPrompt?'Quick setup / Install MedEx':'Quick setup / Install MedEx';
+}
+async function installPWA(){
+  if(isStandalonePWA()){ toast('MedEx is already installed as an app.','ok'); return; }
+  if(deferredInstallPrompt){
+    try{
+      deferredInstallPrompt.prompt();
+      const choice=await deferredInstallPrompt.userChoice;
+      if(choice?.outcome==='accepted') toast('Installing MedEx…','ok');
+    }catch(e){ console.warn('PWA install prompt failed:',e); toast('The browser blocked the install prompt. Use the browser menu to install MedEx.','error'); }
+    deferredInstallPrompt=null;
+    updatePWAInstallButton();
+    return;
+  }
+
+  if(isIOS()){
+    toast('On iPhone/iPad: tap Share, then “Add to Home Screen”.','ok');
+  }else if(isSafari()){
+    toast('In Safari: use File → Add to Dock to install MedEx as an app.','ok');
+  }else{
+    toast('Open your browser menu and choose “Install MedEx” or “Add to Home Screen”. If available, use the install icon in the address bar.','ok');
+  }
+}
+if('serviceWorker' in navigator){
+  window.addEventListener('load',async()=>{
+    try{
+      const registration=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+      registration.update().catch(()=>{});
+    }catch(e){ console.warn('PWA service worker:',e); }
+    updatePWAInstallButton();
+  });
+}
 
 document.addEventListener('DOMContentLoaded',()=>{
   applyTheme();
