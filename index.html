@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MedEX — Medical Examination Platform</title>
+
+<!-- Vercel Web Analytics: enabled when deployed on Vercel -->
+<script>
+  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+</script>
+<script defer src="/_vercel/insights/script.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef2f0;--card:#ffffff;--text:#101826;--muted:#5b6b72;--line:#dbe3e1;
+  --primary:#0c7c8c;--primary2:#095f6c;--primary-rgb:12,124,140;--primary-soft:#e1f0f0;
+  --danger:#c0392b;--danger-soft:#fbeae7;
+  --ok:#1f8a55;--ok-soft:#e7f5ec;
+  --warn:#b4780a;--warn-soft:#fbf0de;
+  --ink:#101826;
+  --shadow:0 20px 40px -18px rgba(16,24,38,.35);
+  --shadow-sm:0 1px 2px rgba(16,24,38,.06);
+  --radius:16px;--radius-sm:10px;
+  --topbar-h:58px;--sidebar-w:264px;
+  --font-sans:'Inter',system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  --font-serif:'Source Serif 4',Georgia,'Times New Roman',serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+html[data-theme="dark"]{
+  --bg:#0f1517;--card:#182023;--text:#e7edee;--muted:#8fa0a5;--line:#2b363a;
+  --primary:#20b6c9;--primary2:#57cddc;--primary-rgb:32,182,201;--primary-soft:rgba(32,182,201,.16);
+  --danger:#e5695a;--danger-soft:rgba(229,105,90,.16);
+  --ok:#3fcf85;--ok-soft:rgba(63,207,133,.16);
+  --warn:#e0a63f;--warn-soft:rgba(224,166,63,.16);
+  --ink:#05090a;
+  --shadow:0 20px 40px -18px rgba(0,0,0,.6);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:var(--font-sans);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;margin:0}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.001ms!important;animation-duration:.001ms!important}}
+
+/* ---------- App shell ---------- */
+.app{display:flex;min-height:100vh}
+.scrim{position:fixed;inset:0;background:rgba(8,12,18,.5);opacity:0;pointer-events:none;transition:opacity .22s ease;z-index:40}
+.app.sidebar-open .scrim{opacity:1;pointer-events:auto}
+.appshell{flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;height:var(--topbar-h);padding:0 18px;background:rgba(238,242,240,.86);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.topbar-brand{font-family:var(--font-serif);font-size:17px;font-weight:600}
+.topbar-brand small{display:block;font-family:var(--font-sans);font-weight:500;font-size:10.5px;color:var(--muted);letter-spacing:.02em;margin-top:-2px}
+.icon-btn{width:38px;height:38px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--card);border-radius:10px;transition:border-color .15s ease,background .15s ease}
+.section-start-btn{width:30px;height:30px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;border:1px solid var(--primary);background:var(--primary-soft);border-radius:50%;cursor:pointer;transition:transform .12s ease,background .15s ease}
+.section-start-btn:hover{background:var(--primary);transform:scale(1.08)}
+.section-start-btn:hover svg{stroke:#fff;fill:#fff}
+.section-start-btn svg{width:13px;height:13px;stroke:var(--primary);fill:var(--primary);margin-left:1px}
+.icon-btn:hover{border-color:var(--primary)}
+.icon-btn svg{width:18px;height:18px;stroke:var(--text);fill:none}
+.main{flex:1;padding:24px;max-width:1500px;width:100%}
+
+/* ---------- Sidebar window ---------- */
+.sidebar{position:fixed;inset:0 auto 0 0;width:var(--sidebar-w);max-width:86vw;background:var(--ink);color:#fff;z-index:50;transform:translateX(-105%);transition:transform .25s ease;box-shadow:var(--shadow)}
+.app.sidebar-open .sidebar{transform:translateX(0)}
+.sidebar-inner{width:var(--sidebar-w);max-width:86vw;height:100%;display:flex;flex-direction:column;padding:16px 14px;overflow-y:auto}
+.sidebar-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:6px 6px 20px}
+.brand{font-family:var(--font-serif);font-size:20px;font-weight:600;line-height:1.15}
+.brand small{display:block;font-family:var(--font-sans);font-size:11px;font-weight:500;color:#93a6ab;margin-top:6px;letter-spacing:.01em}
+.sidebar .icon-btn{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)}
+.sidebar .icon-btn svg{stroke:#fff}
+.sidebar .icon-btn:hover{border-color:var(--primary)}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{display:flex;align-items:center;gap:11px;border:0;background:transparent;color:#c6d1d5;text-align:left;padding:10px 12px;border-radius:10px;font-size:14px;font-weight:600;position:relative}
+.nav button svg{width:18px;height:18px;flex:0 0 auto;opacity:.85;stroke:currentColor;fill:none}
+.nav button:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav button.active{background:rgba(var(--primary-rgb),.28);color:#fff}
+.nav button.active svg{opacity:1}
+.sidebar-foot{margin-top:auto;padding:14px 10px 4px;font-size:11.5px;color:#93a6ab;border-top:1px solid rgba(255,255,255,.12)}
+@media(min-width:881px){
+  .sidebar{position:sticky;top:16px;height:calc(100vh - 32px);margin:16px 0 16px 16px;border-radius:var(--radius);width:var(--sidebar-w);transform:none;transition:width .22s ease,opacity .18s ease,margin .22s ease;overflow:hidden}
+  .app:not(.sidebar-open) .sidebar{width:0;margin-left:0;opacity:0;box-shadow:none;pointer-events:none}
+  .scrim{display:none}
+}
+
+/* ---------- Page header ---------- */
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+.top h1{font-size:26px}
+.sub{color:var(--muted);font-size:14px;margin-top:4px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ---------- Buttons & fields ---------- */
+.btn{border:1px solid var(--line);background:var(--card);color:var(--text);padding:9px 14px;border-radius:var(--radius-sm);font-weight:600;font-size:13.5px;transition:border-color .15s ease,background .15s ease,transform .1s ease}
+.btn:hover{border-color:var(--primary)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn.primary:hover{background:var(--primary2);border-color:var(--primary2)}
+.btn.danger{color:#fff;background:var(--danger);border-color:var(--danger)}
+.btn.btn-lg{padding:15px 28px;font-size:16px;border-width:2px}
+.btn.ok{color:#fff;background:var(--ok);border-color:var(--ok)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.grid{display:grid;gap:16px}
+.stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+.filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.two{grid-template-columns:1fr 1fr}
+.three{grid-template-columns:repeat(3,1fr)}
+.field label{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);background:var(--card);border-radius:var(--radius-sm);padding:10px;color:var(--text)}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary)}
+.field textarea{min-height:130px;resize:vertical;font-family:var(--font-mono);font-size:13px}
+
+/* ---------- Cards & readouts ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow-sm)}
+.stat{position:relative;overflow:hidden;padding-top:20px}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--primary)}
+.stat .label{color:var(--muted);font-size:12.5px}
+.stat .value{font-family:var(--font-mono);font-size:28px;font-weight:600;margin-top:6px;letter-spacing:-.01em}
+.section-title{margin:28px 0 12px;font-size:17px}
+.bar{height:8px;background:#e3e9e7;border-radius:999px;overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--primary);border-radius:999px}
+.progress-row{display:grid;grid-template-columns:180px 1fr 70px 80px;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.progress-row:last-child{border-bottom:0}
+.pill{display:inline-block;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;background:var(--primary-soft);color:var(--primary2);font-family:var(--font-mono)}
+.table-wrap{overflow:auto}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{text-align:left;padding:11px;border-bottom:1px solid var(--line);vertical-align:top;font-size:13px}
+.table th{color:var(--muted);font-size:12px;background:var(--bg)}
+.hidden{display:none!important}
+
+/* ---------- Quiz ---------- */
+.quiz{max-width:980px;margin:auto}
+.qhead{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.timer{font-family:var(--font-mono);font-weight:600;color:var(--primary);font-size:17px}
+.question{font-family:var(--font-serif);font-size:21px;line-height:1.5;font-weight:600;margin:18px 0}
+.options{display:grid;gap:10px}
+.option{border:1px solid var(--line);background:var(--card);border-radius:var(--radius-sm);padding:14px;text-align:left;transition:border-color .15s ease,background .15s ease}
+.option:hover{border-color:var(--primary)}
+.option.selected{border-color:var(--primary);background:var(--primary-soft)}
+.option.correct{border-color:var(--ok);background:var(--ok-soft)}
+.option.wrong{border-color:var(--danger);background:var(--danger-soft)}
+
+/* ---------- Exam question navigator ---------- */
+.question-nav{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 18px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:var(--radius)}
+.qnav-btn{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--text);font-weight:700;cursor:pointer;font-family:var(--font-mono);transition:all .15s ease}
+.qnav-btn:hover{border-color:var(--primary);transform:translateY(-1px)}
+.qnav-btn.current{border:2px solid var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
+.qnav-btn.answered{background:var(--ok);border-color:var(--ok);color:#fff}
+.qnav-btn.current.answered{box-shadow:0 0 0 2px var(--ok-soft),0 0 0 4px var(--primary)}
+.qnav-btn.wrong{background:var(--danger);border-color:var(--danger);color:#fff}
+.qnav-btn.current.wrong{box-shadow:0 0 0 2px var(--danger-soft),0 0 0 4px var(--primary)}
+.nav-legend{display:flex;gap:14px;align-items:center;margin-top:8px;font-size:11.5px;color:var(--muted)}
+.nav-dot{width:10px;height:10px;border-radius:50%;display:inline-block;border:1px solid var(--line);background:var(--card);margin-right:4px}
+.nav-dot.answered{background:var(--ok);border-color:var(--ok)}
+.nav-dot.wrong{background:var(--danger);border-color:var(--danger)}
+.nav-dot.current{border:2px solid var(--primary)}
+.review-choice{padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);margin-top:7px;background:var(--card)}
+.review-choice.selected{border-color:var(--primary);background:var(--primary-soft)}
+.review-choice.correct{border-color:var(--ok);background:var(--ok-soft)}
+.review-choice.selected.correct{border-color:var(--ok);background:var(--ok-soft)}
+.review-choice.wrong{border-color:var(--danger);background:var(--danger-soft)}
+
+.review{margin-top:14px;padding:14px;border-radius:var(--radius-sm);background:var(--bg);border:1px solid var(--line)}
+.review.good{border-left:4px solid var(--ok)}
+.review.bad{border-left:4px solid var(--danger)}
+.quiz-footer{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
+.notice{padding:11px 13px;border-radius:var(--radius-sm);background:var(--primary-soft);color:var(--primary2);font-size:13px}
+.notice.error{background:var(--danger-soft);color:#8a291d}
+.notice.ok{background:var(--ok-soft);color:#136b40}
+.empty{text-align:center;padding:38px;color:var(--muted)}
+.category-card{padding:15px;border:1px solid var(--line);border-radius:var(--radius-sm);margin-bottom:9px}
+.category-head{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.mini{font-size:12px;color:var(--muted)}
+
+/* ---------- AI assistant ---------- */
+.ai-badge{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--primary2);background:var(--primary-soft);border-radius:999px;padding:3px 10px}
+.tabbar{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:16px;flex-wrap:wrap}
+.tabbar button{border:0;background:transparent;padding:10px 14px;font-weight:700;font-size:13.5px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabbar button:hover{color:var(--text)}
+.tabbar button.active{color:var(--primary);border-bottom-color:var(--primary)}
+.chat-log{max-height:440px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:4px 2px}
+.chat-msg{padding:11px 14px;border-radius:14px;max-width:82%;font-size:13.5px;line-height:1.55;white-space:pre-wrap}
+.chat-msg.user{align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:4px}
+.chat-msg.ai{align-self:flex-start;background:var(--bg);border:1px solid var(--line);border-bottom-left-radius:4px}
+.chat-msg.error{align-self:flex-start;background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger)}
+.chat-input-row{display:flex;gap:8px;margin-top:12px;align-items:flex-end}
+.chat-input-row textarea{flex:1;min-height:46px;max-height:140px}
+.spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;display:inline-block;animation:spin .7s linear infinite;margin-right:7px;vertical-align:-2px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.diff-pill{font-family:var(--font-mono);font-size:10.5px;font-weight:700;border-radius:999px;padding:2px 9px;text-transform:capitalize}
+.diff-pill.easy{background:var(--ok-soft);color:var(--ok)}
+.diff-pill.medium{background:var(--warn-soft);color:var(--warn)}
+.diff-pill.hard{background:var(--danger-soft);color:var(--danger)}
+
+@media(max-width:1000px){.stats,.filters{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.main{padding:16px}.stats,.filters,.two,.three{grid-template-columns:1fr}.progress-row{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+<div class="scrim" id="scrim"></div>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-inner">
+    <div class="sidebar-head">
+      <div class="brand">MedEx<small>Medical Examination Platform</small></div>
+      <button class="icon-btn" id="sidebarClose" aria-label="Close menu"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round"><line x1="4" y1="4" x2="16" y2="16"/><line x1="16" y1="4" x2="4" y2="16"/></svg></button>
+    </div>
+    <div class="nav">
+      <button data-view="dashboard"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linejoin="round"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg><span>Dashboard</span></button>
+      <button data-view="exam"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="12" height="15" rx="2"/><rect x="7" y="1.3" width="6" height="3" rx="1"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12.4" x2="13" y2="12.4"/><line x1="7" y1="15.8" x2="10.5" y2="15.8"/></svg><span>Start Exam</span></button>
+      <button data-view="progress"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5,15 7,9.5 10.5,12.5 17.5,4"/><polyline points="12.5,4 17.5,4 17.5,9"/></svg><span>Progress & Accuracy</span></button>
+      <button data-view="history"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10.5" r="7.5"/><polyline points="10,6 10,10.5 13.2,12.6"/><polyline points="3.5,2 3.5,5 6.5,5"/></svg><span>Exam History</span></button>
+      <button data-view="mistakes"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><line x1="7.3" y1="7.3" x2="12.7" y2="12.7"/><line x1="12.7" y1="7.3" x2="7.3" y2="12.7"/></svg><span>Mistakes</span></button>
+      <button data-view="bank" id="bankNav"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2 18,6.5 10,11 2,6.5"/><polyline points="2,10.5 10,15 18,10.5"/><polyline points="2,14.5 10,19 18,14.5"/></svg><span>Question Bank</span></button>
+      <button data-view="import" id="adminNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13V2.5"/><polyline points="6,6.5 10,2.5 14,6.5"/><path d="M3 13v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg><span>Upload / Update Questions</span></button>
+      <button data-view="ai"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5 L11.6 7.2 L16.2 8.8 L11.6 10.4 L10 15.1 L8.4 10.4 L3.8 8.8 L8.4 7.2 Z"/><path d="M16 2.5 L16.7 4.4 L18.6 5.1 L16.7 5.8 L16 7.7 L15.3 5.8 L13.4 5.1 L15.3 4.4 Z"/></svg><span>AI Assistant</span></button>
+      <button data-view="aiquestions"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="4" rx="1.2"/><rect x="3" y="8.5" width="14" height="4" rx="1.2"/><rect x="3" y="14" width="14" height="4" rx="1.2"/><circle cx="6" cy="5" r=".6" fill="currentColor"/><circle cx="6" cy="10.5" r=".6" fill="currentColor"/><circle cx="6" cy="16" r=".6" fill="currentColor"/></svg><span>AI Questions</span></button>
+      <button data-view="settings"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round"><line x1="2" y1="5" x2="18" y2="5"/><circle cx="13" cy="5" r="2"/><line x1="2" y1="10" x2="18" y2="10"/><circle cx="7" cy="10" r="2"/><line x1="2" y1="15" x2="18" y2="15"/><circle cx="14" cy="15" r="2"/></svg><span>Settings</span></button>
+      <button data-view="account"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="6.5" r="3.2"/><path d="M4 17c.8-3.2 2.8-4.8 6-4.8s5.2 1.6 6 4.8"/></svg><span>Account</span></button>
+    </div>
+    <div class="sidebar-foot" id="sidebarFoot">Loading question bank…</div>
+  </div>
+</aside>
+<div class="appshell">
+  <header class="topbar">
+    <button class="icon-btn" id="sidebarOpen" aria-label="Toggle menu"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round"><line x1="2.5" y1="5.5" x2="17.5" y2="5.5"/><line x1="2.5" y1="10" x2="17.5" y2="10"/><line x1="2.5" y1="14.5" x2="17.5" y2="14.5"/></svg></button>
+    <div class="topbar-brand">MedEx<small>Medical Examination Platform</small></div>
+  </header>
+  <main class="main">
+  <div id="app"></div>
+  </main>
+</div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+'use strict';
+
+/* ============================================================
+   MedEx + Supabase
+   - Supabase stores questions, student attempts and exam history.
+   - GitHub remains as a fallback question source.
+   - Replace the two placeholders below after creating your project.
+   ============================================================ */
+
+const SUPABASE_URL = 'https://ywveooexkhmmmxwtmxxl.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_mkYMEw2AdqmBnHceGfo6cw_LAIcaIls';
+const SUPABASE_ENABLED =
+  window.supabase &&
+  !SUPABASE_URL.includes('PASTE_YOUR_') &&
+  !SUPABASE_PUBLISHABLE_KEY.includes('PASTE_YOUR_');
+
+const supabaseClient = SUPABASE_ENABLED
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+  : null;
+let isAdmin=false;
+let adminCheckLoaded=false;
+
+const CONFIG = {
+  manifest: './questions/index.json',
+  cacheKey: 'med64_github_bank_v1',
+  progressKey: 'med64_progress_v3',
+  settingsKey: 'med64_settings_v3',
+  lastResultKey: 'med64_last_result_v2',
+  historyKey: 'med64_history_v1',
+  localQuestionsKey: 'med64_local_questions_v1',
+  aiSettingsKey: 'med64_ai_settings_v1',
+  aiQuestionsKey: 'med64_ai_questions_v1',
+  aiChatKey: 'med64_ai_chat_v1'
+};
+
+const DEFAULT_SETTINGS = {
+  showAnswerImmediately: true,
+  autoSubmit: true,
+  // Question and option randomization are always enabled.
+  shuffleQuestions: true,
+  shuffleOptions: true,
+  darkMode: false
+};
+
+const DEFAULT_AI_SETTINGS = {
+  provider: 'groq',
+  model: 'openai/gpt-oss-120b',
+  accessCode: ''
+};
+
+let bank = [];
+let sourceFiles = [];
+let localQuestions = loadJSON(CONFIG.localQuestionsKey, []);
+let aiQuestions = loadJSON(CONFIG.aiQuestionsKey, []);
+let aiSettings = {...DEFAULT_AI_SETTINGS, ...loadJSON(CONFIG.aiSettingsKey, {})};
+let aiChat = loadJSON(CONFIG.aiChatKey, []);
+let aiBusy = false;
+let progress = loadJSON(CONFIG.progressKey, {});
+let settings = {...DEFAULT_SETTINGS, ...loadJSON(CONFIG.settingsKey, {})};
+let exam = null;
+let timerId = null;
+let lastSync = null;
+let currentUser = null;
+let remoteHistory = [];
+let globalAnalytics = {modules:[], lectures:[], students:0, submittedExams:0, averageScore:0};
+let pendingImportQuestions = [];
+let remoteHistoryLoaded = false;
+let moduleVisibility = {};
+let allQuestionBank = [];
+let activeNotifications = [];
+
+
+async function checkAdminRole(){
+  isAdmin=false;
+  adminCheckLoaded=true;
+  if(!SUPABASE_ENABLED || !currentUser) return false;
+  try{
+    const {data,error}=await supabaseClient.rpc('is_admin');
+    if(!error) isAdmin=!!data;
+  }catch(e){ isAdmin=false; }
+  return isAdmin;
+}
+async function requireAdmin(){
+  if(!currentUser){toast('Please sign in first.','error');go('account');return false;}
+  if(!adminCheckLoaded) await checkAdminRole();
+  if(!isAdmin){toast('Admin access required.','error');go('dashboard');return false;}
+  return true;
+}
+async function refreshAuthUser(){
+  if(!SUPABASE_ENABLED){ currentUser=null; return; }
+  try{
+    const {data,error}=await supabaseClient.auth.getUser();
+    if(error) throw error;
+    currentUser=data?.user||null;
+  }catch(e){ console.warn('Supabase auth:',e.message); currentUser=null; }
+}
+
+async function signUpStudent(email,password){
+  if(!SUPABASE_ENABLED){toast('Supabase is not connected.','error');return false;}
+  email=(email||'').trim().toLowerCase();
+  if(!email || !password){toast('Enter an email and password.','error');return false;}
+  if(password.length<6){toast('Password must be at least 6 characters.','error');return false;}
+  const {data,error}=await supabaseClient.auth.signUp({email,password});
+  if(error){toast(error.message,'error');return false;}
+  if(data?.session){ currentUser=data.user; await afterAuthChanged(); toast('Account created and signed in.','ok'); }
+  else toast('Account created. Check your email to confirm the account, then sign in.','ok');
+  return true;
+}
+
+async function signInStudent(email,password){
+  if(!SUPABASE_ENABLED){toast('Supabase is not connected.','error');return false;}
+  email=(email||'').trim().toLowerCase();
+  const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
+  if(error){toast(error.message,'error');return false;}
+  currentUser=data.user;
+  await afterAuthChanged();
+  toast('Signed in successfully.','ok');
+  return true;
+}
+
+async function signOutStudent(){
+  if(SUPABASE_ENABLED){const {error}=await supabaseClient.auth.signOut();if(error)console.warn(error.message);}
+  currentUser=null; progress=loadJSON(CONFIG.progressKey,{}); remoteHistory=[]; globalAnalytics={modules:[],lectures:[],students:0,submittedExams:0,averageScore:0};
+  render(); toast('Signed out.','ok');
+}
+
+async function afterAuthChanged(){
+  progress={};
+  remoteHistory=[];
+  adminCheckLoaded=false;
+  await checkAdminRole();
+  await loadModuleVisibility();
+  await loadActiveNotifications();
+  applyModuleVisibility();
+  await loadSupabaseProgress();
+  await loadSupabaseHistory();
+  await loadGlobalAnalytics();
+  render();
+}
+
+async function syncLocalProgressToSupabase(){
+  if(!SUPABASE_ENABLED || !currentUser)return;
+  const rows=[];
+  for(const q of bank){
+    const p=progress[key(q)];
+    if(!p || !p.attempts)continue;
+    rows.push({
+      user_id:currentUser.id,
+      question_id:q.id,
+      attempts:Number(p.attempts||0),
+      correct_count:Number(p.correct||0),
+      wrong_count:Number(p.wrong||0),
+      last_result:p.last||null,
+      updated_at:new Date().toISOString()
+    });
+  }
+  if(!rows.length)return;
+  const {error}=await supabaseClient.from('student_question_progress')
+    .upsert(rows,{onConflict:'user_id,question_id'});
+  if(error)console.warn('Progress sync failed:',error.message);
+}
+
+async function loadSupabaseProgress(){
+  if(!SUPABASE_ENABLED || !currentUser)return;
+  const {data,error}=await supabaseClient
+    .from('student_question_progress')
+    .select('question_id,attempts,correct_count,wrong_count,last_result')
+    .eq('user_id',currentUser.id);
+  if(error){console.warn('Progress load failed:',error.message);return;}
+  const remote={};
+  (data||[]).forEach(p=>{
+    remote[p.question_id]={
+      attempts:p.attempts||0,
+      correct:p.correct_count||0,
+      wrong:p.wrong_count||0,
+      last:p.last_result||null
+    };
+  });
+  progress=remote;
+  saveState();
+}
+
+async function recordAttemptToSupabase(q, selectedIndex, isCorrect, examId){
+  if(!SUPABASE_ENABLED || !currentUser)return;
+  const {error}=await supabaseClient.from('question_attempts').insert({
+    user_id:currentUser.id,
+    exam_id:examId,
+    question_id:q.id,
+    module:q.module,
+    subject:q.subject,
+    lecture:q.lecture,
+    selected_index:selectedIndex,
+    is_correct:isCorrect
+  });
+  if(error)console.warn('Attempt sync failed:',error.message);
+}
+
+async function saveExamToSupabase(result){
+  if(!SUPABASE_ENABLED || !currentUser)return;
+  const {error}=await supabaseClient.from('exams').insert({
+    id:result.id,
+    user_id:currentUser.id,
+    started_at:new Date(Date.now()-result.durationSec*1000).toISOString(),
+    finished_at:result.date,
+    label:result.label,
+    module_filter:result.moduleFilter||null,
+    subject_filter:result.subjectFilter||null,
+    lecture_filter:result.lectureFilter||null,
+    total:result.total,
+    answered:result.answered,
+    correct:result.correct,
+    unanswered:result.unanswered,
+    accuracy:result.accuracy,
+    duration_seconds:result.durationSec,
+    exam_data:{list:result.list,answers:result.answers,auto:!!result.auto}
+  });
+  if(error)console.warn('Exam sync failed:',error.message);
+}
+
+async function loadSupabaseHistory(){
+  remoteHistoryLoaded=false;
+  if(!SUPABASE_ENABLED || !currentUser)return;
+  const {data,error}=await supabaseClient.from('exams').select('*').eq('user_id',currentUser.id).order('finished_at',{ascending:false});
+  if(error){console.warn('Exam history load failed:',error.message);return;}
+  remoteHistory=(data||[]).map(e=>({
+    id:e.id,date:e.finished_at,label:e.label||'Exam',moduleFilter:e.module_filter||'',subjectFilter:e.subject_filter||'',lectureFilter:e.lecture_filter||'',
+    total:e.total,answered:e.answered,correct:e.correct,unanswered:e.unanswered,accuracy:Number(e.accuracy||0),durationSec:e.duration_seconds||0,
+    list:e.exam_data?.list||[],answers:e.exam_data?.answers||{},auto:!!e.exam_data?.auto
+  }));
+  remoteHistoryLoaded=true;
+}
+
+async function loadGlobalAnalytics(){
+  if(!SUPABASE_ENABLED)return;
+  try{
+    const {data,error}=await supabaseClient.rpc('get_global_analytics');
+    if(error)throw error;
+    globalAnalytics=data||{modules:[],lectures:[],students:0,submittedExams:0,averageScore:0};
+  }catch(e){
+    console.warn('Global analytics unavailable:',e.message);
+    globalAnalytics={modules:[],lectures:[],students:0,submittedExams:0,averageScore:0};
+  }
+}
+
+function globalModuleStats(module){
+  return (globalAnalytics.modules||[]).find(x=>x.module===module) || {students:0,submitted_exams:0,average_score:0};
+}
+function globalSubjectStats(module,subject){
+  return (globalAnalytics.subjects||[]).find(x=>x.module===module && x.subject===subject) || {students:0,submitted_exams:0,average_score:0};
+}
+function globalLectureStats(module,subject,lecture){
+  return (globalAnalytics.lectures||[]).find(x=>x.module===module && x.subject===subject && x.lecture===lecture) || {students:0,submitted_exams:0,average_score:0};
+}
+function isModuleVisible(module){ return isAdmin || moduleVisibility[String(module||'').trim()] !== true; }
+async function loadModuleVisibility(){
+  moduleVisibility={};
+  if(!SUPABASE_ENABLED)return;
+  try{
+    const {data,error}=await supabaseClient.from('module_visibility').select('module,hidden');
+    if(error)throw error;
+    (data||[]).forEach(r=>{moduleVisibility[String(r.module)]=!!r.hidden;});
+  }catch(e){ console.warn('Module visibility load failed:',e.message); }
+}
+function applyModuleVisibility(){
+  if(!Array.isArray(allQuestionBank)||!allQuestionBank.length){ allQuestionBank=bank.slice(); }
+  bank=isAdmin ? allQuestionBank.slice() : allQuestionBank.filter(q=>isModuleVisible(q.module));
+}
+
+function authCard(){
+  if(!SUPABASE_ENABLED){
+    return `<div class="card" style="margin-bottom:16px">
+      <div class="category-head"><strong>Supabase is not connected yet</strong><span class="pill">Setup required</span></div>
+      <div class="mini" style="margin-top:8px">This version still works with local/GitHub data. After you paste your Supabase URL and publishable key into the two constants near the top of this file, student accounts and shared analytics will activate.</div>
+    </div>`;
+  }
+  if(currentUser){
+    return `<div class="card" style="margin-bottom:16px">
+      <div class="category-head"><strong>Student account</strong><span class="pill">Connected</span></div>
+      <div class="mini" style="margin-top:8px">${esc(currentUser.email||'Signed in')}</div>
+      <div class="actions" style="margin-top:10px"><button class="btn" onclick="signOutStudent()">Sign out</button></div>
+    </div>`;
+  }
+  return `<div class="card" style="margin-bottom:16px">
+    <div class="category-head"><strong>Student account</strong><span class="pill">Not signed in</span></div>
+    <div class="mini" style="margin-top:8px">Sign in to save your progress in Supabase and contribute anonymous aggregate performance to the all-student analytics.</div>
+    <div class="actions" style="margin-top:10px"><button class="btn primary" onclick="signInStudent()">Sign in</button><button class="btn" onclick="signUpStudent()">Create account</button></div>
+  </div>`;
+}
+
+function loadJSON(key, fallback){
+  try { const x = JSON.parse(localStorage.getItem(key)); return x ?? fallback; }
+  catch(e){ return fallback; }
+}
+function saveState(){
+  localStorage.setItem(CONFIG.progressKey, JSON.stringify(progress));
+  localStorage.setItem(CONFIG.settingsKey, JSON.stringify(settings));
+}
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme', settings.darkMode ? 'dark' : 'light');
+}
+function toggleDarkMode(){
+  settings.darkMode = !settings.darkMode;
+  saveState();
+  applyTheme();
+  render();
+}
+function esc(v){
+  return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+}
+function attrJs(v){
+  return String(v ?? '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'\\u003c');
+}
+function uid(q){ return String(q.id || '').trim(); }
+function key(q){ return uid(q); }
+
+function normalizeQuestion(q, source=''){
+  const options = Array.isArray(q.options) ? q.options.map(x=>String(x)) : [];
+  let ci = Number.isInteger(q.correctIndex) ? q.correctIndex : Number(q.correctIndex);
+  if(!Number.isInteger(ci)) ci = -1;
+  return {
+    id: uid(q),
+    module: String(q.module || q.section || 'General').trim() || 'General',
+    subject: String(q.subject || q.category || 'General').trim() || 'General',
+    lecture: String(q.lecture || 'General').trim() || 'General',
+    difficulty: String(q.difficulty || '').trim(),
+    reference: String(q.reference || '').trim(),
+    question: String(q.question || '').trim(),
+    options,
+    correctIndex: ci,
+    explanation: String(q.explanation || '').trim(),
+    source: source || String(q.source || '')
+  };
+}
+function validateQuestion(q, i){
+  if(!q.id) return 'Missing id';
+  if(!q.question) return 'Missing question';
+  if(!Array.isArray(q.options) || q.options.length < 2) return 'At least 2 options required';
+  if(!Number.isInteger(q.correctIndex) || q.correctIndex < 0 || q.correctIndex >= q.options.length) return 'Invalid correctIndex';
+  if(!q.module) return 'Missing module';
+  if(!q.subject) return 'Missing subject';
+  if(!q.lecture) return 'Missing lecture';
+  return '';
+}
+function validateBank(list){
+  const errors=[], seen=new Set();
+  list.forEach((raw,i)=>{
+    const q=normalizeQuestion(raw, raw.source);
+    const err=validateQuestion(q,i);
+    if(err) errors.push(`Question ${i+1} (${q.id||'no id'}): ${err}`);
+    if(q.id && seen.has(q.id)) errors.push(`Duplicate question ID: ${q.id}`);
+    if(q.id) seen.add(q.id);
+  });
+  return errors;
+}
+
+async function fetchJSON(url){
+  const r = await fetch(url + (url.includes('?')?'&':'?') + 'v=' + Date.now(), {cache:'no-store'});
+  if(!r.ok) throw new Error(`HTTP ${r.status} while loading ${url}`);
+  return await r.json();
+}
+async function loadQuestionsFromSupabase(){
+  if(!SUPABASE_ENABLED)return false;
+  try{
+    const PAGE_SIZE=1000;
+    const allRows=[];
+    for(let from=0;;from+=PAGE_SIZE){
+      const to=from+PAGE_SIZE-1;
+      const {data,error}=await supabaseClient
+        .from('questions')
+        .select('id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference')
+        .order('id',{ascending:true})
+        .range(from,to);
+      if(error)throw error;
+      if(!Array.isArray(data))throw new Error('Invalid questions response.');
+      allRows.push(...data);
+      if(data.length<PAGE_SIZE)break;
+    }
+    const data=allRows;
+    const all=data.map(q=>normalizeQuestion({
+      id:q.id,module:q.module,subject:q.subject,lecture:q.lecture,question:q.question,
+      options:q.options,correctIndex:q.correct_index,explanation:q.explanation,
+      difficulty:q.difficulty,reference:q.reference,source:'Supabase'
+    },'Supabase'));
+    const errors=validateBank(all);
+    if(errors.length)throw new Error(errors.slice(0,8).join('\n'));
+    const githubIds=new Set(all.map(q=>q.id));
+    const retainedLocal=localQuestions.filter(q=>!githubIds.has(q.id));
+    allQuestionBank=[...all,...retainedLocal];
+    localQuestions=retainedLocal;
+    applyModuleVisibility();
+    sourceFiles=['Supabase'];
+    lastSync=new Date();
+    localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+    localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:lastSync.toISOString(),sourceFiles,bank}));
+    return true;
+  }catch(e){
+    console.warn('Supabase question load failed:',e.message);
+    return false;
+  }
+}
+
+async function loadQuestions(){
+  const loaded=await loadQuestionsFromSupabase();
+  if(!loaded) await loadFromGitHub();
+}
+
+
+async function loadFromGitHub(){
+  const status = document.getElementById('syncStatus');
+  if(status) status.textContent='Loading latest questions…';
+  try{
+    const manifest = await fetchJSON(CONFIG.manifest);
+    let files = Array.isArray(manifest) ? manifest : manifest.files;
+    if(!Array.isArray(files)) throw new Error('questions/index.json must contain a "files" array.');
+    sourceFiles = files.map(x => typeof x === 'string' ? x : x.file).filter(Boolean);
+    if(!sourceFiles.length) throw new Error('No question files are listed in questions/index.json.');
+
+    const all=[];
+    for(const file of sourceFiles){
+      const data=await fetchJSON('./questions/'+file);
+      const list=Array.isArray(data) ? data : data.questions;
+      if(!Array.isArray(list)) throw new Error(`${file} must contain an array or { "questions": [...] }`);
+      list.forEach(q=>all.push(normalizeQuestion(q,file)));
+    }
+    const errors=validateBank(all);
+    if(errors.length) throw new Error(errors.slice(0,8).join('\\n'));
+    const githubIds = new Set(all.map(q=>q.id));
+    const retainedLocal = localQuestions.filter(q=>!githubIds.has(q.id));
+    allQuestionBank=[...all,...retainedLocal];
+    localQuestions=retainedLocal;
+    applyModuleVisibility();
+    localStorage.setItem(CONFIG.localQuestionsKey, JSON.stringify(localQuestions));
+    localStorage.setItem(CONFIG.cacheKey, JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+    lastSync=new Date();
+    render();
+    toast(`Loaded ${all.length} GitHub questions${retainedLocal.length?` + ${retainedLocal.length} local questions`:''}.`, 'ok');
+  }catch(e){
+    const cached=loadJSON(CONFIG.cacheKey,null);
+    if(cached && Array.isArray(cached.bank)){
+      const cachedIds = new Set(cached.bank.map(q=>q.id));
+      const retainedLocal = localQuestions.filter(q=>!cachedIds.has(q.id));
+      allQuestionBank=[...cached.bank,...retainedLocal];
+      localQuestions=retainedLocal;
+      applyModuleVisibility();
+      localStorage.setItem(CONFIG.localQuestionsKey, JSON.stringify(localQuestions));
+      sourceFiles=cached.sourceFiles||[];
+      lastSync=cached.updatedAt ? new Date(cached.updatedAt) : null;
+      render();
+      toast(`GitHub update failed. Using last saved bank. ${e.message}`, 'error');
+    }else{
+      bank=[];
+      render();
+      toast(`Could not load questions: ${e.message}`, 'error');
+    }
+  }
+}
+
+function getModules(){ return [...new Set(bank.map(q=>q.module))].sort((a,b)=>a.localeCompare(b)); }
+function getSubjects(module=''){
+  return [...new Set(bank.filter(q=>!module||q.module===module).map(q=>q.subject))].sort((a,b)=>a.localeCompare(b));
+}
+function getLectures(module='',subject=''){
+  return [...new Set(bank.filter(q=>(!module||q.module===module)&&(!subject||q.subject===subject)).map(q=>q.lecture))].sort((a,b)=>a.localeCompare(b));
+}
+function pct(a,b){ return b ? Math.round((a/b)*100) : 0; }
+function practicedCount(list){ return list.filter(q=>progress[key(q)] && progress[key(q)].attempts>0).length; }
+function accuracyStats(list){
+  let attempts=0, correct=0;
+  list.forEach(q=>{
+    const p=progress[key(q)];
+    if(p){attempts+=p.attempts||0;correct+=p.correct||0;}
+  });
+  return {correct,attempts,pct:pct(correct,attempts)};
+}
+function accuracyFor(list){ return accuracyStats(list).pct; }
+function progressStats(list){
+  const practiced=practicedCount(list);
+  return {done:practiced,total:list.length,pct:pct(practiced,list.length)};
+}
+function progressFor(list){ return progressStats(list).pct; }
+
+function toast(text,type=''){
+  const el=document.getElementById('toast');
+  if(!el)return;
+  el.className='notice '+(type||'');
+  el.textContent=text;
+  el.classList.remove('hidden');
+  clearTimeout(window._toast);
+  window._toast=setTimeout(()=>el.classList.add('hidden'),5000);
+}
+
+function layout(title,subtitle,body,actions=''){
+  return `<div class="top"><div><h1>${esc(title)}</h1><div class="sub">${esc(subtitle||'')}</div></div><div class="actions">${actions}</div></div>
+  <div id="toast" class="notice hidden"></div>${body}`;
+}
+
+function render(){
+  updateSidebarFoot();
+  const view=location.hash.replace('#','')||'dashboard';
+  const allowed=['dashboard','exam','progress','mistakes','bank','import','ai','aiquestions','settings','account','results','history'];
+  const v=allowed.includes(view)?view:'dashboard';
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+  const adminNav=document.getElementById('adminNav'); if(adminNav) adminNav.style.display=isAdmin?'flex':'none';
+  const bankNav=document.getElementById('bankNav'); if(bankNav) bankNav.style.display=isAdmin?'flex':'none';
+  if(v==='bank' && !isAdmin){ location.hash='dashboard'; return; }
+  if(v==='dashboard') renderDashboard();
+  else if(v==='exam') renderExamSetup();
+  else if(v==='progress') renderProgress();
+  else if(v==='history') renderHistory();
+  else if(v==='mistakes') renderMistakes();
+  else if(v==='bank') renderBank();
+  else if(v==='import') renderImport();
+  else if(v==='ai') renderAIAssistant();
+  else if(v==='aiquestions') renderAIQuestions();
+  else if(v==='settings') renderSettings();
+  else if(v==='account') renderAccount();
+  else renderResults();
+}
+function go(v){ location.hash=v; render(); }
+
+document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>{
+  go(b.dataset.view);
+  if(window.innerWidth<=880) setSidebar(false);
+}));
+window.addEventListener('hashchange',render);
+
+function setSidebar(open){ document.querySelector('.app').classList.toggle('sidebar-open',open); }
+function toggleSidebar(){ setSidebar(!document.querySelector('.app').classList.contains('sidebar-open')); }
+document.getElementById('sidebarOpen').addEventListener('click',toggleSidebar);
+document.getElementById('sidebarClose').addEventListener('click',()=>setSidebar(false));
+document.getElementById('scrim').addEventListener('click',()=>setSidebar(false));
+setSidebar(window.innerWidth>880);
+
+function updateSidebarFoot(){
+  const el=document.getElementById('sidebarFoot');
+  if(!el)return;
+  el.textContent=bank.length?`${bank.length} questions loaded`:'No questions loaded yet';
+}
+
+function renderDashboard(){
+  const modules=getModules();
+  const noticeHtml=(activeNotifications||[]).length ? activeNotifications.map(n=>`<div class="card" style="margin-bottom:16px;border-left:4px solid var(--primary)"><div class="category-head"><strong>${esc(n.title||'Announcement')}</strong><span class="mini">${n.created_at?new Date(n.created_at).toLocaleString():''}</span></div><div style="margin-top:8px;white-space:pre-wrap">${esc(n.message||'')}</div></div>`).join('') : '';
+  const body=`
+  ${noticeHtml}
+  <div class="grid stats">
+    <div class="card stat"><div class="label">Questions available</div><div class="value">${bank.length}</div></div>
+    <div class="card stat"><div class="label">Questions practiced</div><div class="value">${practicedCount(bank)}</div></div>
+    <div class="card stat"><div class="label">Overall progress</div><div class="value">${progressFor(bank)}%</div></div>
+    <div class="card stat"><div class="label">Overall accuracy</div><div class="value">${accuracyFor(bank)}%</div></div>
+    <div class="card stat"><div class="label">All-student submitted exams</div><div class="value">${globalAnalytics.submittedExams||0}</div><div class="mini">Average score: ${Number(globalAnalytics.averageScore||0).toFixed(1)}%</div></div>
+  </div>
+  <h2 class="section-title">Modules</h2>
+  <div class="grid three">${modules.map(m=>{
+    const list=bank.filter(q=>q.module===m);
+    return `<div class="card"><div class="category-head"><strong>${esc(m)}</strong><div style="display:flex;gap:8px;align-items:center"><span class="pill">${list.length} Q</span><button class="section-start-btn" onclick="startModuleExam('${attrJs(m)}')" title="Start an exam on ${esc(m)}" aria-label="Start an exam on ${esc(m)}"><svg viewBox="0 0 20 20" fill="currentColor"><polygon points="6,4 16,10 6,16"/></svg></button></div></div>
+    <div class="mini" style="margin:10px 0">Progress ${progressFor(list)}% · Accuracy ${accuracyFor(list)}%</div>
+    <div class="bar"><i style="width:${progressFor(list)}%"></i></div>
+    <div class="mini" style="margin-top:8px">${practicedCount(list)} of ${list.length} practiced</div></div>`;
+  }).join('') || '<div class="card empty">No questions loaded yet.</div>'}</div>
+  <h2 class="section-title">Recent exams</h2>
+  <div class="card">${renderRecentExamsList(3)}
+    <div class="actions" style="margin-top:12px"><button class="btn" onclick="go('history')">View full history</button></div>
+  </div>
+  <h2 class="section-title">GitHub question bank</h2>
+  <div class="card">
+    <div id="syncStatus">Source: <b>questions/index.json</b>${lastSync?` · Last successful sync: ${lastSync.toLocaleString()}`:''}</div>
+    <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="loadFromGitHub()">Refresh from GitHub</button><button class="btn" onclick="go('import')">Upload / Update Questions</button><button class="btn primary btn-lg" onclick="go('exam')">Start an Exam</button></div>
+  </div>`;
+  document.getElementById('app').innerHTML=layout('Dashboard','Your personal progress is stored in this browser.',body);
+}
+
+function renderExamSetup(){
+  const modules=getModules();
+  const body=`
+  <div class="card">
+    <div class="filters">
+      <div class="field"><label>Module</label><select id="examModule" onchange="updateExamSubjects()"><option value="">All modules</option>${modules.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
+      <div class="field"><label>Subject</label><select id="examSubject" onchange="updateExamLectures()"><option value="">All subjects</option>${getSubjects().map(s=>`<option>${esc(s)}</option>`).join('')}</select></div>
+      <div class="field"><label>Lecture</label><select id="examLecture"><option value="">All lectures</option>${getLectures().map(l=>`<option>${esc(l)}</option>`).join('')}</select></div>
+      <div class="field"><label>Number of questions</label><input id="examCount" type="number" min="1" value="${Math.min(20,bank.length||1)}"></div>
+      <div class="field"><label>Time limit (minutes, 0 = unlimited)</label><input id="examMinutes" type="number" min="0" value="0"></div>
+      <div class="field"><label>Answer display</label><select id="answerMode">
+        <option value="immediate" ${settings.showAnswerImmediately?'selected':''}>Show answer immediately after selection</option>
+        <option value="finish" ${!settings.showAnswerImmediately?'selected':''}>Show answers after finishing</option>
+      </select></div>
+    </div>
+    <div style="margin-top:14px" class="actions">
+      <button class="btn primary" onclick="startExam()">Start Exam</button>
+      <button class="btn" onclick="go('mistakes')">Practice Mistakes</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <strong>Exam behavior</strong>
+    <p class="mini">Questions are loaded from the current GitHub bank. Each question accepts exactly one selected answer. Choose whether the correct answer is revealed immediately after selection or only after the exam is finished. Your module/subject/lecture progress and accuracy update when the exam is submitted.</p>
+  </div>`;
+  document.getElementById('app').innerHTML=layout('Start Exam','Choose exactly what you want to practice.',body);
+}
+function updateExamSubjects(){
+  const m=document.getElementById('examModule').value;
+  document.getElementById('examSubject').innerHTML='<option value="">All subjects</option>'+getSubjects(m).map(s=>`<option>${esc(s)}</option>`).join('');
+  updateExamLectures();
+}
+function updateExamLectures(){
+  const m=document.getElementById('examModule').value;
+  const s=document.getElementById('examSubject').value;
+  document.getElementById('examLecture').innerHTML='<option value="">All lectures</option>'+getLectures(m,s).map(l=>`<option>${esc(l)}</option>`).join('');
+}
+function startExam(customList=null, overrides=null, customLabel=null){
+  if(!customList && !bank.length){toast('No questions are loaded. Refresh from GitHub first.','error');return;}
+  if(customList && !customList.length){toast('No questions to practice.','error');return;}
+
+  let list=customList||[...bank];
+  let answerMode=settings.showAnswerImmediately?'immediate':'finish';
+  let label=customLabel||'Random review', moduleFilter='', subjectFilter='', lectureFilter='';
+  let minutesValue=0;
+
+  if(customList){
+    label=customLabel||'Mistakes practice';
+  }
+
+  if(!customList){
+    let m,s,l,n;
+    if(overrides){
+      m=overrides.module||'';
+      s=overrides.subject||'';
+      l=overrides.lecture||'';
+      n=Math.max(1,Number(overrides.count)||20);
+      answerMode=overrides.answerMode||answerMode;
+      minutesValue=Number(overrides.minutes)||0;
+    } else {
+      m=document.getElementById('examModule').value;
+      s=document.getElementById('examSubject').value;
+      l=document.getElementById('examLecture').value;
+      n=Math.max(1,Number(document.getElementById('examCount').value)||1);
+      answerMode=document.getElementById('answerMode').value;
+      minutesValue=Number(document.getElementById('examMinutes').value)||0;
+    }
+
+    moduleFilter=m;
+    subjectFilter=s;
+    lectureFilter=l;
+
+    list=list.filter(q=>
+      (!m||q.module===m)&&
+      (!s||q.subject===s)&&
+      (!l||q.lecture===l)
+    );
+
+    if(!list.length){
+      toast('No questions match those filters.','error');
+      return;
+    }
+
+    /*
+      Adaptive question pool:
+      - Never answered questions are always eligible.
+      - Questions answered incorrectly remain eligible and can repeat.
+      - Questions answered correctly are removed from future exams.
+      - Reset Progress clears this memory and makes all questions eligible again.
+    */
+    const eligible=list.filter(q=>{
+      const p=progress[key(q)];
+      return !p || p.last!=='correct';
+    });
+
+    if(!eligible.length){
+      toast('All questions in this selection have been answered correctly. Reset progress to practice them again.','ok');
+      return;
+    }
+
+    list=shuffle([...eligible]).slice(0,Math.min(n,eligible.length));
+
+    // Always randomize answer order for every exam.
+    list=list.map(q=>{
+      const pairs=q.options.map((text,index)=>({text,index}));
+      shuffle(pairs);
+      return {
+        ...q,
+        options:pairs.map(x=>x.text),
+        correctIndex:pairs.findIndex(x=>x.index===q.correctIndex)
+      };
+    });
+
+    label=[m||'All modules',s||'All subjects',l||'All lectures'].join(' · ');
+  } else {
+    // Mistakes practice is also randomized, including answer order.
+    list=shuffle([...list]);
+    list=list.map(q=>{
+      const pairs=q.options.map((text,index)=>({text,index}));
+      shuffle(pairs);
+      return {
+        ...q,
+        options:pairs.map(x=>x.text),
+        correctIndex:pairs.findIndex(x=>x.index===q.correctIndex)
+      };
+    });
+  }
+
+  exam={
+    list,
+    index:0,
+    answers:{},
+    started:Date.now(),
+    minutes:customList?0:minutesValue,
+    answerMode,
+    submitted:false,
+    label,
+    moduleFilter,
+    subjectFilter,
+    lectureFilter
+  };
+
+  if(exam.minutes>0) startTimer(exam.minutes*60);
+  renderQuiz();
+}
+function startModuleExam(module){
+  startExam(null,{module,count:20});
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function startTimer(sec){
+  clearInterval(timerId);
+  timerId=setInterval(()=>{
+    if(!exam)return clearInterval(timerId);
+    const left=Math.max(0,sec-Math.floor((Date.now()-exam.started)/1000));
+    const t=document.getElementById('timer');if(t)t.textContent=formatTime(left);
+    if(left<=0){
+      clearInterval(timerId);
+      if(settings.autoSubmit) submitExam(true);
+      else {
+        const t=document.getElementById('timer');
+        if(t)t.textContent='00:00';
+        toast('Time is up. Review your answers and submit the exam.','error');
+      }
+    }
+  },250);
+}
+function formatTime(s){s=Math.max(0,Math.floor(s));return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
+
+function renderQuiz(){
+  if(!exam)return go('exam');
+  const q=exam.list[exam.index], selected=exam.answers[q.id];
+  const opts=q.options.map((o,i)=>`<button class="option ${selected===i?'selected':''}" onclick="chooseAnswer(${i})">${String.fromCharCode(65+i)}. ${esc(o)}</button>`).join('');
+  const nav=exam.list.map((item,i)=>{
+    const answered=exam.answers[item.id]!==undefined;
+    const wrong=answered && exam.answers[item.id]!==item.correctIndex;
+    const state=wrong?'wrong':answered?'answered':'';
+    return `<button class="qnav-btn ${i===exam.index?'current ':''}${state}" onclick="jumpToQuestion(${i})" title="Question ${i+1}${wrong?' — Wrong answer':answered?' — Correct answer':''}">${i+1}</button>`;
+  }).join('');
+  const remaining=exam.minutes?Math.max(0,exam.minutes*60-Math.floor((Date.now()-exam.started)/1000)):0;
+  const answeredCount=exam.list.filter(item=>exam.answers[item.id]!==undefined).length;
+  const body=`<div class="quiz"><div class="card">
+    <div class="qhead"><span class="pill">${exam.index+1} / ${exam.list.length}</span><span class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</span>${exam.minutes?`<span class="timer" id="timer">${formatTime(remaining)}</span>`:''}</div>
+    <div class="bar"><i style="width:${pct(exam.index,exam.list.length-1)}%"></i></div>
+    <div class="question-nav" aria-label="Question navigation">
+      <div style="width:100%;display:flex;justify-content:space-between;align-items:center">
+        <strong>Questions</strong><span class="mini">${answeredCount}/${exam.list.length} answered</span>
+      </div>
+      ${nav}
+      <div class="nav-legend" style="width:100%">
+        <span><i class="nav-dot"></i>Not answered</span>
+        <span><i class="nav-dot answered"></i>Correct</span><span><i class="nav-dot wrong"></i>Wrong</span>
+        <span><i class="nav-dot current"></i>Current</span>
+      </div>
+    </div>
+    <div class="question">${esc(q.question)}</div>
+    <div class="options">${opts}</div>
+    <div class="quiz-footer"><button class="btn" onclick="prevQ()" ${exam.index===0?'disabled':''}>Previous</button>
+    <button class="btn primary" onclick="${exam.index===exam.list.length-1?'submitExam(false)':'nextQ()'}">${exam.index===exam.list.length-1?'Submit Exam':'Next'}</button></div>
+  </div></div>`;
+  document.getElementById('app').innerHTML=layout('Exam','Use the numbered buttons to move between questions. Answered questions turn green.',body);
+}
+function jumpToQuestion(i){
+  if(!exam||exam.submitted||i<0||i>=exam.list.length)return;
+  exam.index=i;
+  renderQuiz();
+}
+function chooseAnswer(i){
+  if(!exam||exam.submitted)return;
+  const q=exam.list[exam.index];
+  if(exam.answerMode==='immediate' && exam.answers[q.id]!==undefined)return;
+
+  // Exactly one answer is stored. A new selection replaces the previous one.
+  exam.answers[q.id]=i;
+
+  const buttons=document.querySelectorAll('.option');
+  buttons.forEach((b,j)=>b.classList.toggle('selected',j===i));
+
+  if(exam.answerMode==='immediate'){
+    buttons.forEach((b,j)=>{
+      b.disabled=true;
+      if(j===q.correctIndex)b.classList.add('correct');
+      if(j===i&&i!==q.correctIndex)b.classList.add('wrong');
+    });
+    const box=document.createElement('div');
+    box.className='review '+(i===q.correctIndex?'good':'bad');
+    box.innerHTML=`<b>${i===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}`;
+    document.querySelector('.options').after(box);
+  }
+}
+function nextQ(){if(exam.index<exam.list.length-1){exam.index++;renderQuiz();}}
+function prevQ(){if(exam.index>0){exam.index--;renderQuiz();}}
+async function submitExam(auto){
+  if(!exam)return;
+  if(!auto && !confirm('Submit this exam now?'))return;
+  clearInterval(timerId);
+  let correct=0;
+  exam.list.forEach(q=>{
+    const a=exam.answers[q.id];
+    if(a===undefined)return;
+    const k=key(q);
+    if(!progress[k])progress[k]={attempts:0,correct:0,wrong:0,last:null};
+    progress[k].attempts++;
+    if(a===q.correctIndex){progress[k].correct++;correct++;progress[k].last='correct';}
+    else {progress[k].wrong++;progress[k].last='wrong';}
+  });
+  saveState();
+  const unanswered=exam.list.filter(q=>exam.answers[q.id]===undefined).length;
+  const durationSec=Math.round((Date.now()-exam.started)/1000);
+  const result={
+    id:'exam_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+    date:new Date().toISOString(),
+    label:exam.label||'Exam',
+    moduleFilter:exam.moduleFilter||'',
+    subjectFilter:exam.subjectFilter||'',
+    lectureFilter:exam.lectureFilter||'',
+    total:exam.list.length,
+    answered:exam.list.length-unanswered,
+    correct,
+    unanswered,
+    accuracy:pct(correct,exam.list.length-unanswered),
+    durationSec,
+    list:exam.list,
+    answers:exam.answers,
+    auto
+  };
+
+  if(SUPABASE_ENABLED && currentUser){
+    await saveExamToSupabase(result);
+    for(const q of exam.list){
+      const a=exam.answers[q.id];
+      if(a===undefined)continue;
+      await recordAttemptToSupabase(q,a,a===q.correctIndex,result.id);
+    }
+    await syncLocalProgressToSupabase();
+    await loadGlobalAnalytics();
+  }
+  exam=null;
+  localStorage.setItem(CONFIG.lastResultKey,JSON.stringify(result));
+  saveHistory(result);
+  go('results');
+}
+function saveHistory(entry){
+  const hist=loadJSON(CONFIG.historyKey,[]);
+  hist.unshift(entry); if(hist.length>200)hist.length=200;
+  localStorage.setItem(CONFIG.historyKey,JSON.stringify(hist));
+}
+function getHistory(){ return currentUser && remoteHistoryLoaded ? remoteHistory : (currentUser ? [] : loadJSON(CONFIG.historyKey,[])); }
+function renderRecentExamsList(n){
+  const hist=getHistory().slice(0,n);
+  if(!hist.length) return '<div class="empty">No exams completed yet.</div>';
+  return hist.map(h=>`<div class="progress-row" style="grid-template-columns:1fr 100px 90px 90px">
+    <div><b>${esc(h.label||'Exam')}</b><div class="mini">${new Date(h.date).toLocaleString()}</div></div>
+    <span class="pill">${h.correct}/${h.total}</span><span>${h.accuracy}% acc.</span>
+    <button class="btn" onclick="viewHistoryResult('${attrJs(h.id)}')">Review</button>
+  </div>`).join('');
+}
+async function viewHistoryResult(id){
+  const hist=getHistory(); const r=hist.find(h=>h.id===id);
+  if(!r){toast('That exam result was not found.','error');return;}
+  localStorage.setItem(CONFIG.lastResultKey,JSON.stringify(r)); go('results');
+}
+async function clearHistory(){
+  if(!confirm('Delete your exam history? This cannot be undone.'))return;
+  if(currentUser && SUPABASE_ENABLED){
+    const {error}=await supabaseClient.from('exams').delete().eq('user_id',currentUser.id);
+    if(error){toast('Could not clear cloud history: '+error.message,'error');return;}
+    remoteHistory=[];
+  }
+  localStorage.removeItem(CONFIG.historyKey); render(); toast('Exam history cleared.','ok');
+}
+function renderHistory(){
+  const hist=getHistory();
+  const avgAcc=hist.length?Math.round(hist.reduce((s,h)=>s+Number(h.accuracy||0),0)/hist.length):0;
+  const bestAcc=hist.length?Math.max(...hist.map(h=>Number(h.accuracy||0))):0;
+  const rows=hist.map(h=>`<div class="category-card"><div class="category-head"><div><b>${esc(h.label||'Exam')}</b><div class="mini">${new Date(h.date).toLocaleString()} · ${h.durationSec?formatTime(h.durationSec)+' taken':'no timer'}${h.auto?' · time expired':''}</div></div><span class="pill">${h.correct}/${h.total} correct · ${h.accuracy}%</span></div><div class="bar" style="margin-top:10px"><i style="width:${Math.min(100,Math.max(0,Number(h.accuracy)||0))}%"></i></div><div class="mini" style="margin-top:8px">${h.answered} answered · ${h.unanswered} unanswered</div><div class="actions" style="margin-top:10px"><button class="btn" onclick="viewHistoryResult('${attrJs(h.id)}')">Review this exam</button></div></div>`).join('');
+  const body=`${currentUser?`<div class="notice ok" style="margin-bottom:14px">Signed in: your history is loaded from Supabase and follows you to other devices.</div>`:authCard()}<div class="grid stats"><div class="card stat"><div class="label">Exams taken</div><div class="value">${hist.length}</div></div><div class="card stat"><div class="label">Average accuracy</div><div class="value">${avgAcc}%</div></div><div class="card stat"><div class="label">Best accuracy</div><div class="value">${bestAcc}%</div></div><div class="card stat"><div class="label">Last exam</div><div class="value" style="font-size:16px">${hist.length?new Date(hist[0].date).toLocaleDateString():'—'}</div></div></div><h2 class="section-title">All exams</h2><div class="card">${rows||'<div class="empty">No exams completed yet.</div>'}${hist.length?`<div class="actions" style="margin-top:12px"><button class="btn danger" onclick="clearHistory()">Clear history</button></div>`:''}</div>`;
+  document.getElementById('app').innerHTML=layout('Exam History',currentUser?'Cloud history for this account.':'Sign in to keep history across devices.',body);
+}
+
+function renderAccount(){
+  if(!SUPABASE_ENABLED){document.getElementById('app').innerHTML=layout('Account','Supabase connection is required.',`<div class="card"><div class="notice error">Supabase is not connected.</div></div>`);return;}
+  if(currentUser){
+    const body=`<div class="card"><h2>Account</h2><div class="mini" style="margin-top:8px">${esc(currentUser.email||'')}</div><div class="actions" style="margin-top:16px"><button class="btn danger" onclick="signOutStudent()">Sign out</button></div></div><div class="card" style="margin-top:16px"><strong>Your data is cloud-synced</strong><p class="mini">Exam history, question progress and aggregate analytics are tied to your Supabase account, so they can be loaded on another device after signing in.</p></div>`;
+    document.getElementById('app').innerHTML=layout('Account','Your student account.',body); return;
+  }
+  const body=`<div class="card" style="max-width:520px;margin:auto"><div class="tabbar"><button id="loginTab" class="active" onclick="showAuthMode('login')">Sign in</button><button id="signupTab" onclick="showAuthMode('signup')">Create account</button></div><div id="authForm"></div></div>`;
+  document.getElementById('app').innerHTML=layout('Student Account','Sign in to keep your progress and exam history across devices.',body); showAuthMode('login');
+}
+function showAuthMode(mode){
+  const form=document.getElementById('authForm'); if(!form)return;
+  document.getElementById('loginTab')?.classList.toggle('active',mode==='login'); document.getElementById('signupTab')?.classList.toggle('active',mode==='signup');
+  form.innerHTML=`<div class="field"><label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com"></div><div class="field" style="margin-top:10px"><label>Password</label><input id="authPassword" type="password" autocomplete="${mode==='login'?'current-password':'new-password'}" placeholder="At least 6 characters"></div>${mode==='signup'?'<div class="field" style="margin-top:10px"><label>Confirm password</label><input id="authConfirm" type="password" autocomplete="new-password" placeholder="Repeat password"></div>':''}<button class="btn primary" style="width:100%;margin-top:16px" onclick="submitAuth('${mode}')">${mode==='login'?'Sign in':'Create account'}</button><div class="mini" style="margin-top:12px">${mode==='login'?'Use the same account on every device.':'After registration, confirm your email if email confirmation is enabled in Supabase.'}</div>`;
+}
+async function submitAuth(mode){
+  const email=document.getElementById('authEmail')?.value||'', password=document.getElementById('authPassword')?.value||'';
+  if(mode==='signup' && password!==document.getElementById('authConfirm')?.value){toast('Passwords do not match.','error');return;}
+  if(mode==='signup') await signUpStudent(email,password); else await signInStudent(email,password);
+}
+
+function renderResults(){
+  const r=loadJSON(CONFIG.lastResultKey,null);
+  if(!r){go('dashboard');return;}
+  const rows=r.list.map((q,i)=>{
+    const a=r.answers[q.id], ok=a===q.correctIndex;
+    const choices=q.options.map((o,j)=>{
+      let cls='review-choice';
+      if(j===q.correctIndex) cls+=' correct';
+      if(j===a && j!==q.correctIndex) cls+=' wrong';
+      if(j===a) cls+=' selected';
+      const tag=j===q.correctIndex?' — Correct answer':j===a?' — Your answer':'';
+      return `<div class="${cls}"><b>${String.fromCharCode(65+j)}.</b> ${esc(o)}<span class="mini">${tag}</span></div>`;
+    }).join('');
+    return `<div class="category-card" style="margin-bottom:14px">
+      <div><b>${i+1}. ${esc(q.question)}</b></div>
+      <div class="mini" style="margin-top:6px">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</div>
+      <div style="margin-top:12px">${choices}</div>
+      <div class="review ${a===undefined?'bad':ok?'good':'bad'}">${a===undefined?'Unanswered':ok?'Correct':'Incorrect'} · Your answer: ${a===undefined?'—':esc(q.options[a])}<br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b>${q.explanation?`<br>${esc(q.explanation)}`:''}</div>
+    </div>`;
+  }).join('');
+  const meta=`<div class="mini">${esc(r.label||'Exam')} · ${r.date?new Date(r.date).toLocaleString():''}${r.durationSec?' · '+formatTime(r.durationSec)+' taken':''}</div>`;
+  const body=`${meta}
+  <div class="grid stats" style="margin-top:10px"><div class="card stat"><div class="label">Score</div><div class="value">${r.correct}/${r.total}</div></div><div class="card stat"><div class="label">Accuracy</div><div class="value">${r.accuracy}%</div></div><div class="card stat"><div class="label">Answered</div><div class="value">${r.answered}</div></div><div class="card stat"><div class="label">Unanswered</div><div class="value">${r.unanswered}</div></div></div>
+  <h2 class="section-title">Full review</h2><div>${rows}</div><div class="actions" style="margin-top:14px"><button class="btn primary" onclick="go('exam')">New Exam</button><button class="btn" onclick="go('history')">Exam History</button><button class="btn" onclick="go('progress')">View Progress</button></div>`;
+  document.getElementById('app').innerHTML=layout('Exam Results',r.auto?'Time expired — exam submitted automatically.':'Exam completed.',body);
+}
+
+function renderProgress(){
+  const modules=[...new Set(allQuestionBank.map(q=>q.module))].filter(isModuleVisible).sort((a,b)=>a.localeCompare(b));
+  const moduleRows=modules.map(m=>{
+    const list=bank.filter(q=>q.module===m);
+    const personalP=progressStats(list);
+    const subjects=getSubjects(m);
+    const subjectRows=subjects.map(subject=>{
+      const slist=list.filter(q=>q.subject===subject);
+      const sp=progressStats(slist);
+      const lectures=getLectures(m,subject);
+      const lectureRows=lectures.map(lecture=>{
+        const llist=slist.filter(q=>q.lecture===lecture);
+        const lp=progressStats(llist);
+        return `<div class="progress-row" style="grid-template-columns:minmax(170px,1.2fr) 1fr">
+          <span><b>${esc(lecture)}</b><div class="mini">${llist.length} questions</div></span>
+          <div><div class="bar"><i style="width:${lp.pct}%"></i></div><div class="mini" style="margin-top:4px">Progress ${lp.done}/${lp.total} · Accuracy ${accuracyStats(llist).pct}%</div></div>
+        </div>`;
+      }).join('');
+      return `<div class="category-card" style="margin-top:10px">
+        <div class="category-head"><div><b>${esc(subject)}</b><div class="mini">${slist.length} questions</div></div></div>
+        <div style="margin-top:8px"><div class="bar"><i style="width:${sp.pct}%"></i></div></div>
+        <div style="margin-top:10px">${lectureRows||'<div class="empty">No lectures.</div>'}</div>
+      </div>`;
+    }).join('');
+    return `<div class="card" style="margin-bottom:14px">
+      <div class="category-head"><div><h3 style="margin:0">${esc(m)}</h3><div class="mini">${list.length} questions</div></div></div>
+      <div class="bar" style="margin-top:10px"><i style="width:${personalP.pct}%"></i></div>
+      <div style="margin-top:12px">${subjectRows||'<div class="empty">No subjects.</div>'}</div>
+    </div>`;
+  }).join('');
+
+  const myP=progressStats(bank), myA=accuracyStats(bank);
+  const body=`
+    <div class="grid stats">
+      <div class="card stat"><div class="label">My progress</div><div class="value">${myP.done}/${myP.total}</div><div class="mini">${myP.pct}% of available questions mastered</div></div>
+      <div class="card stat"><div class="label">My accuracy</div><div class="value">${myA.correct}/${myA.attempts}</div><div class="mini">${myA.pct}%</div></div>
+    </div>
+    <h2 class="section-title">Detailed progress: Module → Subject → Lecture</h2>
+    ${moduleRows||'<div class="card empty">No visible modules or questions loaded.</div>'}
+    <div class="card"><button class="btn danger" onclick="resetProgress()">Reset my progress</button><span class="mini" style="margin-left:10px">This resets browser progress. Cloud records are not deleted.</span></div>`;
+  document.getElementById('app').innerHTML=layout('Progress & Accuracy','Track your personal progress and accuracy for every module, subject and lecture.',body);
+}
+function resetProgress(){
+  if(confirm('Reset your local progress?')){
+    progress={};saveState();render();toast('Local progress reset.','ok');
+  }
+}
+function renderMistakes(){
+  const wrong=bank.filter(q=>progress[key(q)]&&progress[key(q)].wrong>0);
+  const body=`<div class="card"><div class="category-head"><strong>${wrong.length} questions in your mistakes bank</strong><span class="mini">Wrong answers are retained locally.</span></div>
+  ${wrong.length?`<div style="margin-top:14px">${wrong.map(q=>`<div class="category-card"><div class="category-head"><b>${esc(q.question)}</b><span class="pill">${progress[key(q)].wrong} wrong</span></div><div class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)} · Correct: ${esc(q.options[q.correctIndex])}</div></div>`).join('')}</div>
+  <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startExam(bank.filter(q=>progress[key(q)]&&progress[key(q)].wrong>0))">Practice Mistakes</button></div>`:'<div class="empty">No mistakes yet. Great work.</div>'}</div>`;
+  document.getElementById('app').innerHTML=layout('Mistakes','Questions you answered incorrectly at least once.',body);
+}
+
+function renderBank(){
+  const modules=getModules();
+  const body=`<div class="card"><div class="actions" style="margin-bottom:12px"><button class="btn primary" onclick="go('import')">+ Add questions</button><span class="mini">Built-in questions are saved locally in this browser.</span></div><div class="filters"><div class="field"><label>Search</label><input id="bankSearch" oninput="filterBank()" placeholder="Search question, ID, subject or lecture"></div><div class="field"><label>Module</label><select id="bankModule" onchange="filterBank()"><option value="">All</option>${modules.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div><div class="field"><label>Subject</label><select id="bankSubject" onchange="filterBank()"><option value="">All</option>${getSubjects().map(s=>`<option>${esc(s)}</option>`).join('')}</select></div><div class="field"><label>Lecture</label><select id="bankLecture" onchange="filterBank()"><option value="">All</option>${getLectures().map(l=>`<option>${esc(l)}</option>`).join('')}</select></div></div><div class="filters" style="margin-top:10px"><div class="field"><label>Source</label><select id="bankSource" onchange="filterBank()"><option value="">All files</option>${sourceFiles.map(f=>`<option>${esc(f)}</option>`).join('')}</select></div></div></div>
+  <div class="card" style="margin-top:16px"><div class="table-wrap"><table class="table"><thead><tr><th>ID</th><th>Module</th><th>Subject</th><th>Lecture</th><th>Question</th><th>Progress</th></tr></thead><tbody id="bankRows"></tbody></table></div></div>`;
+  document.getElementById('app').innerHTML=layout('Question Bank','Questions are loaded from Supabase when connected, with GitHub as a fallback.',body);
+  filterBank();
+}
+let bankPage=0;
+const BANK_PAGE_SIZE=500;
+function filterBank(resetPage=true){
+  const s=(document.getElementById('bankSearch')?.value||'').toLowerCase(),mod=document.getElementById('bankModule')?.value||'',subj=document.getElementById('bankSubject')?.value||'',lect=document.getElementById('bankLecture')?.value||'',src=document.getElementById('bankSource')?.value||'';
+  if(resetPage) bankPage=0;
+  const list=bank.filter(q=>(!s||[q.id,q.question,q.subject,q.module,q.lecture].join(' ').toLowerCase().includes(s))&&(!mod||q.module===mod)&&(!subj||q.subject===subj)&&(!lect||q.lecture===lect)&&(!src||q.source===src));
+  const rows=document.getElementById('bankRows');if(!rows)return;
+  const totalPages=Math.max(1,Math.ceil(list.length/BANK_PAGE_SIZE));
+  if(bankPage>=totalPages) bankPage=totalPages-1;
+  const start=bankPage*BANK_PAGE_SIZE;
+  const pageRows=list.slice(start,start+BANK_PAGE_SIZE);
+  rows.innerHTML=pageRows.map(q=>`<tr><td><b>${esc(q.id)}</b></td><td>${esc(q.module)}</td><td>${esc(q.subject)}</td><td>${esc(q.lecture)}</td><td>${esc(q.question)}</td><td>${progressFor([q])}% · ${accuracyFor([q])}% acc.</td></tr>`).join('')||'<tr><td colspan="6" class="empty">No matching questions.</td></tr>';
+  const table=rows.closest('.table-wrap');
+  if(table){
+    let pager=document.getElementById('bankPager');
+    if(!pager){ pager=document.createElement('div'); pager.id='bankPager'; pager.className='actions'; table.parentElement.appendChild(pager); }
+    pager.innerHTML=`<span class="mini">Showing ${list.length?start+1:0}–${Math.min(start+BANK_PAGE_SIZE,list.length)} of ${list.length} matching questions</span><button class="btn" ${bankPage<=0?'disabled':''} onclick="bankPage--;filterBank(false)">Previous</button><span class="mini">Page ${bankPage+1} / ${totalPages}</span><button class="btn" ${bankPage>=totalPages-1?'disabled':''} onclick="bankPage++;filterBank(false)">Next</button>`;
+  }
+}
+
+function renderImport(){
+  if(!currentUser){ document.getElementById('app').innerHTML=layout('Admin','Question management is restricted to administrators.',`<div class="card"><div class="notice error">Please sign in to an administrator account from the Account page.</div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="go('account')">Go to Account</button></div></div>`); return; }
+  if(!isAdmin){ document.getElementById('app').innerHTML=layout('Admin','Restricted area',`<div class="card"><div class="notice error">Your account does not have administrator permissions.</div><div class="mini" style="margin-top:8px">Only accounts listed in the Supabase admin_users table can manage the question bank.</div></div>`); return; }
+  const body=`<div class="grid two">
+    <div class="card">
+      <h3 style="margin-top:0">Add a question built in</h3>
+      <div class="field"><label>Question ID</label><input id="newQId" placeholder="e.g. cardio-101"></div>
+      <div class="grid three" style="margin-top:10px">
+        <div class="field"><label>Module</label><input id="newQModule" placeholder="e.g. Cardiology"></div>
+        <div class="field"><label>Subject</label><input id="newQSubject" placeholder="e.g. Arrhythmias"></div>
+        <div class="field"><label>Lecture</label><input id="newQLecture" placeholder="e.g. Lecture 3: AV Block"></div>
+      </div>
+      <div class="field" style="margin-top:10px"><label>Question</label><textarea id="newQText" style="min-height:90px;font-family:var(--font-sans);font-size:14px" placeholder="Write the question…"></textarea></div>
+      <div class="field" style="margin-top:10px"><label>Answer options</label>
+        <input id="newQOpt0" placeholder="Option A" style="margin-bottom:7px">
+        <input id="newQOpt1" placeholder="Option B" style="margin-bottom:7px">
+        <input id="newQOpt2" placeholder="Option C" style="margin-bottom:7px">
+        <input id="newQOpt3" placeholder="Option D">
+      </div>
+      <div class="grid two" style="margin-top:10px">
+        <div class="field"><label>Correct answer</label><select id="newQCorrect"><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option></select></div>
+        <div class="field"><label>Explanation (optional)</label><input id="newQExplanation" placeholder="Why is this correct?"></div>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="btn primary" onclick="addBuiltInQuestion()">Add question</button>
+        <button class="btn" onclick="clearQuestionForm()">Clear</button>
+      </div>
+      <div class="mini" style="margin-top:10px">Only administrators can add questions to the shared Supabase database.</div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">Bulk import questions with JSON</h3>
+      <div class="field"><label>Upload JSON</label><input id="jsonFile" type="file" accept=".json,application/json"></div>
+      <div class="actions" style="margin-top:10px"><button class="btn" onclick="previewUploaded()">Preview</button></div>
+      <div class="field" style="margin-top:14px"><label>Or paste JSON</label><textarea id="jsonText" placeholder='[{"id":"pharma-001","module":"Pharmacology","subject":"Autonomic","lecture":"Lecture 1: Cholinergics","question":"…","options":["A","B","C","D"],"correctIndex":1,"explanation":"…"}]'></textarea></div>
+      <div class="actions"><button class="btn" onclick="previewPasted()">Preview</button><button class="btn" onclick="downloadTemplate()">Download template</button></div>
+    </div>
+  </div>
+
+  <div id="importPreview" class="card" style="margin-top:16px"><div class="empty">Add a question above, or preview a JSON set here.</div></div>
+
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin-top:0">Module visibility</h3>
+    <div class="mini" style="margin-bottom:12px">Hide a module from students without deleting its questions. Hidden modules remain visible to administrators.</div>
+    <div id="adminModuleVisibility"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin-top:0">Local questions</h3>
+    <div class="category-head"><span>${localQuestions.length} question${localQuestions.length===1?'':'s'} added in this browser</span>${localQuestions.length?'<button class="btn danger" onclick="clearLocalQuestions()">Remove local questions</button>':''}</div>
+    ${localQuestions.length?`<div style="margin-top:12px">${localQuestions.slice().reverse().slice(0,20).map(q=>`<div class="category-card"><div class="category-head"><b>${esc(q.id)}</b><button class="btn" onclick="removeLocalQuestion(${JSON.stringify(q.id).replace(/</g,"\u003c")})">Remove</button></div><div class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</div><div style="margin-top:5px">${esc(q.question)}</div></div>`).join('')}</div>`:'<div class="empty">No built-in questions have been added yet.</div>'}
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin-top:0">Manage shared question bank</h3>
+    <div class="grid two">
+      <div class="field"><label>Find question</label><input id="adminQuestionSearch" placeholder="Search ID, module, subject, lecture, or question" oninput="renderAdminQuestionList()"></div>
+      <div class="field"><label>Database status</label><div class="notice ok" style="margin:0">${SUPABASE_ENABLED?'Connected to Supabase':'Not connected'}</div></div>
+    </div>
+    <div class="mini" style="margin-top:10px">Updating a question with the same ID through JSON replaces it. Deleting a question removes it from the shared bank.</div>
+    <div id="adminQuestionList" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin-top:0">Dashboard notification</h3>
+    <div class="mini" style="margin-bottom:12px">Send a specific message to students. It will appear at the top of their Dashboard.</div>
+    <div class="grid two">
+      <div class="field"><label>Notification title</label><input id="adminNoticeTitle" placeholder="e.g. Important announcement"></div>
+      <div class="field"><label>Message</label><textarea id="adminNoticeMessage" placeholder="Write the message for students…" style="min-height:90px;font-family:var(--font-sans);font-size:14px"></textarea></div>
+    </div>
+    <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="publishDashboardNotification()">Publish notification</button><button class="btn" onclick="loadAdminNotifications()">Refresh notifications</button></div>
+    <div id="adminNotifications" style="margin-top:14px"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3 style="margin-top:0">How to update everyone</h3>
+    <ol><li>Edit or upload your JSON file into the repository's <b>questions/</b> folder on GitHub.</li><li>Make sure <b>questions/index.json</b> lists the filename.</li><li>Commit the change.</li><li>Users click <b>Refresh from GitHub</b>.</li></ol>
+    <div class="notice">Only this admin page can change the shared question bank. Students can read questions but cannot upload, edit, or delete them.</div>
+  </div>`;
+  document.getElementById('app').innerHTML=layout('Admin · Question Bank','Upload, update, add, and remove questions for all students.',body);
+  renderAdminQuestionList();
+  renderModuleVisibility();
+  loadAdminNotifications();
+}
+
+async function loadActiveNotifications(){
+  activeNotifications=[];
+  if(!SUPABASE_ENABLED)return;
+  try{
+    const {data,error}=await supabaseClient.from('site_notifications').select('id,title,message,created_at').eq('active',true).order('created_at',{ascending:false}).limit(5);
+    if(error)throw error;
+    activeNotifications=data||[];
+  }catch(e){ console.warn('Notifications unavailable:',e.message); }
+}
+async function loadAdminNotifications(){
+  const el=document.getElementById('adminNotifications'); if(!el)return;
+  if(!(await requireAdmin()))return;
+  if(!SUPABASE_ENABLED){el.innerHTML='<div class="notice error">Supabase is required for shared notifications.</div>';return;}
+  const {data,error}=await supabaseClient.from('site_notifications').select('id,title,message,active,created_at').order('created_at',{ascending:false}).limit(20);
+  if(error){el.innerHTML='<div class="notice error">Could not load notifications: '+esc(error.message)+'</div>';return;}
+  el.innerHTML=(data||[]).length?(data||[]).map(n=>`<div class="category-card"><div class="category-head"><div><b>${esc(n.title||'Announcement')}</b><div class="mini">${n.created_at?new Date(n.created_at).toLocaleString():''} · ${n.active?'Active':'Inactive'}</div></div><button class="btn ${n.active?'danger':'primary'}" onclick="setNotificationActive('${attrJs(n.id)}',${!n.active})">${n.active?'Hide':'Show'}</button></div><div style="margin-top:7px;white-space:pre-wrap">${esc(n.message||'')}</div></div>`).join(''):'<div class="empty">No notifications yet.</div>';
+}
+async function publishDashboardNotification(){
+  if(!(await requireAdmin()))return;
+  const title=(document.getElementById('adminNoticeTitle')?.value||'').trim();
+  const message=(document.getElementById('adminNoticeMessage')?.value||'').trim();
+  if(!title||!message){toast('Enter a notification title and message.','error');return;}
+  const {error}=await supabaseClient.from('site_notifications').insert({title,message,active:true,created_by:currentUser.id});
+  if(error){toast('Could not publish notification: '+error.message,'error');return;}
+  document.getElementById('adminNoticeTitle').value='';
+  document.getElementById('adminNoticeMessage').value='';
+  await loadActiveNotifications();
+  loadAdminNotifications();
+  toast('Notification published to the Dashboard.','ok');
+}
+async function setNotificationActive(id,active){
+  if(!(await requireAdmin()))return;
+  const {error}=await supabaseClient.from('site_notifications').update({active}).eq('id',id);
+  if(error){toast('Could not update notification: '+error.message,'error');return;}
+  await loadActiveNotifications();
+  loadAdminNotifications();
+  if(location.hash.replace('#','')==='dashboard')renderDashboard();
+  toast(active?'Notification shown to users.':'Notification hidden from users.','ok');
+}
+
+function renderModuleVisibility(){
+  const el=document.getElementById('adminModuleVisibility'); if(!el)return;
+  const modules=[...new Set(allQuestionBank.map(q=>q.module))].sort((a,b)=>a.localeCompare(b));
+  if(!modules.length){el.innerHTML='<div class="empty">No modules found.</div>';return;}
+  el.innerHTML=modules.map(m=>{const hidden=moduleVisibility[m]===true; const count=allQuestionBank.filter(q=>q.module===m).length; return `<div class="progress-row" style="grid-template-columns:1fr 100px 120px"><div><b>${esc(m)}</b><div class="mini">${count} questions</div></div><span class="pill">${hidden?'Hidden':'Visible'}</span><button class="btn ${hidden?'primary':'danger'}" onclick="toggleModuleVisibility(${JSON.stringify(m).replace(/</g,'\u003c')})">${hidden?'Show module':'Hide module'}</button></div>`;}).join('');
+}
+async function toggleModuleVisibility(module){
+  if(!(await requireAdmin()))return;
+  const hidden=moduleVisibility[module]===true;
+  const {error}=await supabaseClient.rpc('admin_set_module_visibility',{p_module:module,p_hidden:!hidden});
+  if(error){toast('Could not change module visibility: '+error.message,'error');return;}
+  await loadModuleVisibility(); applyModuleVisibility(); render();
+  toast(`${module} is now ${hidden?'visible to':'hidden from'} students.`,'ok');
+}
+
+
+function renderAdminQuestionList(){
+  const el=document.getElementById('adminQuestionList');
+  if(!el)return;
+  const term=(document.getElementById('adminQuestionSearch')?.value||'').trim().toLowerCase();
+  const adminSource=allQuestionBank.length?allQuestionBank:bank;
+  const rows=adminSource.filter(q=>{
+    if(!term)return true;
+    return [q.id,q.module,q.subject,q.lecture,q.question].some(v=>String(v||'').toLowerCase().includes(term));
+  }).slice(0,100);
+  el.innerHTML=rows.length?rows.map(q=>`<div class="category-card"><div class="category-head"><div><b>${esc(q.id)}</b><div class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</div></div><button class="btn danger" onclick="deleteAdminQuestion(${JSON.stringify(q.id).replace(/</g,"\\u003c")})">Delete</button></div><div style="margin-top:7px">${esc(q.question)}</div></div>`).join(''):'<div class="empty">No questions match your search.</div>';
+}
+async function deleteAdminQuestion(id){
+  if(!(await requireAdmin()))return;
+  if(!confirm(`Delete question "${id}" from the shared database? This cannot be undone.`))return;
+  const {error}=await supabaseClient.rpc('admin_delete_question',{p_question_id:id});
+  if(error){toast('Delete failed: '+error.message,'error');return;}
+  allQuestionBank=allQuestionBank.filter(q=>q.id!==id);
+  bank=bank.filter(q=>q.id!==id);
+  await loadQuestionsFromSupabase();
+  render();
+  toast(`Question "${id}" deleted from Supabase.`,'ok');
+}
+
+async function addBuiltInQuestion(){
+  if(!(await requireAdmin())) return;
+  const q=normalizeQuestion({
+    id:document.getElementById('newQId').value,
+    module:document.getElementById('newQModule').value,
+    subject:document.getElementById('newQSubject').value,
+    lecture:document.getElementById('newQLecture').value,
+    question:document.getElementById('newQText').value,
+    options:[
+      document.getElementById('newQOpt0').value,
+      document.getElementById('newQOpt1').value,
+      document.getElementById('newQOpt2').value,
+      document.getElementById('newQOpt3').value
+    ],
+    correctIndex:Number(document.getElementById('newQCorrect').value),
+    explanation:document.getElementById('newQExplanation').value
+  });
+
+  const error=validateQuestion(q,0);
+  if(error){toast('Cannot add question: '+error,'error');return}
+  if(bank.some(x=>x.id===q.id) || localQuestions.some(x=>x.id===q.id)){
+    toast('A question with this ID already exists. Use a unique ID.','error');return;
+  }
+
+  q.source=SUPABASE_ENABLED && currentUser ? 'Supabase' : 'Built in';
+
+  if(SUPABASE_ENABLED && currentUser){
+    const {error}=await supabaseClient.from('questions').insert({
+      id:q.id,module:q.module,subject:q.subject,lecture:q.lecture,
+      question:q.question,options:q.options,correct_index:q.correctIndex,
+      explanation:q.explanation,difficulty:q.difficulty||null,reference:q.reference||null
+    });
+    if(error){toast('Could not save to Supabase: '+error.message,'error');return;}
+    bank.push(q);
+    clearQuestionForm();
+    await loadQuestionsFromSupabase();
+    await loadGlobalAnalytics();
+    render();
+    toast(`Question "${q.id}" added to the shared database.`,'ok');
+    return;
+  }
+
+  localQuestions.push(q);
+  bank.push(q);
+  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  clearQuestionForm();
+  render();
+  toast(`Question "${q.id}" added locally. Sign in to Supabase to make it available to everyone.`,'ok');
+}
+
+function clearQuestionForm(){
+  ['newQId','newQModule','newQSubject','newQLecture','newQText','newQOpt0','newQOpt1','newQOpt2','newQOpt3','newQExplanation'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  const c=document.getElementById('newQCorrect'); if(c)c.value='0';
+}
+
+function removeLocalQuestion(id){
+  if(!confirm(`Remove local question "${id}" from this browser?`))return;
+  localQuestions=localQuestions.filter(q=>q.id!==id);
+  bank=bank.filter(q=>q.id!==id);
+  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  render();
+  toast('Local question removed.','ok');
+}
+
+function clearLocalQuestions(){
+  if(!localQuestions.length)return;
+  if(!confirm(`Remove all ${localQuestions.length} locally added questions from this browser?`))return;
+  const ids=new Set(localQuestions.map(q=>q.id));
+  localQuestions=[];
+  bank=bank.filter(q=>!ids.has(q.id));
+  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  render();
+  toast('Local questions removed.','ok');
+}
+
+async function previewUploaded(){
+  const input=document.getElementById('jsonFile');
+  const f=input?.files?.[0];
+  if(!f){toast('Choose a JSON file first.','error');return;}
+  try{
+    const text=await f.text();
+    const data=JSON.parse(text);
+    showImportPreview(data);
+  }catch(e){
+    document.getElementById('importPreview').innerHTML=`<div class="notice error">Invalid JSON: ${esc(e.message||String(e))}</div>`;
+    toast('Invalid JSON file. Check the preview area for details.','error');
+  }
+}
+function previewPasted(){
+  const text=(document.getElementById('jsonText')?.value||'').trim();
+  if(!text){toast('Paste your JSON first.','error');return;}
+  try{showImportPreview(JSON.parse(text));}
+  catch(e){
+    document.getElementById('importPreview').innerHTML=`<div class="notice error">Invalid JSON: ${esc(e.message||String(e))}</div>`;
+    toast('Invalid JSON. Check the preview area for details.','error');
+  }
+}
+function getImportList(data){
+  const list=Array.isArray(data)?data:data?.questions;
+  return Array.isArray(list)?list:null;
+}
+function showImportPreview(data){
+  const list=getImportList(data);
+  const preview=document.getElementById('importPreview');
+  if(!preview)return;
+  pendingImportQuestions=[];
+  if(!list){
+    preview.innerHTML='<div class="notice error">JSON must be an array of questions, or an object containing a <b>questions</b> array.</div>';
+    toast('The JSON structure is not supported.','error');
+    return;
+  }
+  const normalized=list.map((q,i)=>normalizeQuestion(q, 'JSON upload'));
+  const errors=validateBank(list);
+  pendingImportQuestions=normalized;
+  const duplicateIds=[]; const seen=new Set();
+  normalized.forEach(q=>{if(seen.has(q.id))duplicateIds.push(q.id);seen.add(q.id);});
+  const allErrors=[...errors];
+  if(duplicateIds.length) allErrors.push(`Duplicate ID(s) inside this JSON: ${[...new Set(duplicateIds)].slice(0,20).join(', ')}`);
+  const existingIds=new Set(bank.map(q=>q.id));
+  const updates=normalized.filter(q=>existingIds.has(q.id)).length;
+  const additions=normalized.length-updates;
+  const errorHtml=allErrors.length
+    ? `<div class="notice error"><b>Fix these problems before uploading:</b><div style="white-space:pre-wrap;margin-top:6px">${esc(allErrors.slice(0,30).join('\n'))}</div>${allErrors.length>30?`<div class="mini" style="margin-top:6px">Showing the first 30 errors.</div>`:''}</div>`
+    : '<div class="notice ok"><b>Validation passed.</b> The questions are ready to upload.</div>';
+  const cards=normalized.slice(0,20).map((q,i)=>`<div class="category-card"><div class="category-head"><div><b>${esc(q.id||`Question ${i+1}`)}</b><div class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</div></div><span class="pill">Correct: ${String.fromCharCode(65+(Number(q.correctIndex)||0))}</span></div><div style="margin-top:7px">${esc(q.question)}</div><div class="mini" style="margin-top:6px">A. ${esc(q.options?.[0]||'')} · B. ${esc(q.options?.[1]||'')} · C. ${esc(q.options?.[2]||'')} · D. ${esc(q.options?.[3]||'')}</div></div>`).join('');
+  preview.innerHTML=`<div class="category-head"><h3 style="margin:0">JSON Preview</h3><span class="pill">${normalized.length} question${normalized.length===1?'':'s'}</span></div><div class="mini" style="margin:8px 0 12px">${additions} new · ${updates} existing ID${updates===1?'':'s'} will be updated · ${allErrors.length} validation error${allErrors.length===1?'':'s'}</div>${errorHtml}<div class="mini" style="margin:14px 0 8px">Showing ${Math.min(20,normalized.length)} of ${normalized.length} questions.</div>${cards||'<div class="empty">The JSON array is empty.</div>'}${!allErrors.length&&normalized.length?`<div class="actions" style="margin-top:14px"><button class="btn primary" onclick="uploadPreviewToSupabase()">Upload ${normalized.length} to Supabase</button><button class="btn" onclick="addPreviewQuestions(pendingImportQuestions)">Add to this browser</button><button class="btn" onclick="replaceWithPreviewBank(pendingImportQuestions)">Use as browser preview</button></div>`:''}`;
+}
+async function uploadPreviewToSupabase(){
+  if(!(await requireAdmin())) return;
+  if(!currentUser || !SUPABASE_ENABLED){toast('Sign in to an administrator account first.','error');return;}
+  if(!pendingImportQuestions.length){toast('Preview the JSON first.','error');return;}
+  const errors=validateBank(pendingImportQuestions);
+  if(errors.length){toast('Fix the validation errors before uploading.','error');return;}
+  const rows=pendingImportQuestions.map(q=>({
+    id:q.id,module:q.module,subject:q.subject,lecture:q.lecture,
+    question:q.question,options:q.options,correct_index:q.correctIndex,
+    explanation:q.explanation||'',difficulty:q.difficulty||null,reference:q.reference||null
+  }));
+  const {error}=await supabaseClient.from('questions').upsert(rows,{onConflict:'id'});
+  if(error){toast('Supabase upload failed: '+error.message,'error');return;}
+  await loadQuestionsFromSupabase();
+  await loadGlobalAnalytics();
+  toast(`Uploaded ${rows.length} question${rows.length===1?'':'s'} to Supabase. Existing IDs were updated.`,'ok');
+  pendingImportQuestions=[];
+  render();
+}
+
+function addPreviewQuestions(list){
+  const errors=validateBank(list);if(errors.length){toast('Cannot add invalid questions.','error');return}
+  const existing=new Set(bank.map(q=>q.id));
+  const added=[];
+  for(const raw of list){
+    const q=normalizeQuestion(raw,'Built in');
+    if(existing.has(q.id))continue;
+    existing.add(q.id);added.push(q);
+  }
+  if(!added.length){toast('No new questions were added. IDs already exist.','error');return}
+  localQuestions.push(...added);
+  bank.push(...added);
+  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  render();
+  toast(`Added ${added.length} new question${added.length===1?'':'s'} to this browser.`,'ok');
+}
+function replaceWithPreviewBank(list){
+  const errors=validateBank(list);if(errors.length){toast('Cannot use invalid bank.','error');return}
+  bank=list;sourceFiles=['local preview'];lastSync=new Date();
+  localQuestions=list.filter(q=>q.source==='Built in');
+  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  render();toast(`Loaded ${bank.length} preview questions in this browser.`,'ok');
+}
+function downloadTemplate(){
+  const sample=[{id:"pharma-001",module:"Pharmacology",subject:"Autonomic Drugs",lecture:"Lecture 2: Adrenergic Receptors",question:"Which receptor is primarily activated by norepinephrine?",options:["Alpha-1","Beta-2","M2","Nicotinic"],correctIndex:0,explanation:"Norepinephrine strongly activates alpha-1 receptors."}];
+  downloadBlob(JSON.stringify(sample,null,2),'questions-template.json','application/json');
+}
+function downloadBlob(text,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+
+function renderSettings(){
+  const body=`<div class="card"><h3 style="margin-top:0">Exam settings</h3>
+  <label><input type="checkbox" id="sImmediate" ${settings.showAnswerImmediately?'checked':''}> Use “Show answer immediately” as the default exam mode</label><br><br>
+  <label><input type="checkbox" id="sAuto" ${settings.autoSubmit?'checked':''}> Auto-submit when timer reaches zero</label>
+  <div class="card" style="margin-top:16px;padding:14px">
+    <strong>Appearance</strong>
+    <p class="mini" style="margin:8px 0 12px">Switch between light and dark color themes for this browser.</p>
+    <button class="btn primary" onclick="toggleDarkMode()">${settings.darkMode?'☀️ Switch to Light Mode':'🌙 Switch to Dark Mode'}</button>
+  </div>
+  <div class="card" style="margin-top:16px;padding:14px">
+    <strong>Randomization</strong>
+    <p class="mini" style="margin:8px 0 0">
+      Question selection and answer choices are randomized automatically for every exam.
+      These settings cannot be disabled.
+    </p>
+  </div>
+  <div class="card" style="margin-top:16px;padding:14px">
+    <strong>Smart repetition</strong>
+    <p class="mini" style="margin:8px 0 0">
+      Questions answered correctly are removed from future exams. Questions answered incorrectly
+      remain eligible and may repeat. Questions you have never answered are also eligible.
+      Use “Reset my progress” to make all questions available again.
+    </p>
+  </div>
+  <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="saveSettings()">Save settings</button><button class="btn" onclick="exportProgress()">Export my progress</button>${isAdmin ? '<button class="btn" onclick="exportBank()">Export current bank</button>' : ''}<button class="btn" onclick="exportHistory()">Export exam history</button><button class="btn danger" onclick="clearHistory()">Clear exam history</button></div></div>
+  <div class="card" style="margin-top:16px"><h3 style="margin-top:0">About storage</h3><p class="mini">The question bank is loaded from Supabase when connected, with GitHub as fallback. Signed-in student progress and exam history are stored in Supabase and follow the account across devices. AI questions and chat history are also stored only in this browser. AI requests are relayed through this site's own server-side function — no personal API key is ever stored in or sent from your browser.</p></div>`;
+  document.getElementById('app').innerHTML=layout('Settings','Personal browser settings and backups.',body);
+}
+function saveSettings(){
+  settings.showAnswerImmediately=document.getElementById('sImmediate').checked;
+  settings.autoSubmit=document.getElementById('sAuto').checked;
+  saveState();toast('Settings saved.','ok');
+}
+function exportProgress(){downloadBlob(JSON.stringify({exportedAt:new Date().toISOString(),progress},null,2),'med64-progress.json','application/json');}
+function exportBank(){ if(!isAdmin){toast('Admin access required.','error');return;} downloadBlob(JSON.stringify(allQuestionBank.length?allQuestionBank:bank,null,2),'med64-current-question-bank.json','application/json');}
+function exportHistory(){downloadBlob(JSON.stringify({exportedAt:new Date().toISOString(),history:loadJSON(CONFIG.historyKey,[])},null,2),'med64-exam-history.json','application/json');}
+
+/* ============================================================
+   AI Assistant (multi-provider)
+   - Groq direct
+   - Gemini direct
+   - OpenRouter (third provider / multi-model gateway)
+   - API credentials stay server-side in Vercel environment variables
+   ============================================================ */
+
+let aiTab='generate';
+
+const AI_PROVIDER_MODELS={
+  groq:[
+    {id:'openai/gpt-oss-120b',label:'GPT-OSS 120B — high reasoning'},
+    {id:'qwen/qwen3-32b',label:'Qwen 3 32B — structured / high volume'}
+  ],
+  gemini:[
+    {id:'gemini-3.6-flash',label:'Gemini 3.6 Flash — recommended for MCQ generation'}
+  ],
+  openrouter:[
+    {id:'openrouter/free',label:'OpenRouter Free Router — structured JSON (recommended)'},
+    {id:'google/gemma-4-31b-it:free',label:'Gemma 4 31B — free + JSON'},
+    {id:'inclusionai/ling-3.0-flash-sante:free',label:'Ling 3.0 Flash Sante — medical (JSON fallback)'},
+    {id:'nvidia/nemotron-3-ultra-550b-a55b:free',label:'NVIDIA Nemotron 3 Ultra — JSON fallback'}
+  ]
+};
+
+function aiProviderLabel(provider){
+  return provider==='gemini'?'Google Gemini':provider==='openrouter'?'OpenRouter':'Groq';
+}
+function ensureAIModelForProvider(){
+  if(aiSettings.provider==='vercel') aiSettings.provider='openrouter';
+  const provider=aiSettings.provider||'groq';
+  const models=AI_PROVIDER_MODELS[provider]||AI_PROVIDER_MODELS.groq;
+  if(!models.some(m=>m.id===aiSettings.model)) aiSettings.model=models[0].id;
+}
+ensureAIModelForProvider();
+
+async function callAI(contents, generationConfig){
+  let res, data;
+  const headers={'Content-Type':'application/json'};
+  if(aiSettings.accessCode) headers['x-access-code']=aiSettings.accessCode;
+  try{
+    res=await fetch('/api/ai',{
+      method:'POST',
+      headers,
+      body:JSON.stringify({
+        provider:aiSettings.provider||'groq',
+        model:aiSettings.model,
+        contents,
+        generationConfig
+      })
+    });
+  }catch(e){
+    throw new Error('Could not reach the AI service. Check your connection.');
+  }
+  try{ data=await res.json(); }catch(e){ data=null; }
+  if(!res.ok){
+    throw new Error((data&&data.error)||`HTTP ${res.status} from the AI service.`);
+  }
+  const text=data&&data.text;
+  if(!text) throw new Error(`${aiProviderLabel(aiSettings.provider)} returned an empty response.`);
+  return text;
+}
+
+function renderAIAssistant(){
+  ensureAIModelForProvider();
+  const provider=aiSettings.provider||'groq';
+  const models=AI_PROVIDER_MODELS[provider]||AI_PROVIDER_MODELS.groq;
+  const body=`
+  <div class="card">
+    <div class="category-head"><strong>AI Assistant</strong><span class="ai-badge">✦ ${esc(aiProviderLabel(provider))}</span></div>
+    <p class="mini" style="margin:8px 0 0">Choose the AI provider and model used for question generation and AI chat. API keys stay on the Vercel server and are never exposed to website visitors.</p>
+    <div class="grid two" style="margin-top:12px">
+      <div class="field"><label>AI provider</label><select id="aiProvider" onchange="changeAIProvider()">
+        <option value="groq" ${provider==='groq'?'selected':''}>Groq</option>
+        <option value="gemini" ${provider==='gemini'?'selected':''}>Google Gemini</option>
+        <option value="openrouter" ${provider==='openrouter'?'selected':''}>OpenRouter</option>
+      </select></div>
+      <div class="field"><label>AI model</label><select id="aiModel">${models.map(m=>`<option value="${attrJs(m.id)}" ${m.id===aiSettings.model?'selected':''}>${esc(m.label)}</option>`).join('')}</select></div>
+    </div>
+    <details style="margin-top:10px">
+      <summary class="mini" style="cursor:pointer;color:var(--primary2);font-weight:700">Advanced settings</summary>
+      <div class="grid two" style="margin-top:10px">
+        <div class="field"><label>Access code (only if this site requires one)</label><input id="aiAccessCode" type="password" placeholder="Leave blank if none" value="${esc(aiSettings.accessCode)}"></div>
+      </div>
+      <div class="actions" style="margin-top:10px"><button class="btn" onclick="saveAISettings()">Save AI settings</button></div>
+    </details>
+  </div>
+
+  <div class="tabbar" style="margin-top:20px">
+    <button class="${aiTab==='generate'?'active':''}" onclick="setAITab('generate')">Generate Questions</button>
+    <button class="${aiTab==='chat'?'active':''}" onclick="setAITab('chat')">Ask AI</button>
+  </div>
+
+  ${aiTab==='generate'?aiGenerateTabHTML():aiChatTabHTML()}`;
+  document.getElementById('app').innerHTML=layout('AI Assistant',`Generate practice questions or ask ${aiProviderLabel(provider)}.`,body);
+  if(aiTab==='chat') scrollChatToBottom();
+}
+function setAITab(tab){ aiTab=tab; renderAIAssistant(); }
+function changeAIProvider(){
+  const provider=document.getElementById('aiProvider')?.value||'groq';
+  aiSettings.provider=provider;
+  ensureAIModelForProvider();
+  localStorage.setItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings));
+  renderAIAssistant();
+}
+
+function aiGenerateTabHTML(){
+  const modules=getModules();
+  return `<div class="card">
+    <h3 style="margin-top:0">Generate questions with ${esc(aiProviderLabel(aiSettings.provider))} · ${esc((AI_PROVIDER_MODELS[aiSettings.provider]||[]).find(m=>m.id===aiSettings.model)?.label||aiSettings.model)}</h3>
+    <p class="mini" style="margin:6px 0 14px">Choose from the modules, subjects and lectures that already exist in your website question bank. Then choose whether the selected AI should use its medical knowledge or your website questions as the source.</p>
+    <div class="grid three">
+      <div class="field"><label>Module</label><select id="genModule" onchange="updateAIGeneratorSubjects()"><option value="">Select module</option>${modules.map(m=>`<option value="${attrJs(m)}">${esc(m)}</option>`).join('')}</select></div>
+      <div class="field"><label>Subject</label><select id="genSubject" onchange="updateAIGeneratorLectures()" disabled><option value="">Select subject</option></select></div>
+      <div class="field"><label>Lecture</label><select id="genLecture" disabled><option value="">Select lecture</option></select></div>
+    </div>
+    <div class="grid three" style="margin-top:10px">
+      <div class="field"><label>Difficulty</label><select id="genDifficulty">
+        <option value="Mixed">Mixed</option>
+        <option value="Easy">Easy</option>
+        <option value="Medium">Medium</option>
+        <option value="Hard">Hard</option>
+      </select></div>
+      <div class="field"><label>Thinking level</label><select id="genThinking">
+        <option value="Higher-order thinking" selected>Higher-order thinking</option>
+        <option value="Mixed thinking">Mixed thinking</option>
+      </select></div>
+      <div class="field"><label>Number of questions</label><input id="genCount" type="number" min="1" max="100" value="5"></div>
+      <div class="field"><label>Question source</label><select id="genSourceType" onchange="updateAIGeneratorSourceUI()">
+        <option value="knowledge">AI medical knowledge</option>
+        <option value="website">Questions in this website</option>
+      </select></div>
+    </div>
+    <div id="genSourceInfo" class="notice" style="margin-top:12px">Questions will focus on higher-order thinking: clinical application, analysis, interpretation of findings, and choosing the best next step rather than simple recall.</div>
+    <div class="actions" style="margin-top:12px">
+      <button class="btn primary" id="genBtn" onclick="generateAIQuestions()">Generate questions</button>
+      <button class="btn" onclick="go('aiquestions')">View AI Questions</button>
+    </div>
+  </div>
+  <div id="genResult"></div>`;
+}
+
+function updateAIGeneratorSubjects(){
+  const m=document.getElementById('genModule')?.value||'';
+  const subj=document.getElementById('genSubject');
+  const lect=document.getElementById('genLecture');
+  if(!subj||!lect)return;
+  const subjects=getSubjects(m);
+  subj.disabled=!m;
+  subj.innerHTML='<option value="">Select subject</option>'+subjects.map(s=>`<option value="${attrJs(s)}">${esc(s)}</option>`).join('');
+  lect.disabled=true;
+  lect.innerHTML='<option value="">Select lecture</option>';
+  updateAIGeneratorSourceUI();
+}
+
+function updateAIGeneratorLectures(){
+  const m=document.getElementById('genModule')?.value||'';
+  const s=document.getElementById('genSubject')?.value||'';
+  const lect=document.getElementById('genLecture');
+  if(!lect)return;
+  const lectures=getLectures(m,s);
+  lect.disabled=!m||!s;
+  lect.innerHTML='<option value="">Select lecture</option>'+lectures.map(l=>`<option value="${attrJs(l)}">${esc(l)}</option>`).join('');
+  updateAIGeneratorSourceUI();
+}
+
+function getAIGeneratorPool(){
+  const module=document.getElementById('genModule')?.value||'';
+  const subject=document.getElementById('genSubject')?.value||'';
+  const lecture=document.getElementById('genLecture')?.value||'';
+  return bank.filter(q=>q.module===module&&q.subject===subject&&q.lecture===lecture);
+}
+
+function updateAIGeneratorSourceUI(){
+  const type=document.getElementById('genSourceType')?.value||'knowledge';
+  const box=document.getElementById('genSourceInfo');
+  if(!box)return;
+  const pool=getAIGeneratorPool();
+  if(type==='website') {
+    box.className='notice '+(pool.length?'ok':'error');
+    box.textContent=pool.length
+      ? `The selected AI will use ${pool.length} existing website question${pool.length===1?'':'s'} from this exact lecture as source material and create new, non-copying questions.`
+      : 'No website questions exist for this exact module, subject and lecture. Choose Groq medical knowledge or select another lecture.';
+  } else {
+    box.className='notice';
+    box.textContent='The selected AI will create original higher-order questions using its medical knowledge for the selected module, subject and lecture.';
+  }
+}
+
+function aiChatTabHTML(){
+  return `<div class="card">
+    <div class="category-head"><strong>Ask AI anything</strong>${aiChat.length?'<button class="btn" onclick="clearAIChat()">Clear chat</button>':''}</div>
+    <div class="chat-log" id="chatLog" style="margin-top:12px">${aiChat.length?aiChat.map(m=>`<div class="chat-msg ${m.role==='ai'?'ai':m.role==='error'?'error':'user'}">${esc(m.text)}</div>`).join(''):'<div class="empty">Ask a medical or exam-prep question to get started.</div>'}</div>
+    <div class="chat-input-row">
+      <textarea id="chatInput" placeholder="Ask anything…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIChat();}"></textarea>
+      <button class="btn primary" id="chatSendBtn" onclick="sendAIChat()">Send</button>
+    </div>
+  </div>`;
+}
+function saveAISettings(){
+  aiSettings.provider=document.getElementById('aiProvider')?.value||'groq';
+  aiSettings.model=document.getElementById('aiModel')?.value.trim()||'';
+  aiSettings.accessCode=document.getElementById('aiAccessCode')?.value.trim()||'';
+  ensureAIModelForProvider();
+  localStorage.setItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings));
+  toast(`AI provider saved: ${aiProviderLabel(aiSettings.provider)}.`,'ok');
+}
+
+function formatAIChatReply(reply){
+  let text=String(reply||'').trim();
+  if(!text)return text;
+  // Remove accidental markdown code fences around a response.
+  text=text.replace(/^```(?:json|text|plaintext)?\s*/i,'').replace(/\s*```$/,'').trim();
+  try{
+    const parsed=JSON.parse(text);
+    if(typeof parsed==='string') return parsed.trim();
+    if(Array.isArray(parsed)){
+      return parsed.map((item,i)=>{
+        if(typeof item==='string') return `• ${item}`;
+        if(item && typeof item==='object'){
+          const parts=[];
+          if(item.question) parts.push(`Question: ${item.question}`);
+          if(item.answer) parts.push(`Answer: ${item.answer}`);
+          if(item.explanation) parts.push(`Explanation: ${item.explanation}`);
+          if(item.text) parts.push(item.text);
+          if(!parts.length) parts.push(Object.entries(item).map(([k,v])=>`${k}: ${typeof v==='object'?JSON.stringify(v):v}`).join('\n'));
+          return `${i+1}. ${parts.join('\n')}`;
+        }
+        return String(item);
+      }).join('\n\n').trim();
+    }
+    if(parsed && typeof parsed==='object'){
+      const preferred=['answer','response','text','message','explanation','content'];
+      for(const key of preferred){ if(typeof parsed[key]==='string' && parsed[key].trim()) return parsed[key].trim(); }
+      return Object.entries(parsed).map(([k,v])=>`${k}: ${typeof v==='object'?JSON.stringify(v):v}`).join('\n\n').trim();
+    }
+  }catch(e){}
+  return text;
+}
+
+function parseAIQuestionJSON(text){
+  let cleaned=String(text||'').trim();
+  cleaned=cleaned.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();
+
+  // First try the response exactly as returned.
+  try{
+    const parsed=JSON.parse(cleaned);
+    if(Array.isArray(parsed)) return parsed;
+    if(parsed && Array.isArray(parsed.questions)) return parsed.questions;
+  }catch(_){}
+
+  // Extract the largest complete JSON array from surrounding prose/code fences.
+  const start=cleaned.indexOf('[');
+  const end=cleaned.lastIndexOf(']');
+  if(start!==-1 && end>start){
+    const candidate=cleaned.slice(start,end+1).trim();
+    try{
+      const parsed=JSON.parse(candidate);
+      if(Array.isArray(parsed)) return parsed;
+    }catch(_){
+      const repaired=candidate.replace(/,\s*([}\]])/g,'$1');
+      try{
+        const parsed=JSON.parse(repaired);
+        if(Array.isArray(parsed)) return parsed;
+      }catch(_){}
+    }
+  }
+
+  // Some models return a single object for a one-question batch.
+  const objStart=cleaned.indexOf('{');
+  const objEnd=cleaned.lastIndexOf('}');
+  if(objStart!==-1 && objEnd>objStart){
+    try{
+      const parsed=JSON.parse(cleaned.slice(objStart,objEnd+1));
+      if(parsed && parsed.question && Array.isArray(parsed.options)) return [parsed];
+    }catch(_){}
+  }
+
+  throw new Error('The AI returned invalid JSON. MedEx now uses OpenRouter structured-output routing for MCQ generation. Please retry.');
+}
+function aiQuestionPreviewCard(q){
+  const diffClass=(q.difficulty||'').toLowerCase();
+  return `<div class="category-card">
+    <div class="category-head"><b>${esc(q.question)}</b>${q.difficulty?`<span class="diff-pill ${esc(diffClass)}">${esc(q.difficulty)}</span>`:''}</div>
+    <div class="mini" style="margin-top:4px">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</div>
+  </div>`;
+}
+async function generateAIQuestions(){
+  if(aiBusy) return;
+  const module=document.getElementById('genModule').value.trim();
+  const subject=document.getElementById('genSubject').value.trim();
+  const lecture=document.getElementById('genLecture').value.trim();
+  const difficulty=document.getElementById('genDifficulty').value;
+  const thinkingLevel=document.getElementById('genThinking')?.value||'Higher-order thinking';
+  const count=Math.max(1,Math.min(100,Number(document.getElementById('genCount').value)||5));
+  const sourceType=document.getElementById('genSourceType').value;
+  const sourcePool=getAIGeneratorPool();
+
+  if(!module||!subject||!lecture){toast('Select a module, subject and lecture from the website lists.','error');return;}
+  if(sourceType==='website'&&!sourcePool.length){toast('No website questions exist for this exact lecture. Choose another lecture or use AI medical knowledge.','error');return;}
+
+  const btn=document.getElementById('genBtn');
+  const resultBox=document.getElementById('genResult');
+  aiBusy=true;
+  if(btn){btn.disabled=true; btn.innerHTML='<span class="spinner"></span>Generating…';}
+
+  let sourceBlock='';
+  let reference=`${aiProviderLabel(aiSettings.provider)} · ${aiSettings.model} medical knowledge`;
+  if(sourceType==='website'){
+    const sourceQuestions=sourcePool.slice(0,80).map((q,i)=>({
+      number:i+1, question:q.question, options:q.options, correctAnswer:q.options[q.correctIndex], explanation:q.explanation
+    }));
+    sourceBlock=`Use the following existing questions from this website as the source.
+Create NEW questions that test the same lecture content. Do not copy, paraphrase, or reproduce any source question.
+Website source questions:
+${JSON.stringify(sourceQuestions)}`;
+    reference=`Website question bank · ${sourcePool.length} questions in ${module} / ${subject} / ${lecture}`;
+  } else {
+    sourceBlock='Use your medical knowledge to create accurate original questions for the selected topic. Do not invent facts or cite nonexistent sources.';
+  }
+
+  // Generate in small batches. OpenRouter free/low-credit keys can reject a request
+  // before generation if max output tokens exceed the remaining credit allowance.
+  // Keep OpenRouter batches smaller and the requested output budget conservative.
+  const batchSize=aiSettings.provider==='openrouter' ? 1 : Math.min(10,count);
+  const batches=[];
+  for(let n=0;n<count;n+=batchSize) batches.push(Math.min(batchSize,count-n));
+  const allRaw=[];
+
+  try{
+    for(let bi=0;bi<batches.length;bi++){
+      const batchCount=batches[bi];
+      if(resultBox) resultBox.innerHTML=`<div class="card" style="margin-top:14px"><div class="mini">Generating batch ${bi+1} of ${batches.length} (${allRaw.length}/${count} questions completed) with ${esc(aiProviderLabel(aiSettings.provider))}…</div></div>`;
+
+      const prompt=`You are the medical question generator for Med64, a medical examination platform.
+Generate exactly ${batchCount} original multiple-choice questions for medical students.
+Module: ${module}
+Subject: ${subject}
+Lecture: ${lecture}
+Difficulty: ${difficulty}
+Thinking level: ${thinkingLevel}
+Question source: ${sourceType==='website'?'questions already in this website':'selected AI medical knowledge'}
+
+${sourceBlock}
+
+Rules:
+- Each question must have exactly 4 answer options and exactly one correct answer.
+- The questions must be clinically and medically accurate.
+- Prioritize higher-order thinking (Bloom-style Apply, Analyze, and Evaluate): use clinical vignettes, interpretation of signs/labs/images or mechanisms, comparison of related concepts, prediction of outcomes, and best-next-step reasoning when appropriate.
+- Do NOT make questions that can be answered by simple definition/recall unless a small amount of recall is necessary to support a higher-order decision.
+- Make distractors plausible and based on common misconceptions or clinically relevant alternatives.
+- Avoid duplicate questions and avoid copying source wording.
+- Keep the questions focused on the selected lecture.
+- Return ONLY a valid JSON array. No markdown fences, no commentary, and no text before or after the array.
+- Each item must have exactly this shape:
+{"question":"...","options":["A","B","C","D"],"correctIndex":0,"explanation":"Brief justification.","difficulty":"${difficulty}"}
+- correctIndex is zero-based.
+- Keep each question concise and each explanation to 1–2 sentences.
+- For this batch, return exactly ${batchCount} complete objects.
+- Do not stop in the middle of an object. Return the complete JSON array.`;
+
+      const text=await callAI([{role:'user',parts:[{text:prompt}]}],{
+        maxOutputTokens: aiSettings.provider==='openrouter'
+          ? 2200
+          : Math.min(16000, Math.max(5000, batchCount*700)),
+        jsonMode: aiSettings.provider==='openrouter'
+      });
+      const rawList=parseAIQuestionJSON(text);
+      if(!rawList.length) throw new Error(`Batch ${bi+1} returned no questions.`);
+      allRaw.push(...rawList.slice(0,batchCount));
+      if(rawList.length<batchCount) throw new Error(`${aiProviderLabel(aiSettings.provider)} returned only ${rawList.length} of ${batchCount} questions in batch ${bi+1}. Please try again.`);
+    }
+
+    const stamped=allRaw.slice(0,count).map((raw,i)=>normalizeQuestion({
+      id:`ai-${Date.now()}-${i}-${Math.random().toString(36).slice(2,6)}`,
+      module: `${module} AI generated`, subject, lecture,
+      difficulty: raw.difficulty || difficulty,
+      reference,
+      question: raw.question,
+      options: raw.options,
+      correctIndex: raw.correctIndex,
+      explanation: raw.explanation
+    },'AI generated'));
+
+    const errors=stamped.map((q,i)=>validateQuestion(q,i)).filter(Boolean);
+    if(errors.length) throw new Error(`${aiProviderLabel(aiSettings.provider)} returned a malformed question: ${errors[0]}`);
+    if(stamped.length<count) throw new Error(`${aiProviderLabel(aiSettings.provider)} returned ${stamped.length} questions instead of ${count}. Please try again.`);
+
+    aiQuestions.push(...stamped);
+    localStorage.setItem(CONFIG.aiQuestionsKey,JSON.stringify(aiQuestions));
+
+    if(resultBox) resultBox.innerHTML=`<div class="card" style="margin-top:14px"><div class="notice ok">Generated ${stamped.length} question${stamped.length===1?'':'s'} from ${sourceType==='website'?'your website question bank':'AI medical knowledge'}.</div>
+    <div class="mini" style="margin-top:8px">${esc(module+' AI generated')} · ${esc(subject)} · ${esc(lecture)} · ${esc(aiProviderLabel(aiSettings.provider))}</div>
+    <div style="margin-top:12px">${stamped.map(q=>aiQuestionPreviewCard(q)).join('')}</div>
+    <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="go('aiquestions')">Review in AI Questions</button></div></div>`;
+    toast(`Generated ${stamped.length} questions with ${aiProviderLabel(aiSettings.provider)}.`,'ok');
+  }catch(e){
+    if(resultBox) resultBox.innerHTML=`<div class="card" style="margin-top:14px"><div class="notice error">Generation failed: ${esc(e.message)}</div></div>`;
+    toast(`${aiProviderLabel(aiSettings.provider)} generation failed: `+e.message,'error');
+  }finally{
+    aiBusy=false;
+    if(btn){btn.disabled=false; btn.textContent='Generate questions';}
+  }
+}
+
+async function sendAIChat(){
+  if(aiBusy) return;
+  const input=document.getElementById('chatInput');
+  const text=input.value.trim();
+  if(!text) return;
+
+  aiChat.push({role:'user',text});
+  localStorage.setItem(CONFIG.aiChatKey,JSON.stringify(aiChat));
+  input.value='';
+  renderAIAssistant();
+  scrollChatToBottom();
+
+  aiBusy=true;
+  const sendBtn=document.getElementById('chatSendBtn');
+  if(sendBtn){sendBtn.disabled=true; sendBtn.innerHTML='<span class="spinner"></span>…';}
+
+  try{
+    const contents=aiChat.filter(m=>m.role==='user'||m.role==='ai').map(m=>({
+      role:m.role==='ai'?'model':'user',
+      parts:[{text:m.role==='user'
+        ? `Answer the user's message in ordinary, readable text. Do NOT return JSON, JSON arrays, code blocks, or a machine-readable object. Use normal sentences, short paragraphs, and bullet points when useful. If the user asks for an explanation, explain it clearly rather than formatting it as JSON.\n\nUser message:\n${m.text}`
+        : m.text}]
+    }));
+    const reply=await callAI(contents,{maxOutputTokens:4096,responseMimeType:'text/plain'});
+    aiChat.push({role:'ai',text:formatAIChatReply(reply)});
+  }catch(e){
+    aiChat.push({role:'error',text:'Error: '+e.message});
+  }finally{
+    localStorage.setItem(CONFIG.aiChatKey,JSON.stringify(aiChat));
+    aiBusy=false;
+    renderAIAssistant();
+    scrollChatToBottom();
+  }
+}
+function clearAIChat(){
+  if(!aiChat.length)return;
+  if(!confirm('Clear this chat conversation?'))return;
+  aiChat=[];
+  localStorage.removeItem(CONFIG.aiChatKey);
+  renderAIAssistant();
+}
+function scrollChatToBottom(){
+  const el=document.getElementById('chatLog');
+  if(el) el.scrollTop=el.scrollHeight;
+}
+
+function renderAIQuestions(){
+  const body=`<div class="card"><div class="category-head"><strong>${aiQuestions.length} AI-generated question${aiQuestions.length===1?'':'s'}</strong><span class="mini">Kept separately until you add them to the main question bank.</span></div>
+  ${aiQuestions.length?`<div class="actions" style="margin-top:12px">
+    <button class="btn primary" onclick="startExam(aiQuestions,null,'AI questions practice')">Practice these questions</button>
+    <button class="btn ok" onclick="addAllAIQuestionsToBank()">Add all to Question Bank</button>
+    ${isAdmin?'<button class="btn primary" onclick="uploadAIQuestionsToSupabase()">Upload JSON to Supabase</button>':''}
+    <button class="btn" onclick="exportAIQuestions()">Export as JSON</button>
+    <button class="btn danger" onclick="clearAllAIQuestions()">Delete all</button>
+  </div>`:''}</div>
+  <div style="margin-top:16px">${aiQuestions.length?aiQuestions.slice().reverse().map(q=>renderAIQuestionRow(q)).join(''):'<div class="card empty">No AI questions yet. Generate some from the AI Assistant page.</div>'}</div>`;
+  document.getElementById('app').innerHTML=layout('AI Questions','Every question Groq has generated for you, independent of the main bank.',body,`<button class="btn primary" onclick="go('ai')">+ Generate more</button>`);
+}
+function renderAIQuestionRow(q){
+  const diffClass=(q.difficulty||'').toLowerCase();
+  const inBank=bank.some(b=>b.id===q.id);
+  return `<div class="category-card">
+    <div class="category-head"><b>${esc(q.id)}</b>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        ${q.difficulty?`<span class="diff-pill ${esc(diffClass)}">${esc(q.difficulty)}</span>`:''}
+        ${inBank?'<span class="pill">In bank</span>':`<button class="btn" onclick="addAIQuestionToBank('${attrJs(q.id)}')">Add to bank</button>`}
+        <button class="btn danger" onclick="removeAIQuestion('${attrJs(q.id)}')">Delete</button>
+      </div>
+    </div>
+    <div class="mini" style="margin-top:6px">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}${q.reference?` · Source: ${esc(q.reference)}`:''}</div>
+    <div style="margin-top:8px">${esc(q.question)}</div>
+    <div class="mini" style="margin-top:8px">Correct answer: <b>${esc(q.options[q.correctIndex]||'')}</b></div>
+  </div>`;
+}
+function addAIQuestionToBank(id){
+  const q=aiQuestions.find(x=>x.id===id);
+  if(!q)return;
+  if(bank.some(x=>x.id===q.id)){toast('This question is already in the bank.','error');return;}
+  localQuestions.push(q);
+  bank.push(q);
+  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  render();
+  toast('Question added to the question bank.','ok');
+}
+function addAllAIQuestionsToBank(){
+  const existing=new Set(bank.map(q=>q.id));
+  const toAdd=aiQuestions.filter(q=>!existing.has(q.id));
+  if(!toAdd.length){toast('All AI questions are already in the bank.','error');return;}
+  localQuestions.push(...toAdd);
+  bank.push(...toAdd);
+  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  render();
+  toast(`Added ${toAdd.length} question${toAdd.length===1?'':'s'} to the question bank.`,'ok');
+}
+function removeAIQuestion(id){
+  if(!confirm('Delete this AI-generated question?'))return;
+  aiQuestions=aiQuestions.filter(q=>q.id!==id);
+  localQuestions=localQuestions.filter(q=>q.id!==id);
+  bank=bank.filter(q=>q.id!==id);
+  localStorage.setItem(CONFIG.aiQuestionsKey,JSON.stringify(aiQuestions));
+  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  render();
+  toast('AI question deleted.','ok');
+}
+function clearAllAIQuestions(){
+  if(!aiQuestions.length)return;
+  if(!confirm(`Delete all ${aiQuestions.length} AI-generated questions? This also removes any of them already added to the bank.`))return;
+  const ids=new Set(aiQuestions.map(q=>q.id));
+  aiQuestions=[];
+  localQuestions=localQuestions.filter(q=>!ids.has(q.id));
+  bank=bank.filter(q=>!ids.has(q.id));
+  localStorage.setItem(CONFIG.aiQuestionsKey,JSON.stringify(aiQuestions));
+  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  render();
+  toast('All AI questions deleted.','ok');
+}
+async function uploadAIQuestionsToSupabase(){
+  if(!(await requireAdmin())) return;
+  if(!SUPABASE_ENABLED || !currentUser){toast('Sign in to an administrator account first.','error');return;}
+  if(!aiQuestions.length){toast('There are no AI-generated questions to upload.','error');return;}
+  const errors=aiQuestions.map((q,i)=>validateQuestion(q,i)).filter(Boolean);
+  if(errors.length){toast('Cannot upload: '+errors[0],'error');return;}
+  const rows=aiQuestions.map(q=>({
+    id:q.id,
+    module:q.module,
+    subject:q.subject,
+    lecture:q.lecture,
+    question:q.question,
+    options:q.options,
+    correct_index:q.correctIndex,
+    explanation:q.explanation||'',
+    difficulty:q.difficulty||null,
+    reference:q.reference||'AI generated'
+  }));
+  const {error}=await supabaseClient.from('questions').upsert(rows,{onConflict:'id'});
+  if(error){toast('Supabase upload failed: '+error.message,'error');return;}
+  await loadQuestionsFromSupabase();
+  await loadGlobalAnalytics();
+  toast(`Uploaded ${rows.length} AI-generated question${rows.length===1?'':'s'} to Supabase.`,'ok');
+  renderAIQuestions();
+}
+
+function exportAIQuestions(){downloadBlob(JSON.stringify(aiQuestions,null,2),'med64-ai-questions.json','application/json');}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  applyTheme();
+  if(SUPABASE_ENABLED){
+    supabaseClient.auth.onAuthStateChange((event,session)=>{
+      setTimeout(()=>{
+        currentUser=session?.user||null;
+        adminCheckLoaded=false;
+        if(!currentUser){ isAdmin=false; remoteHistory=[]; remoteHistoryLoaded=false; }
+        render();
+      },0);
+    });
+  }
+  refreshAuthUser().then(async()=>{
+    await loadModuleVisibility();
+    await loadActiveNotifications();
+    await loadQuestions();
+    if(currentUser) await afterAuthChanged();
+    else { await loadGlobalAnalytics(); applyModuleVisibility(); render(); }
+  });
+});
+</script>
+</body>
+</html>
