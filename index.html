@@ -1807,13 +1807,26 @@ async function callAI(contents, generationConfig){
   return text;
 }
 
+function aiModelPickerHTML(){
+  ensureAIModelForProvider();
+  const provider=aiSettings.provider||'groq';
+  const models=AI_PROVIDER_MODELS[provider]||[];
+  return `<div class="grid two" style="margin-top:12px">
+    <div class="field"><label>AI provider</label><select id="aiProvider" onchange="changeAIProvider()">${Object.keys(AI_PROVIDER_MODELS).map(p=>`<option value="${p}" ${p===provider?'selected':''}>${esc(aiProviderLabel(p))}</option>`).join('')}</select></div>
+    <div class="field"><label>AI model</label><select id="aiModel" onchange="changeAIModel()">${models.map(m=>`<option value="${attrJs(m.id)}" ${m.id===aiSettings.model?'selected':''}>${esc(m.label)}</option>`).join('')}</select></div>
+  </div>`;
+}
 function renderAIAssistant(){
-  const body=`<div class="card">
-    <div class="category-head"><strong>Ask AI</strong><span class="ai-badge">✦ Groq</span></div>
-    <p class="mini" style="margin:8px 0 0">Ask medical or exam-prep questions. Groq is the main AI agent for this user-facing assistant; API credentials remain on the server.</p>
-  </div>
-  ${aiChatTabHTML()}`;
-  document.getElementById('app').innerHTML=layout('Ask AI','Your medical study assistant powered by Groq.',body);
+  ensureAIModelForProvider();
+  const tabs=`<div class="actions" style="margin-bottom:14px"><button class="btn ${aiTab==='chat'?'primary':''}" onclick="setAITab('chat')">Ask AI</button>${isAdmin?`<button class="btn ${aiTab==='generate'?'primary':''}" onclick="setAITab('generate')">Generate Questions</button>`:''}</div>`;
+  let body=tabs;
+  if(aiTab==='generate' && isAdmin){
+    body += `<div class="card"><div class="category-head"><strong>AI Question Generator</strong><span class="ai-badge">✦ ${esc(aiProviderLabel(aiSettings.provider))}</span></div><p class="mini" style="margin:8px 0 0">Admin-only. Select the provider and model from the lists below. Qwen and Gemini are available here when their server-side API keys are configured.</p>${aiModelPickerHTML()}</div>${aiGenerateTabHTML()}`;
+    document.getElementById('app').innerHTML=layout('AI Assistant','Ask AI or generate questions with the selected AI model.',body);
+    return;
+  }
+  body += `<div class="card"><div class="category-head"><strong>Ask AI</strong><span class="ai-badge">✦ Groq</span></div><p class="mini" style="margin:8px 0 0">Ask medical or exam-prep questions. Groq remains the main AI agent for this user-facing assistant; API credentials remain on the server.</p></div>${aiChatTabHTML()}`;
+  document.getElementById('app').innerHTML=layout('AI Assistant','Your medical study assistant powered by Groq.',body);
   scrollChatToBottom();
 }
 function setAITab(tab){ aiTab=tab; renderAIAssistant(); }
@@ -1821,6 +1834,12 @@ function changeAIProvider(){
   const provider=document.getElementById('aiProvider')?.value||'groq';
   aiSettings.provider=provider;
   ensureAIModelForProvider();
+  localStorage.setItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings));
+  renderAIAssistant();
+}
+function changeAIModel(){
+  const model=document.getElementById('aiModel')?.value||'';
+  if(model) aiSettings.model=model;
   localStorage.setItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings));
   renderAIAssistant();
 }
