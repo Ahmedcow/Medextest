@@ -1769,6 +1769,24 @@ const AI_PROVIDER_MODELS={
   ]
 };
 
+// Unified model list: Qwen is served through Groq; Gemini is served directly by Google.
+const AI_MODEL_CATALOG=[
+  {provider:'groq',id:'openai/gpt-oss-120b',label:'Groq · GPT-OSS 120B'},
+  {provider:'groq',id:'qwen/qwen3.8-27b',label:'Groq · Qwen 3.8 27B'},
+  {provider:'groq',id:'qwen/qwen3-32b',label:'Groq · Qwen 3 32B'},
+  {provider:'gemini',id:'gemini-3.6-flash',label:'Google Gemini · Gemini 3.6 Flash'},
+  {provider:'openrouter',id:'openrouter/free',label:'OpenRouter · Free Router'}
+];
+function selectedAIModel(){
+  return AI_MODEL_CATALOG.find(m=>m.id===aiSettings.model) || AI_MODEL_CATALOG.find(m=>m.provider===aiSettings.provider) || AI_MODEL_CATALOG[0];
+}
+function syncAIModel(){
+  const item=selectedAIModel();
+  aiSettings.provider=item.provider;
+  aiSettings.model=item.id;
+  return item;
+}
+
 function aiProviderLabel(provider){
   return provider==='gemini'?'Google Gemini':provider==='openrouter'?'OpenRouter':'Groq';
 }
@@ -1808,16 +1826,24 @@ async function callAI(contents, generationConfig){
 }
 
 function aiModelPickerHTML(){
-  ensureAIModelForProvider();
-  const provider=aiSettings.provider||'groq';
-  const models=AI_PROVIDER_MODELS[provider]||[];
-  return `<div class="grid two" style="margin-top:12px">
-    <div class="field"><label>AI provider</label><select id="aiProvider" onchange="changeAIProvider()">${Object.keys(AI_PROVIDER_MODELS).map(p=>`<option value="${p}" ${p===provider?'selected':''}>${esc(aiProviderLabel(p))}</option>`).join('')}</select></div>
-    <div class="field"><label>AI model</label><select id="aiModel" onchange="changeAIModel()">${models.map(m=>`<option value="${attrJs(m.id)}" ${m.id===aiSettings.model?'selected':''}>${esc(m.label)}</option>`).join('')}</select></div>
-  </div>`;
+  const item=syncAIModel();
+  return `<div class=\"field\" style=\"margin-top:12px\"><label>AI model</label><select id=\"aiModel\" onchange=\"changeAIModel()\">${AI_MODEL_CATALOG.map(m=>`<option value=\"${attrJs(m.id)}\" ${m.id===item.id?'selected':''}>${esc(m.label)}</option>`).join('')}</select><div class=\"mini\" style=\"margin-top:6px\">Provider is selected automatically: Qwen uses Groq; Gemini uses Google Gemini.</div></div>`;
+}
+function changeAIProvider(){
+  const provider=document.getElementById('aiProvider')?.value||'groq';
+  const item=AI_MODEL_CATALOG.find(m=>m.provider===provider)||AI_MODEL_CATALOG[0];
+  aiSettings.provider=item.provider; aiSettings.model=item.id;
+  localStorage.setItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings));
+  renderAIAssistant();
+}
+function changeAIModel(){
+  const model=document.getElementById('aiModel')?.value||'';
+  const item=AI_MODEL_CATALOG.find(m=>m.id===model);
+  if(item){ aiSettings.provider=item.provider; aiSettings.model=item.id; localStorage.setItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings)); }
+  renderAIAssistant();
 }
 function renderAIAssistant(){
-  ensureAIModelForProvider();
+  syncAIModel();
   const tabs=`<div class="actions" style="margin-bottom:14px"><button class="btn ${aiTab==='chat'?'primary':''}" onclick="setAITab('chat')">Ask AI</button>${isAdmin?`<button class="btn ${aiTab==='generate'?'primary':''}" onclick="setAITab('generate')">Generate Questions</button>`:''}</div>`;
   let body=tabs;
   if(aiTab==='generate' && isAdmin){
@@ -2192,10 +2218,10 @@ function scrollChatToBottom(){
 
 function renderAIQuestions(){
   if(!isAdmin){ go('dashboard'); return; }
-  ensureAIModelForProvider();
+  syncAIModel();
   const modules=getModules();
   const generator=`<div class="card"><div class="category-head"><strong>Admin AI Question Generator</strong><span class="ai-badge">✦ ${esc(aiProviderLabel(aiSettings.provider))}</span></div>
-    <p class="mini" style="margin:8px 0 14px">Only administrators can generate and manage AI questions. Groq is the default generator; provider settings are available here for admin use.</p>
+    <p class="mini" style="margin:8px 0 14px">Only administrators can generate and manage AI questions. Choose the AI model from the list below.</p>${aiModelPickerHTML()}
     <div class="grid three">
       <div class="field"><label>Module</label><select id="genModule" onchange="updateAIGeneratorSubjects()"><option value="">Select module</option>${modules.map(m=>`<option value="${attrJs(m)}">${esc(m)}</option>`).join('')}</select></div>
       <div class="field"><label>Subject</label><select id="genSubject" onchange="updateAIGeneratorLectures()" disabled><option value="">Select subject</option></select></div>
