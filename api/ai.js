@@ -74,11 +74,22 @@ async function callOpenAICompatible({ apiKey, url, model, messages, generationCo
   // malformed JSON to the browser. Normal AI chat is unaffected.
   let effectiveModel = model;
   const wantsJson = providerName === 'OpenRouter' && generationConfig.jsonMode === true;
-  const structuredModels = new Set([
+  const strictModels = new Set([
     'openrouter/free',
-    'google/gemma-4-31b-it:free'
+    'google/gemma-4-31b-it:free',
+    'anthropic/claude-opus-5.5',
+    'openai/gpt-6-astra',
+    'openai/gpt-5.6-sol',
+    'qwen/qwen3.8-max',
+    'deepseek/deepseek-v4.1-flash',
+    'deepseek/deepseek-v4-pro',
+    'z-ai/glm-5.3',
+    'z-ai/glm-5.3-flash',
+    'moonshotai/kimi-k2.7',
+    'xiaomi/mimo-v2.6-pro',
+    'nvidia/nemotron-3-ultra'
   ]);
-  if (wantsJson && !structuredModels.has(effectiveModel)) {
+  if (wantsJson && !strictModels.has(effectiveModel)) {
     effectiveModel = 'openrouter/free';
   }
 
@@ -129,7 +140,10 @@ async function callOpenAICompatible({ apiKey, url, model, messages, generationCo
         payload.response_format = { type: 'json_object' };
       }
     } else if (providerName === 'OpenRouter') {
-      payload.response_format = { type: 'json_schema', json_schema: { name: 'medical_question_batch', strict: true, schema } };
+      const strictModels = new Set(['openrouter/free','google/gemma-4-31b-it:free','anthropic/claude-opus-5.5','openai/gpt-6-astra','openai/gpt-5.6-sol','qwen/qwen3.8-max','deepseek/deepseek-v4.1-flash','deepseek/deepseek-v4-pro','z-ai/glm-5.3','z-ai/glm-5.3-flash','moonshotai/kimi-k2.7','xiaomi/mimo-v2.6-pro','nvidia/nemotron-3-ultra']);
+      payload.response_format = strictModels.has(effectiveModel)
+        ? { type: 'json_schema', json_schema: { name: 'medical_question_batch', strict: true, schema } }
+        : { type: 'json_object' };
     }
   }
 
