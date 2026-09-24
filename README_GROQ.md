@@ -28,3 +28,7 @@ The service worker is registered from `./sw.js`, and the manifest uses `./` as t
 ## Supabase
 
 Run `supabase_v8_migration.sql` in the Supabase SQL Editor for the analytics and favourites tables/functions.
+
+
+## v12 AI model selector
+The frontend uses one explicit model list. Qwen 3.8/3 32B route through Groq; Gemini 3.6 Flash routes through Google Gemini.
