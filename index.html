@@ -1755,13 +1755,15 @@ let aiTab='generate';
 const AI_PROVIDER_MODELS={
   groq:[
     {id:'openai/gpt-oss-120b',label:'GPT-OSS 120B — high reasoning'},
-    {id:'qwen/qwen3.8-27b',label:'Qwen 3.8 27B — reasoning + structured JSON'},
-    {id:'qwen/qwen3-32b',label:'Qwen 3 32B — fast reasoning'}
+    {id:'qwen/qwen3.8-27b',label:'Qwen 3.8 27B — reasoning + structured JSON'}
   ],
   gemini:[
-    {id:'gemini-3.8-flash',label:'Gemini 3.8 Flash — advanced reasoning'},
-    {id:'gemini-3.7-flash',label:'Gemini 3.7 Flash — advanced reasoning'},
-    {id:'gemini-3.6-flash',label:'Gemini 3.6 Flash — stable'}
+    {id:'gemini-3.8-flash',label:'Gemini 3.8 Flash — latest stable'},
+    {id:'gemini-3.7-flash',label:'Gemini 3.7 Flash — stable'},
+    {id:'gemini-3.6-flash',label:'Gemini 3.6 Flash — stable'},
+    {id:'gemini-3.5-flash',label:'Gemini 3.5 Flash — high throughput'},
+    {id:'gemini-3.5-flash-lite',label:'Gemini 3.5 Flash-Lite — lightweight'},
+    {id:'gemini-3.1-flash-lite',label:'Gemini 3.1 Flash-Lite — lightweight'}
   ],
   openrouter:[
     {id:'openrouter/free',label:'OpenRouter Free Router — structured JSON (recommended)'},
@@ -1773,23 +1775,15 @@ const AI_PROVIDER_MODELS={
 
 // Unified model list: Qwen is served through Groq; Gemini is served directly by Google.
 const AI_MODEL_CATALOG=[
+  {provider:'auto',id:'free-auto',label:'FREE AUTO · Gemini + Groq fallback'},
   {provider:'groq',id:'openai/gpt-oss-120b',label:'Groq · GPT-OSS 120B'},
   {provider:'groq',id:'qwen/qwen3.8-27b',label:'Groq · Qwen 3.8 27B'},
-  {provider:'groq',id:'qwen/qwen3-32b',label:'Groq · Qwen 3 32B'},
   {provider:'gemini',id:'gemini-3.8-flash',label:'Google Gemini · Gemini 3.8 Flash'},
   {provider:'gemini',id:'gemini-3.7-flash',label:'Google Gemini · Gemini 3.7 Flash'},
   {provider:'gemini',id:'gemini-3.6-flash',label:'Google Gemini · Gemini 3.6 Flash'},
-  {provider:'openrouter',id:'anthropic/claude-opus-5.5',label:'OpenRouter · Claude Opus 5.5'},
-  {provider:'openrouter',id:'openai/gpt-6-astra',label:'OpenRouter · GPT-6 Astra'},
-  {provider:'openrouter',id:'openai/gpt-5.6-sol',label:'OpenRouter · GPT-5.6 Sol'},
-  {provider:'openrouter',id:'qwen/qwen3.8-max',label:'OpenRouter · Qwen 3.8 Max'},
-  {provider:'openrouter',id:'deepseek/deepseek-v4.1-flash',label:'OpenRouter · DeepSeek V4.1 Flash'},
-  {provider:'openrouter',id:'deepseek/deepseek-v4-pro',label:'OpenRouter · DeepSeek V4 Pro'},
-  {provider:'openrouter',id:'z-ai/glm-5.3',label:'OpenRouter · GLM 5.3'},
-  {provider:'openrouter',id:'z-ai/glm-5.3-flash',label:'OpenRouter · GLM 5.3 Flash'},
-  {provider:'openrouter',id:'moonshotai/kimi-k2.7',label:'OpenRouter · Kimi K2.7'},
-  {provider:'openrouter',id:'xiaomi/mimo-v2.6-pro',label:'OpenRouter · MiMo-V2.6 Pro'},
-  {provider:'openrouter',id:'nvidia/nemotron-3-ultra',label:'OpenRouter · NVIDIA Nemotron 3 Ultra'},
+  {provider:'gemini',id:'gemini-3.5-flash',label:'Google Gemini · Gemini 3.5 Flash'},
+  {provider:'gemini',id:'gemini-3.5-flash-lite',label:'Google Gemini · Gemini 3.5 Flash-Lite'},
+  {provider:'gemini',id:'gemini-3.1-flash-lite',label:'Google Gemini · Gemini 3.1 Flash-Lite'},
   {provider:'openrouter',id:'openrouter/free',label:'OpenRouter · Free Router'}
 ];
 function selectedAIModel(){
@@ -1803,11 +1797,12 @@ function syncAIModel(){
 }
 
 function aiProviderLabel(provider){
-  return provider==='gemini'?'Google Gemini':provider==='openrouter'?'OpenRouter':'Groq';
+  return provider==='auto'?'Free Auto':provider==='gemini'?'Google Gemini':provider==='openrouter'?'OpenRouter':'Groq';
 }
 function ensureAIModelForProvider(){
   if(aiSettings.provider==='vercel') aiSettings.provider='openrouter';
   const provider=aiSettings.provider||'groq';
+  if(provider==='auto') { aiSettings.model='free-auto'; return; }
   const models=AI_PROVIDER_MODELS[provider]||AI_PROVIDER_MODELS.groq;
   if(!models.some(m=>m.id===aiSettings.model)) aiSettings.model=models[0].id;
 }
@@ -1837,12 +1832,17 @@ async function callAI(contents, generationConfig){
   }
   const text=data&&data.text;
   if(!text) throw new Error(`${aiProviderLabel(aiSettings.provider)} returned an empty response.`);
+  if(data?.provider && data.provider !== aiProviderLabel(aiSettings.provider)){
+    toast(`Gemini was temporarily unavailable. MedEx automatically switched to ${data.provider}${data.model?` · ${data.model}`:''}.`,'ok');
+  }else if(data?.fallbackUsed){
+    toast(`MedEx automatically switched from ${aiSettings.model} to ${data.model||'another Gemini model'}.`,'ok');
+  }
   return text;
 }
 
 function aiModelPickerHTML(){
   const item=syncAIModel();
-  return `<div class=\"field\" style=\"margin-top:12px\"><label>AI model</label><select id=\"aiModel\" onchange=\"changeAIModel()\">${AI_MODEL_CATALOG.map(m=>`<option value=\"${attrJs(m.id)}\" ${m.id===item.id?'selected':''}>${esc(m.label)}</option>`).join('')}</select><div class=\"mini\" style=\"margin-top:6px\">Provider is selected automatically. Premium models may require OpenRouter credits; direct Gemini models require GEMINI_API_KEY.</div></div>`;
+  return `<div class=\"field\" style=\"margin-top:12px\"><label>AI model</label><select id=\"aiModel\" onchange=\"changeAIModel()\">${AI_MODEL_CATALOG.map(m=>`<option value=\"${attrJs(m.id)}\" ${m.id===item.id?'selected':''}>${esc(m.label)}</option>`).join('')}</select><div class=\"mini\" style=\"margin-top:6px\">Free Auto retries Gemini with automatic model fallback → Groq GPT-OSS 120B → Qwen 3.8 27B. Add both GEMINI_API_KEY and GROQ_API_KEY for the full fallback chain.</div></div>`;
 }
 function changeAIProvider(){
   const provider=document.getElementById('aiProvider')?.value||'groq';
