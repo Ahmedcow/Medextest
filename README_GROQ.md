@@ -41,3 +41,12 @@ The service worker is registered from `./sw.js`, and the manifest uses `./` as t
 ## Supabase
 
 Run `supabase_v8_migration.sql` in the Supabase SQL Editor for the analytics and favourites tables/functions.
+
+
+## Production logging / Supabase Logs Query protection
+
+MedEx production AI requests do not emit custom `console.log`/`console.warn`/`console.error` events by default. Gemini/Groq retry messages are only emitted when the Vercel environment variable `MEDEX_DEBUG_LOGS=true` is explicitly enabled. The AI API also avoids returning the full provider/fallback error chain to the browser.
+
+The Gemini fallback chain retries the selected model, then tries fallback models without retrying every fallback model. This reduces unnecessary provider calls and Edge Function/serverless invocations while preserving resilience.
+
+Supabase still records platform request/invocation logs automatically; application code cannot disable those from the frontend. Avoid repeatedly polling or running broad Logs Explorer queries because Supabase measures Logs Query by the amount of log data scanned.
