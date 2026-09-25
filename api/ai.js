@@ -30,7 +30,8 @@ export default async function handler(req, res) {
         model: model || 'openai/gpt-oss-120b',
         messages,
         generationConfig,
-        providerName: 'Groq'
+        providerName: 'Groq',
+        maxRetries: 0
       });
     } else if (provider === 'openrouter') {
       result = await callOpenAICompatible({
@@ -52,9 +53,9 @@ export default async function handler(req, res) {
 
     return res.status(200).json(result);
   } catch (error) {
-    console.error('Multi-provider AI error:', error);
     const status = Number(error?.status) || 500;
-    return res.status(status).json({ error: error.message || 'AI request failed.' });
+    const message = error?.publicMessage || error?.message || 'AI request failed.';
+    return res.status(status).json({ error: String(message).slice(0, 1000) });
   }
 }
 
@@ -85,21 +86,22 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function withRetry(fn, label) {
+async function withRetry(fn, label, maxRetries = 2, options = {}) {
   let lastError;
-  for (let attempt = 0; attempt <= 3; attempt++) {
+  const shouldLog = options.log === true && process.env.MEDEX_DEBUG_LOGS === 'true';
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error;
       const retries = retryCountForStatus(error?.status);
-      if (!isRetryableStatus(error?.status) || attempt >= retries) throw error;
+      if (!isRetryableStatus(error?.status) || attempt >= Math.min(retries, maxRetries)) throw error;
 
-      // Exponential backoff with jitter. This avoids hammering a temporarily
-      // overloaded Gemini endpoint and follows Google's transient-error guidance.
-      const base = Math.min(12000, 1200 * Math.pow(2, attempt));
+      // Exponential backoff with jitter. Logging is opt-in so normal production
+      // traffic does not create a custom log event for every retry.
+      const base = Math.min(8000, 1200 * Math.pow(2, attempt));
       const jitter = Math.floor(Math.random() * 500);
-      console.warn(`${label}: transient HTTP ${error.status}; retry ${attempt + 1}/${retries} in ${base + jitter}ms`);
+      if (shouldLog) console.warn(`${label}: retry ${attempt + 1}/${maxRetries} in ${base + jitter}ms`);
       await sleep(base + jitter);
     }
   }
@@ -107,7 +109,6 @@ async function withRetry(fn, label) {
 }
 
 async function callAuto({ model, messages, generationConfig }) {
-  const errors = [];
 
   // If the user chose FREE AUTO, prefer Gemini Flash first, then Groq.
   // The exact selected model is kept first when supplied.
@@ -118,11 +119,11 @@ async function callAuto({ model, messages, generationConfig }) {
         apiKey: process.env.GEMINI_API_KEY,
         model: candidateModel,
         messages,
-        generationConfig
+        generationConfig,
+        maxRetries: candidateModel === geminiModels[0] ? 2 : 0
       });
       return result;
     } catch (error) {
-      errors.push(`Gemini ${candidateModel}: ${error.message}`);
     }
   }
 
@@ -135,21 +136,22 @@ async function callAuto({ model, messages, generationConfig }) {
         model: candidateModel,
         messages,
         generationConfig,
-        providerName: 'Groq'
+        providerName: 'Groq',
+        maxRetries: 0
       });
     } catch (error) {
-      errors.push(`Groq ${candidateModel}: ${error.message}`);
+      // Move directly to the next provider/model without logging the provider's raw response.
     }
   }
 
-  const err = new Error(`No configured AI provider could complete the request. Gemini/Groq fallback attempts failed. ${errors.join(' | ')}`);
+  const err = new Error('No configured AI provider could complete the request.');
+  err.publicMessage = 'AI providers are temporarily unavailable. Please try again in a moment.';
   err.status = 503;
   throw err;
 }
 
 async function callGeminiWithFallback({ model, messages, generationConfig }) {
   const candidates = uniqueModels(model || 'gemini-3.8-flash');
-  const errors = [];
 
   for (const candidateModel of candidates) {
     try {
@@ -157,10 +159,10 @@ async function callGeminiWithFallback({ model, messages, generationConfig }) {
         apiKey: process.env.GEMINI_API_KEY,
         model: candidateModel,
         messages,
-        generationConfig
+        generationConfig,
+        maxRetries: candidateModel === candidates[0] ? 2 : 0
       });
     } catch (error) {
-      errors.push(`${candidateModel}: ${error.message}`);
       // Invalid/auth/request errors are not fixed by trying another Gemini model,
       // except 404 (model unavailable) which is specifically a model-selection issue.
       if (![404, 408, 429, 500, 502, 503, 504].includes(Number(error?.status))) throw error;
@@ -177,19 +179,21 @@ async function callGeminiWithFallback({ model, messages, generationConfig }) {
         model: candidateModel,
         messages,
         generationConfig,
-        providerName: 'Groq'
+        providerName: 'Groq',
+        maxRetries: 0
       });
     } catch (error) {
-      errors.push(`Groq ${candidateModel}: ${error.message}`);
+      // Try the next fallback without emitting a custom log event.
     }
   }
 
-  const err = new Error(`Gemini is temporarily busy or unavailable. MedEx retried the selected model and other Gemini Flash models, then tried Groq. ${errors.join(' | ')}`);
+  const err = new Error('Gemini fallback chain exhausted.');
+  err.publicMessage = 'Gemini is temporarily busy or unavailable. MedEx tried the available fallbacks. Please try again in a moment.';
   err.status = 503;
   throw err;
 }
 
-async function callOpenAICompatible({ apiKey, url, model, messages, generationConfig, providerName }) {
+async function callOpenAICompatible({ apiKey, url, model, messages, generationConfig, providerName, maxRetries = 2 }) {
   if (!apiKey) {
     throw new Error(`${providerName} API credentials are not configured in Vercel Environment Variables.`);
   }
@@ -278,10 +282,10 @@ async function callOpenAICompatible({ apiKey, url, model, messages, generationCo
     const text = data?.choices?.[0]?.message?.content;
     if (!text) throw new Error(`${providerName} returned no text content.`);
     return { text, model: data?.model || effectiveModel, provider: providerName };
-  }, `${providerName}/${effectiveModel}`);
+  }, `${providerName}/${effectiveModel}`, maxRetries);
 }
 
-async function callGemini({ apiKey, model, messages, generationConfig }) {
+async function callGemini({ apiKey, model, messages, generationConfig, maxRetries = 2 }) {
   if (!apiKey) throw new Error('GEMINI_API_KEY is not configured in Vercel Environment Variables.');
 
   const contents = messages.map(m => ({
@@ -342,5 +346,5 @@ async function callGemini({ apiKey, model, messages, generationConfig }) {
     const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
     if (!text) throw new Error('Gemini returned no text content.');
     return { text, model, provider: 'Google Gemini' };
-  }, `Gemini/${model}`);
+  }, `Gemini/${model}`, maxRetries);
 }
