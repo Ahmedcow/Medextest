@@ -1,4 +1,4 @@
-# MedEx — AI / PWA setup (Gemini resilience update)
+# MedEx v18 — AI / PWA setup (Exam AI Assistant)
 
 ## Vercel Environment Variables
 
@@ -50,3 +50,14 @@ MedEx production AI requests do not emit custom `console.log`/`console.warn`/`co
 The Gemini fallback chain retries the selected model, then tries fallback models without retrying every fallback model. This reduces unnecessary provider calls and Edge Function/serverless invocations while preserving resilience.
 
 Supabase still records platform request/invocation logs automatically; application code cannot disable those from the frontend. Avoid repeatedly polling or running broad Logs Explorer queries because Supabase measures Logs Query by the amount of log data scanned.
+
+
+## Exam AI Assistant
+
+During an active exam, each question now has an **Ask AI** window using the same Groq user-facing assistant. It can be opened before or after answering without ending or resetting the exam.
+
+- Before answering: quick actions provide a concept explanation or hint without revealing the correct option by default.
+- After answering: quick actions explain the student answer and/or the correct answer, including why other options are less appropriate.
+- The student can also type a custom question about the current exam question.
+- The assistant is question-aware and receives the current question, options, and answer state.
+- The exam state remains intact while the AI request is running.

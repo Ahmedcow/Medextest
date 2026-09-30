@@ -176,6 +176,21 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .review.good{border-left:4px solid var(--ok)}
 .review.bad{border-left:4px solid var(--danger)}
 .quiz-footer{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
+
+.exam-ai-wrap{margin-top:14px}
+.exam-ai-trigger{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg)}
+.exam-ai-trigger .mini{margin-top:3px}
+.exam-ai-panel{margin-top:10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);box-shadow:0 14px 36px rgba(0,0,0,.12);overflow:hidden}
+.exam-ai-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--bg)}
+.exam-ai-head strong{font-size:14px}
+.exam-ai-context{padding:10px 14px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--muted);line-height:1.5}
+.exam-ai-log{max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:12px 14px}
+.exam-ai-log .chat-msg{max-width:90%}
+.exam-ai-actions{display:flex;flex-wrap:wrap;gap:7px;padding:0 14px 10px}
+.exam-ai-input{display:flex;gap:8px;padding:10px 14px 14px;border-top:1px solid var(--line);align-items:flex-end}
+.exam-ai-input textarea{flex:1;min-height:44px;max-height:120px}
+.exam-ai-status{padding:0 14px 10px;font-size:11px;color:var(--muted)}
+@media(max-width:700px){.exam-ai-trigger{align-items:flex-start;flex-direction:column}.exam-ai-input{flex-direction:column}.exam-ai-input .btn{width:100%}}
 .notice{padding:11px 13px;border-radius:var(--radius-sm);background:var(--primary-soft);color:var(--primary2);font-size:13px}
 .notice.error{background:var(--danger-soft);color:#8a291d}
 .notice.ok{background:var(--ok-soft);color:#136b40}
@@ -308,6 +323,8 @@ let aiChat = loadJSON(CONFIG.aiChatKey, []);
 let favorites = new Set(loadJSON(CONFIG.favoritesKey, []));
 let analyticsSummary = {total:0,signedIn:0,anonymous:0};
 let aiBusy = false;
+let examAIBusy = false;
+let examAI = {open:false, questionId:null, messages:[]};
 let progress = loadJSON(CONFIG.progressKey, {});
 let settings = {...DEFAULT_SETTINGS, ...loadJSON(CONFIG.settingsKey, {})};
 let exam = null;
@@ -1059,6 +1076,10 @@ function formatTime(s){s=Math.max(0,Math.floor(s));return `${String(Math.floor(s
 function renderQuiz(){
   if(!exam)return go('exam');
   const q=exam.list[exam.index], selected=exam.answers[q.id];
+  if(examAI.open && examAI.questionId!==q.id){
+    examAI.questionId=q.id;
+    examAI.messages=[];
+  }
   const opts=q.options.map((o,i)=>`<button class="option ${selected===i?'selected':''}" onclick="chooseAnswer(${i})">${String.fromCharCode(65+i)}. ${esc(o)}</button>`).join('');
   const nav=exam.list.map((item,i)=>{
     const answered=exam.answers[item.id]!==undefined;
@@ -1068,6 +1089,7 @@ function renderQuiz(){
   }).join('');
   const remaining=exam.minutes?Math.max(0,exam.minutes*60-Math.floor((Date.now()-exam.started)/1000)):0;
   const answeredCount=exam.list.filter(item=>exam.answers[item.id]!==undefined).length;
+  const answeredNow=selected!==undefined;
   const body=`<div class="quiz"><div class="card">
     <div class="qhead"><span class="pill">${exam.index+1} / ${exam.list.length}</span><span class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</span>${exam.minutes?`<span class="timer" id="timer">${formatTime(remaining)}</span>`:''}</div>
     <div class="bar"><i style="width:${pct(exam.index,exam.list.length-1)}%"></i></div>
@@ -1084,11 +1106,101 @@ function renderQuiz(){
     </div>
     <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" style="flex:0 0 auto" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div>
     <div class="options">${opts}</div>
+    ${exam.answerMode==='immediate' && selected!==undefined ? `<div class="review ${selected===q.correctIndex?'good':'bad'}"><b>${selected===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}</div>` : ''}
+    ${examAI.open?examAIHTML(q,answeredNow):`<div class="exam-ai-wrap"><div class="exam-ai-trigger"><div><strong>Need an explanation?</strong><div class="mini">Ask AI about this question before or after answering.</div></div><button class="btn primary" onclick="openExamAI()">✦ Ask AI</button></div></div>`}
     <div class="quiz-footer"><button class="btn" onclick="prevQ()" ${exam.index===0?'disabled':''}>Previous</button>
     <button class="btn primary" onclick="${exam.index===exam.list.length-1?'submitExam(false)':'nextQ()'}">${exam.index===exam.list.length-1?'Submit Exam':'Next'}</button></div>
   </div></div>`;
-  document.getElementById('app').innerHTML=layout('Exam','Use the numbered buttons to move between questions. Answered questions turn green.',body);
+  document.getElementById('app').innerHTML=layout('Exam','Use the numbered buttons to move between questions. You can open Ask AI at any time for a question-specific explanation.',body);
 }
+
+function examAIHTML(q, answered){
+  const status=answered
+    ? `Your answer: <b>${esc(q.options[exam.answers[q.id]])}</b> · ${exam.answers[q.id]===q.correctIndex?'Correct':'Incorrect'}`
+    : 'You have not answered this question yet.';
+  const quick=answered
+    ? `<button class="btn" onclick="examAIQuick('explain-answer')">Explain my answer</button><button class="btn" onclick="examAIQuick('explain-correct')">Explain the correct answer</button>`
+    : `<button class="btn" onclick="examAIQuick('explain-without-answer')">Explain without giving the answer</button><button class="btn" onclick="examAIQuick('hint')">Give me a hint</button>`;
+  const log=examAI.messages.length
+    ? examAI.messages.map(m=>`<div class="chat-msg ${m.role==='ai'?'ai':m.role==='error'?'error':'user'}">${esc(m.text)}</div>`).join('')
+    : `<div class="empty" style="padding:22px 8px">Ask about this question before or after answering. Before you answer, AI can explain the concept or give a hint without revealing the answer.</div>`;
+  return `<div class="exam-ai-wrap" id="examAI">
+    <div class="exam-ai-trigger"><div><strong>AI explanation for this question</strong><div class="mini">${answered?'You have answered — ask AI to explain your reasoning or the correct answer.':'Not answered yet — ask for a concept explanation or hint without revealing the answer.'}</div></div>${examAIButtonForPanel()}</div>
+    <div class="exam-ai-panel">
+      <div class="exam-ai-head"><div><strong>✦ Ask AI</strong><div class="mini">Groq · GPT-OSS 120B</div></div><button class="btn" onclick="closeExamAI()">Close</button></div>
+      <div class="exam-ai-context"><b>Question:</b> ${esc(q.question)}<br>${status}</div>
+      <div class="exam-ai-actions">${quick}</div>
+      <div class="exam-ai-log" id="examAILog">${log}</div>
+      ${examAIBusy?'<div class="exam-ai-status"><span class="spinner" style="border-color:rgba(12,124,140,.25);border-top-color:var(--primary);margin-right:5px"></span>AI is preparing an explanation…</div>':''}
+      <div class="exam-ai-input"><textarea id="examAIInput" placeholder="Ask about this question…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendExamAI();}"></textarea><button class="btn primary" id="examAISendBtn" onclick="sendExamAI()" ${examAIBusy?'disabled':''}>${examAIBusy?'…':'Send'}</button></div>
+    </div>
+  </div>`;
+}
+function examAIButtonForPanel(){ return `<button class="btn" onclick="closeExamAI()">Close AI</button>`; }
+function openExamAI(){
+  if(!exam||exam.submitted)return;
+  const q=exam.list[exam.index];
+  examAI={open:true,questionId:q.id,messages:[]};
+  renderQuiz();
+  setTimeout(()=>document.getElementById('examAIInput')?.focus(),0);
+}
+function closeExamAI(){
+  examAI={open:false,questionId:null,messages:[]};
+  renderQuiz();
+}
+function examAIPush(role,text){
+  examAI.messages.push({role,text});
+}
+function examAIPrompt(mode,q){
+  const selected=exam.answers[q.id];
+  const answered=selected!==undefined;
+  const answerInfo=answered
+    ? `The student selected option ${String.fromCharCode(65+selected)}: "${q.options[selected]}". The correct option is ${String.fromCharCode(65+q.correctIndex)}: "${q.options[q.correctIndex]}".`
+    : 'The student has not answered yet.';
+  const rules=answered
+    ? 'Explain the student\'s answer and the correct answer. State whether the selected option is correct, explain why the correct option is best, and briefly explain why the other options are less appropriate. Be educational and concise.'
+    : mode==='hint'
+      ? 'Give a useful clinical/exam reasoning hint that helps the student solve the question, but do NOT reveal the correct option or quote the correct answer.'
+      : 'Explain the key concept, reasoning approach, and important clues needed to solve the question, but do NOT reveal the correct option or quote the correct answer.';
+  if(mode==='explain-correct') return `You are the MedEx exam AI assistant. ${rules}\n\nQuestion: ${q.question}\nOptions:\n${q.options.map((o,i)=>`${String.fromCharCode(65+i)}. ${o}`).join('\n')}\n\n${answerInfo}`;
+  if(mode==='explain-answer') return `You are the MedEx exam AI assistant. ${rules}\n\nQuestion: ${q.question}\nOptions:\n${q.options.map((o,i)=>`${String.fromCharCode(65+i)}. ${o}`).join('\n')}\n\n${answerInfo}`;
+  return `You are the MedEx exam AI assistant. ${rules}\n\nQuestion: ${q.question}\nOptions:\n${q.options.map((o,i)=>`${String.fromCharCode(65+i)}. ${o}`).join('\n')}\n\n${answerInfo}`;
+}
+async function examAIQuick(mode){
+  if(!exam||exam.submitted||examAIBusy)return;
+  const q=exam.list[exam.index];
+  const label=mode==='hint'?'Give me a hint':mode==='explain-without-answer'?'Explain this question without giving the answer':mode==='explain-answer'?'Explain my answer':'Explain the correct answer';
+  examAIPush('user',label);
+  await sendExamAIPrompt(examAIPrompt(mode,q));
+}
+async function sendExamAI(){
+  if(!exam||exam.submitted||examAIBusy)return;
+  const q=exam.list[exam.index];
+  const input=document.getElementById('examAIInput');
+  const text=input?.value.trim();
+  if(!text)return;
+  input.value='';
+  examAIPush('user',text);
+  const prompt=`You are the MedEx exam AI assistant. Answer the student's question about the current exam question clearly and educationally. If the student has not answered yet, do not reveal the correct option unless they explicitly ask you to reveal it. If they have answered, you may explain whether their answer is correct and why.\n\nCurrent question: ${q.question}\nOptions:\n${q.options.map((o,i)=>`${String.fromCharCode(65+i)}. ${o}`).join('\n')}\n\n${exam.answers[q.id]!==undefined?`Student selected ${String.fromCharCode(65+exam.answers[q.id])}: ${q.options[exam.answers[q.id]]}. Correct option: ${String.fromCharCode(65+q.correctIndex)}: ${q.options[q.correctIndex]}.`:'Student has not answered yet.'}\n\nStudent asks: ${text}`;
+  await sendExamAIPrompt(prompt);
+}
+async function sendExamAIPrompt(prompt){
+  if(examAIBusy)return;
+  examAIBusy=true;
+  renderQuiz();
+  try{
+    const contents=[{role:'user',parts:[{text:`Answer in ordinary readable text. Do not return JSON or code. Use short paragraphs or bullets when useful.\n\n${prompt}`}]}];
+    const reply=await callAI(contents,{maxOutputTokens:1800,responseMimeType:'text/plain'},{provider:'groq',model:'openai/gpt-oss-120b',accessCode:aiSettings.accessCode||''});
+    examAIPush('ai',formatAIChatReply(reply));
+  }catch(e){
+    examAIPush('error','Error: '+e.message);
+  }finally{
+    examAIBusy=false;
+    renderQuiz();
+    setTimeout(()=>{const log=document.getElementById('examAILog');if(log)log.scrollTop=log.scrollHeight;document.getElementById('examAIInput')?.focus();},0);
+  }
+}
+
 function jumpToQuestion(i){
   if(!exam||exam.submitted||i<0||i>=exam.list.length)return;
   exam.index=i;
@@ -1102,20 +1214,13 @@ function chooseAnswer(i){
   // Exactly one answer is stored. A new selection replaces the previous one.
   exam.answers[q.id]=i;
 
+  if(exam.answerMode==='immediate'){
+    renderQuiz();
+    return;
+  }
+
   const buttons=document.querySelectorAll('.option');
   buttons.forEach((b,j)=>b.classList.toggle('selected',j===i));
-
-  if(exam.answerMode==='immediate'){
-    buttons.forEach((b,j)=>{
-      b.disabled=true;
-      if(j===q.correctIndex)b.classList.add('correct');
-      if(j===i&&i!==q.correctIndex)b.classList.add('wrong');
-    });
-    const box=document.createElement('div');
-    box.className='review '+(i===q.correctIndex?'good':'bad');
-    box.innerHTML=`<b>${i===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}`;
-    document.querySelector('.options').after(box);
-  }
 }
 function nextQ(){if(exam.index<exam.list.length-1){exam.index++;renderQuiz();}}
 function prevQ(){if(exam.index>0){exam.index--;renderQuiz();}}
@@ -1808,17 +1913,18 @@ function ensureAIModelForProvider(){
 }
 ensureAIModelForProvider();
 
-async function callAI(contents, generationConfig){
+async function callAI(contents, generationConfig, overrideSettings=null){
   let res, data;
   const headers={'Content-Type':'application/json'};
-  if(aiSettings.accessCode) headers['x-access-code']=aiSettings.accessCode;
+  const requestSettings=overrideSettings||aiSettings;
+  if(requestSettings.accessCode) headers['x-access-code']=requestSettings.accessCode;
   try{
     res=await fetch('/api/ai',{
       method:'POST',
       headers,
       body:JSON.stringify({
-        provider:aiSettings.provider||'groq',
-        model:aiSettings.model,
+        provider:requestSettings.provider||'groq',
+        model:requestSettings.model,
         contents,
         generationConfig
       })
@@ -1831,11 +1937,11 @@ async function callAI(contents, generationConfig){
     throw new Error((data&&data.error)||`HTTP ${res.status} from the AI service.`);
   }
   const text=data&&data.text;
-  if(!text) throw new Error(`${aiProviderLabel(aiSettings.provider)} returned an empty response.`);
-  if(data?.provider && data.provider !== aiProviderLabel(aiSettings.provider)){
+  if(!text) throw new Error(`${aiProviderLabel(requestSettings.provider)} returned an empty response.`);
+  if(data?.provider && data.provider !== aiProviderLabel(requestSettings.provider)){
     toast(`Gemini was temporarily unavailable. MedEx automatically switched to ${data.provider}${data.model?` · ${data.model}`:''}.`,'ok');
   }else if(data?.fallbackUsed){
-    toast(`MedEx automatically switched from ${aiSettings.model} to ${data.model||'another Gemini model'}.`,'ok');
+    toast(`MedEx automatically switched from ${requestSettings.model} to ${data.model||'another Gemini model'}.`,'ok');
   }
   return text;
 }
