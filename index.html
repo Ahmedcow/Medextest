@@ -1080,7 +1080,10 @@ function renderQuiz(){
     examAI.questionId=q.id;
     examAI.messages=[];
   }
-  const opts=q.options.map((o,i)=>`<button class="option ${selected===i?'selected':''}" onclick="chooseAnswer(${i})">${String.fromCharCode(65+i)}. ${esc(o)}</button>`).join('');
+  const opts=q.options.map((o,i)=>{
+    const feedback=selected!==undefined && i===selected ? (selected===q.correctIndex?'correct':'wrong') : '';
+    return `<button class="option ${selected===i?'selected ':''}${feedback}" onclick="chooseAnswer(${i})" aria-pressed="${selected===i}">${String.fromCharCode(65+i)}. ${esc(o)}</button>`;
+  }).join('');
   const nav=exam.list.map((item,i)=>{
     const answered=exam.answers[item.id]!==undefined;
     const wrong=answered && exam.answers[item.id]!==item.correctIndex;
