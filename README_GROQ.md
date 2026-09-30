@@ -1,4 +1,4 @@
-# MedEx v19 — AI / PWA setup (Exam AI Assistant + Answer Feedback)
+# MedEx v20 — AI / PWA setup (Exam AI Assistant + Answer Feedback)
 
 ## Vercel Environment Variables
 

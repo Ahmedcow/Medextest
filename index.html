@@ -1081,8 +1081,15 @@ function renderQuiz(){
     examAI.messages=[];
   }
   const opts=q.options.map((o,i)=>{
-    const feedback=selected!==undefined && i===selected ? (selected===q.correctIndex?'correct':'wrong') : '';
-    return `<button class="option ${selected===i?'selected ':''}${feedback}" onclick="chooseAnswer(${i})" aria-pressed="${selected===i}">${String.fromCharCode(65+i)}. ${esc(o)}</button>`;
+    // Once an answer is selected, always reveal the correct option in green.
+    // If the selected answer is wrong, keep that selected option red.
+    let feedback='';
+    if(selected!==undefined){
+      if(i===q.correctIndex) feedback='correct';
+      else if(i===selected) feedback='wrong';
+    }
+    const selectedClass=selected===i && feedback!=='correct'?'selected ':'';
+    return `<button class="option ${selectedClass}${feedback}" onclick="chooseAnswer(${i})" aria-pressed="${selected===i}">${String.fromCharCode(65+i)}. ${esc(o)}</button>`;
   }).join('');
   const nav=exam.list.map((item,i)=>{
     const answered=exam.answers[item.id]!==undefined;
@@ -1217,13 +1224,9 @@ function chooseAnswer(i){
   // Exactly one answer is stored. A new selection replaces the previous one.
   exam.answers[q.id]=i;
 
-  if(exam.answerMode==='immediate'){
-    renderQuiz();
-    return;
-  }
-
-  const buttons=document.querySelectorAll('.option');
-  buttons.forEach((b,j)=>b.classList.toggle('selected',j===i));
+  // Always render after a selection so the chosen answer and the true option
+  // are shown immediately: wrong = red, correct = green.
+  renderQuiz();
 }
 function nextQ(){if(exam.index<exam.list.length-1){exam.index++;renderQuiz();}}
 function prevQ(){if(exam.index>0){exam.index--;renderQuiz();}}
