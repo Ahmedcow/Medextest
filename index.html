@@ -151,6 +151,11 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .option.selected{border-color:var(--primary);background:var(--primary-soft)}
 .option.correct{border-color:var(--ok);background:var(--ok-soft)}
 .option.wrong{border-color:var(--danger);background:var(--danger-soft)}
+.question-illustration{display:block;width:100%;max-height:420px;object-fit:contain;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg);margin:14px 0;padding:6px}
+.report-panel{margin-top:10px;border:1px solid var(--danger);background:var(--danger-soft);border-radius:var(--radius-sm);padding:14px}
+.report-panel h4{margin:0 0 10px}
+.report-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.admin-reply{border-left:4px solid var(--primary);padding:10px 12px;background:var(--primary-soft);border-radius:var(--radius-sm);margin-top:10px}
 
 /* ---------- Exam question navigator ---------- */
 .question-nav{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 18px;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:var(--radius)}
@@ -244,6 +249,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
       <button data-view="aiquestions"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="4" rx="1.2"/><rect x="3" y="8.5" width="14" height="4" rx="1.2"/><rect x="3" y="14" width="14" height="4" rx="1.2"/><circle cx="6" cy="5" r=".6" fill="currentColor"/><circle cx="6" cy="10.5" r=".6" fill="currentColor"/><circle cx="6" cy="16" r=".6" fill="currentColor"/></svg><span>AI Questions</span></button>
       <button data-view="favorites" id="favoritesNav"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17.2 3.8 10.8A4.1 4.1 0 0 1 9.6 5l.4.4.4-.4a4.1 4.1 0 0 1 5.8 5.8Z"/></svg><span>Favourite Questions</span></button>
       <button data-view="analytics" id="analyticsNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="17" x2="3" y2="3"/><line x1="3" y1="17" x2="18" y2="17"/><rect x="6" y="10" width="2.5" height="5" rx=".5"/><rect x="10.5" y="7" width="2.5" height="8" rx=".5"/><rect x="15" y="4" width="2.5" height="11" rx=".5"/></svg><span>Admin Analytics</span></button>
+      <button data-view="reports" id="adminReportsNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5 17 5v4.7c0 4.2-2.8 6.6-7 7.8-4.2-1.2-7-3.6-7-7.8V5z"/><path d="M10 6.2v4.2"/><circle cx="10" cy="13.2" r=".7" fill="currentColor" stroke="none"/></svg><span>Question Reports</span></button>
       <button data-view="settings"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round"><line x1="2" y1="5" x2="18" y2="5"/><circle cx="13" cy="5" r="2"/><line x1="2" y1="10" x2="18" y2="10"/><circle cx="7" cy="10" r="2"/><line x1="2" y1="15" x2="18" y2="15"/><circle cx="14" cy="15" r="2"/></svg><span>Settings</span></button>
       <button data-view="account"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="6.5" r="3.2"/><path d="M4 17c.8-3.2 2.8-4.8 6-4.8s5.2 1.6 6 4.8"/></svg><span>Account</span></button>
     </div>
@@ -338,6 +344,7 @@ let remoteHistoryLoaded = false;
 let moduleVisibility = {};
 let allQuestionBank = [];
 let activeNotifications = [];
+let reportPanelOpen=false;
 
 function getVisitorId(){
   let id=localStorage.getItem(CONFIG.visitorIdKey);
@@ -645,6 +652,13 @@ function attrJs(v){
 function uid(q){ return String(q.id || '').trim(); }
 function key(q){ return uid(q); }
 
+function sanitizeImageUrl(value){
+  const v=String(value||'').trim();
+  if(!v)return '';
+  if(/^https?:\/\//i.test(v))return v;
+  if(/^data:image\/(png|jpe?g|gif|webp);base64,/i.test(v))return v;
+  return '';
+}
 function normalizeQuestion(q, source=''){
   const options = Array.isArray(q.options) ? q.options.map(x=>String(x)) : [];
   let ci = Number.isInteger(q.correctIndex) ? q.correctIndex : Number(q.correctIndex);
@@ -660,6 +674,7 @@ function normalizeQuestion(q, source=''){
     options,
     correctIndex: ci,
     explanation: String(q.explanation || '').trim(),
+    imageUrl: sanitizeImageUrl(q.imageUrl || q.image_url || q.illustration || ''),
     source: source || String(q.source || '')
   };
 }
@@ -699,7 +714,7 @@ async function loadQuestionsFromSupabase(){
       const to=from+PAGE_SIZE-1;
       const {data,error}=await supabaseClient
         .from('questions')
-        .select('id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference')
+        .select('id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference,image_url')
         .order('id',{ascending:true})
         .range(from,to);
       if(error)throw error;
@@ -711,7 +726,7 @@ async function loadQuestionsFromSupabase(){
     const all=data.map(q=>normalizeQuestion({
       id:q.id,module:q.module,subject:q.subject,lecture:q.lecture,question:q.question,
       options:q.options,correctIndex:q.correct_index,explanation:q.explanation,
-      difficulty:q.difficulty,reference:q.reference,source:'Supabase'
+      difficulty:q.difficulty,reference:q.reference,imageUrl:q.image_url,source:'Supabase'
     },'Supabase'));
     const errors=validateBank(all);
     if(errors.length)throw new Error(errors.slice(0,8).join('\n'));
@@ -829,14 +844,15 @@ function layout(title,subtitle,body,actions=''){
 function render(){
   updateSidebarFoot();
   const view=location.hash.replace('#','')||'dashboard';
-  const allowed=['dashboard','exam','progress','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics'];
+  const allowed=['dashboard','exam','progress','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics','reports'];
   const v=allowed.includes(view)?view:'dashboard';
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   const adminNav=document.getElementById('adminNav'); if(adminNav) adminNav.style.display=isAdmin?'flex':'none';
   const bankNav=document.getElementById('bankNav'); if(bankNav) bankNav.style.display=isAdmin?'flex':'none';
   const aiQuestionsNav=document.querySelector('[data-view="aiquestions"]'); if(aiQuestionsNav) aiQuestionsNav.style.display=isAdmin?'flex':'none';
   const analyticsNav=document.getElementById('analyticsNav'); if(analyticsNav) analyticsNav.style.display=isAdmin?'flex':'none';
-  if((['bank','import','aiquestions','analytics'].includes(v)) && !isAdmin){ location.hash='dashboard'; return; }
+  const adminReportsNav=document.getElementById('adminReportsNav'); if(adminReportsNav) adminReportsNav.style.display=isAdmin?'flex':'none';
+  if((['bank','import','aiquestions','analytics','reports'].includes(v)) && !isAdmin){ location.hash='dashboard'; return; }
   if(v==='dashboard') renderDashboard();
   else if(v==='exam') renderExamSetup();
   else if(v==='progress') renderProgress();
@@ -848,6 +864,7 @@ function render(){
   else if(v==='aiquestions') renderAIQuestions();
   else if(v==='favorites') renderFavorites();
   else if(v==='analytics') renderAdminAnalytics();
+  else if(v==='reports') renderQuestionReports();
   else if(v==='settings') renderSettings();
   else if(v==='account') renderAccount();
   else renderResults();
@@ -1114,14 +1131,46 @@ function renderQuiz(){
         <span><i class="nav-dot current"></i>Current</span>
       </div>
     </div>
-    <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" style="flex:0 0 auto" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div>
+    <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><div style="display:flex;gap:7px;flex:0 0 auto"><button type="button" class="btn" onclick="openQuestionReport()" title="Report this question" aria-label="Report this question">⚑</button><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div></div>
     <div class="options">${opts}</div>
+    ${q.imageUrl ? `<img class="question-illustration" src="${esc(q.imageUrl)}" alt="Question illustration" loading="lazy">` : ''}
+    ${reportPanelOpen ? questionReportHTML(q) : ''}
     ${exam.answerMode==='immediate' && selected!==undefined ? `<div class="review ${selected===q.correctIndex?'good':'bad'}"><b>${selected===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}</div>` : ''}
     ${examAI.open?examAIHTML(q,answeredNow):`<div class="exam-ai-wrap"><div class="exam-ai-trigger"><div><strong>Need an explanation?</strong><div class="mini">Ask AI about this question before or after answering.</div></div><button class="btn primary" onclick="openExamAI()">✦ Ask AI</button></div></div>`}
     <div class="quiz-footer"><button class="btn" onclick="prevQ()" ${exam.index===0?'disabled':''}>Previous</button>
     <button class="btn primary" onclick="${exam.index===exam.list.length-1?'submitExam(false)':'nextQ()'}">${exam.index===exam.list.length-1?'Submit Exam':'Next'}</button></div>
   </div></div>`;
   document.getElementById('app').innerHTML=layout('Exam','Use the numbered buttons to move between questions. You can open Ask AI at any time for a question-specific explanation.',body);
+}
+
+function openQuestionReport(){
+  if(!exam||exam.submitted)return;
+  reportPanelOpen=true;
+  renderQuiz();
+}
+function closeQuestionReport(){
+  reportPanelOpen=false;
+  renderQuiz();
+}
+function questionReportHTML(q){
+  return `<div class="report-panel" id="questionReportPanel"><h4>Report this question</h4><div class="mini">Tell the MedEx team what is wrong with this question. Your report will be reviewed by an administrator.</div><div class="grid two" style="margin-top:10px"><div class="field"><label>Reason</label><select id="reportReason"><option value="Wrong answer">Wrong answer / key</option><option value="Wrong options">Wrong or missing option</option><option value="Unclear question">Question is unclear</option><option value="Typo">Typo / spelling</option><option value="Other">Other</option></select></div><div class="field"><label>Comment</label><textarea id="reportComment" style="min-height:90px;font-family:var(--font-sans);font-size:14px" placeholder="Describe the problem…"></textarea></div></div><div class="report-actions"><button class="btn primary" onclick="submitQuestionReport()">Send report</button><button class="btn" onclick="closeQuestionReport()">Cancel</button></div></div>`;
+}
+async function submitQuestionReport(){
+  if(!exam||exam.submitted||!SUPABASE_ENABLED){toast('Reporting requires Supabase connection.','error');return;}
+  const q=exam.list[exam.index];
+  const reason=(document.getElementById('reportReason')?.value||'Other').trim();
+  const comment=(document.getElementById('reportComment')?.value||'').trim();
+  if(!comment){toast('Please add a comment before sending the report.','error');return;}
+  const {error}=await supabaseClient.from('question_reports').insert({
+    question_id:String(q.id), question_text:q.question, reason, comment,
+    selected_option:exam.answers[q.id]!==undefined?String(q.options[exam.answers[q.id]]||''):null,
+    user_id:currentUser?.id||null, visitor_id:currentUser?null:getVisitorId(),
+    reporter_email:currentUser?.email||null, status:'open'
+  });
+  if(error){toast('Could not send report: '+error.message,'error');return;}
+  reportPanelOpen=false;
+  renderQuiz();
+  toast('Thank you. Your question report was sent to the MedEx team.','ok');
 }
 
 function examAIHTML(q, answered){
@@ -1228,8 +1277,8 @@ function chooseAnswer(i){
   // are shown immediately: wrong = red, correct = green.
   renderQuiz();
 }
-function nextQ(){if(exam.index<exam.list.length-1){exam.index++;renderQuiz();}}
-function prevQ(){if(exam.index>0){exam.index--;renderQuiz();}}
+function nextQ(){if(exam.index<exam.list.length-1){reportPanelOpen=false;exam.index++;renderQuiz();}}
+function prevQ(){if(exam.index>0){reportPanelOpen=false;exam.index--;renderQuiz();}}
 async function submitExam(auto){
   if(!exam)return;
   if(!auto && !confirm('Submit this exam now?'))return;
@@ -1463,6 +1512,7 @@ function renderImport(){
         <div class="field"><label>Lecture</label><input id="newQLecture" placeholder="e.g. Lecture 3: AV Block"></div>
       </div>
       <div class="field" style="margin-top:10px"><label>Question</label><textarea id="newQText" style="min-height:90px;font-family:var(--font-sans);font-size:14px" placeholder="Write the question…"></textarea></div>
+      <div class="grid two" style="margin-top:10px"><div class="field"><label>Illustration image URL (optional)</label><input id="newQImageUrl" type="url" placeholder="https://…"></div><div class="field"><label>Or upload illustration</label><input id="newQImageFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></div></div>
       <div class="field" style="margin-top:10px"><label>Answer options</label>
         <input id="newQOpt0" placeholder="Option A" style="margin-bottom:7px">
         <input id="newQOpt1" placeholder="Option B" style="margin-bottom:7px">
@@ -1614,6 +1664,16 @@ async function deleteAdminQuestion(id){
   toast(`Question "${id}" deleted from Supabase.`,'ok');
 }
 
+async function uploadQuestionImage(file,questionId){
+  const ext=(file.name.split('.').pop()||'png').toLowerCase().replace(/[^a-z0-9]/g,'')||'png';
+  const path=`${String(questionId).replace(/[^a-zA-Z0-9_-]/g,'_')}-${Date.now()}.${ext}`;
+  const {error}=await supabaseClient.storage.from('question-images').upload(path,file,{cacheControl:'31536000',upsert:false,contentType:file.type});
+  if(error)throw error;
+  const {data}=supabaseClient.storage.from('question-images').getPublicUrl(path);
+  if(!data?.publicUrl)throw new Error('Could not create public image URL.');
+  return data.publicUrl;
+}
+
 async function addBuiltInQuestion(){
   if(!(await requireAdmin())) return;
   const q=normalizeQuestion({
@@ -1629,13 +1689,21 @@ async function addBuiltInQuestion(){
       document.getElementById('newQOpt3').value
     ],
     correctIndex:Number(document.getElementById('newQCorrect').value),
-    explanation:document.getElementById('newQExplanation').value
+    explanation:document.getElementById('newQExplanation').value,
+    imageUrl:document.getElementById('newQImageUrl').value
   });
 
   const error=validateQuestion(q,0);
   if(error){toast('Cannot add question: '+error,'error');return}
   if(bank.some(x=>x.id===q.id) || localQuestions.some(x=>x.id===q.id)){
     toast('A question with this ID already exists. Use a unique ID.','error');return;
+  }
+  const imageFile=document.getElementById('newQImageFile')?.files?.[0];
+  if(imageFile){
+    if(!/^image\/(png|jpe?g|webp|gif)$/i.test(imageFile.type)){toast('Please choose a PNG, JPG, WEBP, or GIF image.','error');return;}
+    if(imageFile.size>5*1024*1024){toast('Image must be 5 MB or smaller.','error');return;}
+    if(!SUPABASE_ENABLED){toast('Image upload requires Supabase.','error');return;}
+    try{ q.imageUrl=await uploadQuestionImage(imageFile,q.id); }catch(e){toast('Image upload failed: '+e.message,'error');return;}
   }
 
   q.source=SUPABASE_ENABLED && currentUser ? 'Supabase' : 'Built in';
@@ -1644,7 +1712,7 @@ async function addBuiltInQuestion(){
     const {error}=await supabaseClient.from('questions').insert({
       id:q.id,module:q.module,subject:q.subject,lecture:q.lecture,
       question:q.question,options:q.options,correct_index:q.correctIndex,
-      explanation:q.explanation,difficulty:q.difficulty||null,reference:q.reference||null
+      explanation:q.explanation,difficulty:q.difficulty||null,reference:q.reference||null,image_url:q.imageUrl||null
     });
     if(error){toast('Could not save to Supabase: '+error.message,'error');return;}
     bank.push(q);
@@ -1666,7 +1734,7 @@ async function addBuiltInQuestion(){
 }
 
 function clearQuestionForm(){
-  ['newQId','newQModule','newQSubject','newQLecture','newQText','newQOpt0','newQOpt1','newQOpt2','newQOpt3','newQExplanation'].forEach(id=>{
+  ['newQId','newQModule','newQSubject','newQLecture','newQText','newQOpt0','newQOpt1','newQOpt2','newQOpt3','newQExplanation','newQImageUrl'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
   const c=document.getElementById('newQCorrect'); if(c)c.value='0';
@@ -1755,7 +1823,7 @@ async function uploadPreviewToSupabase(){
   const rows=pendingImportQuestions.map(q=>({
     id:q.id,module:q.module,subject:q.subject,lecture:q.lecture,
     question:q.question,options:q.options,correct_index:q.correctIndex,
-    explanation:q.explanation||'',difficulty:q.difficulty||null,reference:q.reference||null
+    explanation:q.explanation||'',difficulty:q.difficulty||null,reference:q.reference||null,image_url:q.imageUrl||null
   }));
   const {error}=await supabaseClient.from('questions').upsert(rows,{onConflict:'id'});
   if(error){toast('Supabase upload failed: '+error.message,'error');return;}
@@ -1792,10 +1860,36 @@ function replaceWithPreviewBank(list){
   render();toast(`Loaded ${bank.length} preview questions in this browser.`,'ok');
 }
 function downloadTemplate(){
-  const sample=[{id:"pharma-001",module:"Pharmacology",subject:"Autonomic Drugs",lecture:"Lecture 2: Adrenergic Receptors",question:"Which receptor is primarily activated by norepinephrine?",options:["Alpha-1","Beta-2","M2","Nicotinic"],correctIndex:0,explanation:"Norepinephrine strongly activates alpha-1 receptors."}];
+  const sample=[{id:"pharma-001",module:"Pharmacology",subject:"Autonomic Drugs",lecture:"Lecture 2: Adrenergic Receptors",question:"Which receptor is primarily activated by norepinephrine?",options:["Alpha-1","Beta-2","M2","Nicotinic"],correctIndex:0,explanation:"Norepinephrine strongly activates alpha-1 receptors.",image_url:"https://example.com/illustration.png"}];
   downloadBlob(JSON.stringify(sample,null,2),'questions-template.json','application/json');
 }
 function downloadBlob(text,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+
+async function renderQuestionReports(){
+  if(!(await requireAdmin())) return;
+  if(!SUPABASE_ENABLED){document.getElementById('app').innerHTML=layout('Question Reports','Review reports submitted by students and visitors.',`<div class="card"><div class="notice error">Supabase is required for question reports.</div></div>`);return;}
+  const {data,error}=await supabaseClient.from('question_reports').select('id,question_id,question_text,reason,comment,selected_option,user_id,visitor_id,reporter_email,status,admin_reply,created_at,replied_at').order('created_at',{ascending:false}).limit(200);
+  if(error){document.getElementById('app').innerHTML=layout('Question Reports','Review reports submitted by students and visitors.',`<div class="card"><div class="notice error">Could not load reports: ${esc(error.message)}</div></div>`);return;}
+  const rows=data||[];
+  const body=`<div class="card"><div class="category-head"><div><strong>${rows.length} report${rows.length===1?'':'s'}</strong><div class="mini">Reports from signed-in students and visitors.</div></div><button class="btn" onclick="renderQuestionReports()">Refresh</button></div></div>
+  <div style="margin-top:16px">${rows.length?rows.map(r=>`<div class="card" style="margin-bottom:14px"><div class="category-head"><div><b>Question: ${esc(r.question_id)}</b><div class="mini">${r.created_at?new Date(r.created_at).toLocaleString():''} · ${r.user_id?'Signed-in user':'Visitor'}${r.reporter_email?' · '+esc(r.reporter_email):''}</div></div><span class="pill">${esc(r.status||'open')}</span></div><div style="margin-top:10px"><b>Question</b><div style="margin-top:5px">${esc(r.question_text||'')}</div></div><div style="margin-top:10px"><b>Reason</b><div style="margin-top:5px">${esc(r.reason||'Other')}</div></div><div style="margin-top:10px"><b>User comment</b><div style="margin-top:5px;white-space:pre-wrap">${esc(r.comment||'')}</div></div>${r.selected_option?`<div class="mini" style="margin-top:8px">Selected answer: ${esc(r.selected_option)}</div>`:''}${r.admin_reply?`<div class="admin-reply"><b>Admin reply</b><div style="margin-top:5px;white-space:pre-wrap">${esc(r.admin_reply)}</div></div>`:''}<div class="field" style="margin-top:12px"><label>Reply to this report</label><textarea id="reportReply_${attrJs(r.id)}" style="min-height:80px;font-family:var(--font-sans);font-size:14px" placeholder="Write an admin reply…">${esc(r.admin_reply||'')}</textarea></div><div class="actions" style="margin-top:8px"><button class="btn primary" onclick="replyToQuestionReport('${attrJs(r.id)}')">Save reply</button><button class="btn ${r.status==='resolved'?'':'ok'}" onclick="setQuestionReportStatus('${attrJs(r.id)}','resolved')">Mark resolved</button><button class="btn" onclick="setQuestionReportStatus('${attrJs(r.id)}','open')">Re-open</button></div></div>`).join(''):'<div class="card empty">No question reports yet.</div>'}</div>`;
+  document.getElementById('app').innerHTML=layout('Question Reports','Review student/visitor reports and reply from one place.',body);
+}
+async function replyToQuestionReport(id){
+  if(!(await requireAdmin()))return;
+  const reply=(document.getElementById('reportReply_'+id)?.value||'').trim();
+  if(!reply){toast('Enter a reply first.','error');return;}
+  const {error}=await supabaseClient.from('question_reports').update({admin_reply:reply,replied_by:currentUser.id,replied_at:new Date().toISOString(),status:'replied'}).eq('id',id);
+  if(error){toast('Could not save reply: '+error.message,'error');return;}
+  toast('Admin reply saved.','ok');
+  await renderQuestionReports();
+}
+async function setQuestionReportStatus(id,status){
+  if(!(await requireAdmin()))return;
+  const {error}=await supabaseClient.from('question_reports').update({status}).eq('id',id);
+  if(error){toast('Could not update report: '+error.message,'error');return;}
+  await renderQuestionReports();
+}
 
 async function renderAdminAnalytics(){
   if(!(await loadAdminAnalytics())) return;

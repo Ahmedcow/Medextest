@@ -1,16 +1,22 @@
 {
   "name": "MedEx \u2014 Medical Examination Platform",
-  "short_name": "MED Ex",
+  "short_name": "MedEx",
   "description": "Medical examination and question practice platform.",
   "start_url": "./index.html",
   "scope": "./",
   "id": "./index.html",
-  "display_override": ["window-controls-overlay", "standalone"],
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ],
   "orientation": "portrait-primary",
-  "categories": ["education", "medical"],
+  "categories": [
+    "education",
+    "medical"
+  ],
   "display": "standalone",
-  "background_color": "#eef2f0",
-  "theme_color": "#0c7c8c",
+  "background_color": "#0b0f10",
+  "theme_color": "#0b0f10",
   "icons": [
     {
       "src": "./icons/medex-192.png",
