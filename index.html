@@ -302,7 +302,8 @@ const CONFIG = {
   aiQuestionsKey: 'med64_ai_questions_v1',
   aiChatKey: 'med64_ai_chat_v1',
   favoritesKey: 'med64_favorite_questions_v1',
-  visitorIdKey: 'med64_visitor_id_v1'
+  visitorIdKey: 'med64_visitor_id_v1',
+  activeExamKey: 'med64_active_exam_v1'
 };
 
 const DEFAULT_SETTINGS = {
@@ -634,6 +635,32 @@ function saveState(){
   localStorage.setItem(CONFIG.progressKey, JSON.stringify(progress));
   localStorage.setItem(CONFIG.settingsKey, JSON.stringify(settings));
 }
+function saveActiveExam(){
+  if(!exam || exam.submitted){ localStorage.removeItem(CONFIG.activeExamKey); return; }
+  try{
+    localStorage.setItem(CONFIG.activeExamKey, JSON.stringify(exam));
+  }catch(e){ console.warn('Could not save active exam:',e.message); }
+}
+function clearActiveExam(){
+  localStorage.removeItem(CONFIG.activeExamKey);
+}
+function restoreActiveExam(){
+  const saved=loadJSON(CONFIG.activeExamKey,null);
+  if(!saved || !Array.isArray(saved.list) || !saved.list.length) return false;
+  try{
+    exam={...saved,answers:saved.answers||{},submitted:false};
+    if(!Number.isFinite(exam.started)) exam.started=Date.now();
+    if(exam.minutes>0) startTimer(exam.minutes*60);
+    if(location.hash.replace('#','')!=='exam') location.hash='exam';
+    renderQuiz();
+    return true;
+  }catch(e){
+    console.warn('Could not restore active exam:',e.message);
+    clearActiveExam();
+    exam=null;
+    return false;
+  }
+}
 function applyTheme(){
   document.documentElement.setAttribute('data-theme', settings.darkMode ? 'dark' : 'light');
 }
@@ -854,7 +881,7 @@ function render(){
   const adminReportsNav=document.getElementById('adminReportsNav'); if(adminReportsNav) adminReportsNav.style.display=isAdmin?'flex':'none';
   if((['bank','import','aiquestions','analytics','reports'].includes(v)) && !isAdmin){ location.hash='dashboard'; return; }
   if(v==='dashboard') renderDashboard();
-  else if(v==='exam') renderExamSetup();
+  else if(v==='exam') { if(exam && !exam.submitted) renderQuiz(); else renderExamSetup(); }
   else if(v==='progress') renderProgress();
   else if(v==='history') renderHistory();
   else if(v==='mistakes') renderMistakes();
@@ -870,7 +897,20 @@ function render(){
   else renderResults();
   if(v==='settings') updatePWAInstallButton();
 }
-function go(v){ location.hash=v; render(); }
+function go(v){
+  // Leaving the Exam page intentionally ends the in-progress exam.
+  // Switching apps/tabs or closing/reopening the browser does NOT call go(),
+  // so the active exam remains recoverable from localStorage.
+  if(v!=='exam' && exam && !exam.submitted){
+    clearInterval(timerId);
+    exam=null;
+    reportPanelOpen=false;
+    examAI={open:false,questionId:null,messages:[]};
+    clearActiveExam();
+  }
+  location.hash=v;
+  render();
+}
 
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>{
   go(b.dataset.view);
@@ -1065,6 +1105,7 @@ function startExam(customList=null, overrides=null, customLabel=null){
   };
 
   if(exam.minutes>0) startTimer(exam.minutes*60);
+  saveActiveExam();
   renderQuiz();
 }
 function startModuleExam(module){
@@ -1132,7 +1173,7 @@ function renderQuiz(){
       </div>
     </div>
     <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><div style="display:flex;gap:7px;flex:0 0 auto"><button type="button" class="btn" onclick="openQuestionReport()" title="Report this question" aria-label="Report this question">⚑</button><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div></div>
-    ${q.imageUrl ? `<img class="question-illustration" src="${esc(q.imageUrl)}" alt="Question illustration" loading="lazy">` : ''}
+    ${q.imageUrl ? `<img class="question-illustration" src="${esc(q.imageUrl)}" alt="Question illustration" loading="eager">` : ''}
     <div class="options">${opts}</div>
     ${reportPanelOpen ? questionReportHTML(q) : ''}
     ${exam.answerMode==='immediate' && selected!==undefined ? `<div class="review ${selected===q.correctIndex?'good':'bad'}"><b>${selected===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}</div>` : ''}
@@ -1263,22 +1304,53 @@ async function sendExamAIPrompt(prompt){
 function jumpToQuestion(i){
   if(!exam||exam.submitted||i<0||i>=exam.list.length)return;
   exam.index=i;
+  saveActiveExam();
   renderQuiz();
+}
+function updateAnswerFeedback(q,selected){
+  // Update only the option/feedback DOM nodes. Do NOT replace #app here:
+  // replacing the quiz markup forces the illustration <img> to download again.
+  document.querySelectorAll('.quiz .option').forEach((btn,i)=>{
+    btn.classList.remove('selected','correct','wrong');
+    btn.setAttribute('aria-pressed', selected===i ? 'true' : 'false');
+    if(selected!==undefined){
+      if(i===q.correctIndex) btn.classList.add('correct');
+      else if(i===selected) btn.classList.add('wrong','selected');
+    }
+  });
+  document.querySelectorAll('.qnav-btn').forEach((btn,i)=>{
+    const item=exam.list[i], a=exam.answers[item.id];
+    btn.classList.remove('answered','wrong');
+    if(a!==undefined){
+      if(a!==item.correctIndex) btn.classList.add('wrong');
+      else btn.classList.add('answered');
+    }
+  });
+  const count=exam.list.filter(item=>exam.answers[item.id]!==undefined).length;
+  const countEl=document.querySelector('.question-nav > div:first-child .mini');
+  if(countEl) countEl.textContent=`${count}/${exam.list.length} answered`;
+  const review=document.querySelector('.quiz .review');
+  if(review && exam.answerMode==='immediate' && selected!==undefined){
+    review.className=`review ${selected===q.correctIndex?'good':'bad'}`;
+    review.innerHTML=`<b>${selected===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}`;
+  }else if(exam.answerMode==='immediate' && selected!==undefined){
+    const options=document.querySelector('.quiz .options');
+    if(options){
+      options.insertAdjacentHTML('afterend',`<div class="review ${selected===q.correctIndex?'good':'bad'}"><b>${selected===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}</div>`);
+    }
+  }
 }
 function chooseAnswer(i){
   if(!exam||exam.submitted)return;
   const q=exam.list[exam.index];
   if(exam.answerMode==='immediate' && exam.answers[q.id]!==undefined)return;
 
-  // Exactly one answer is stored. A new selection replaces the previous one.
   exam.answers[q.id]=i;
-
-  // Always render after a selection so the chosen answer and the true option
-  // are shown immediately: wrong = red, correct = green.
-  renderQuiz();
+  saveActiveExam();
+  updateAnswerFeedback(q,i);
 }
-function nextQ(){if(exam.index<exam.list.length-1){reportPanelOpen=false;exam.index++;renderQuiz();}}
-function prevQ(){if(exam.index>0){reportPanelOpen=false;exam.index--;renderQuiz();}}
+function nextQ(){if(exam.index<exam.list.length-1){reportPanelOpen=false;exam.index++;saveActiveExam();renderQuiz();}}
+function prevQ(){if(exam.index>0){reportPanelOpen=false;exam.index--;saveActiveExam();renderQuiz();}}
 async function submitExam(auto){
   if(!exam)return;
   if(!auto && !confirm('Submit this exam now?'))return;
@@ -1328,6 +1400,7 @@ async function submitExam(auto){
     await loadGlobalAnalytics();
   }
   exam=null;
+  clearActiveExam();
   localStorage.setItem(CONFIG.lastResultKey,JSON.stringify(result));
   saveHistory(result);
   go('results');
@@ -2627,8 +2700,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     await loadModuleVisibility();
     await loadActiveNotifications();
     await loadQuestions();
+    const restored=restoreActiveExam();
     if(currentUser) await afterAuthChanged();
-    else { await loadFavorites(); await loadGlobalAnalytics(); applyModuleVisibility(); render(); }
+    else { await loadFavorites(); await loadGlobalAnalytics(); applyModuleVisibility(); if(!restored) render(); }
   });
 });
 </script>
