@@ -122,6 +122,37 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary)}
 .field textarea{min-height:130px;resize:vertical;font-family:var(--font-mono);font-size:13px}
 
+.multi-picker{position:relative}
+.multi-picker-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);background:var(--card);border-radius:var(--radius-sm);padding:10px;color:var(--text);text-align:left;font-size:13px;min-height:42px}
+.multi-picker-toggle:hover{border-color:var(--primary)}
+.multi-picker-toggle .multi-count{font-family:var(--font-mono);font-size:11px;color:var(--primary);font-weight:700}
+.multi-picker-menu{position:absolute;z-index:80;left:0;right:0;top:calc(100% + 6px);background:var(--card);border:1px solid var(--line);border-radius:var(--radius-sm);box-shadow:var(--shadow);padding:8px;max-height:300px;overflow:auto}
+.multi-picker-menu label{display:flex;align-items:center;gap:9px;padding:9px 8px;border-radius:8px;font-size:13px;cursor:pointer;color:var(--text)}
+.multi-picker-menu label:hover{background:var(--primary-soft)}
+.multi-picker-menu input{width:16px;height:16px;accent-color:var(--primary);flex:0 0 auto}
+.multi-picker-empty{padding:10px 8px;color:var(--muted);font-size:12px}
+.support-contact-card{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.support-contact-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:var(--primary-soft);color:var(--primary);flex:0 0 auto}
+.support-contact-icon svg{width:24px;height:24px}
+.support-chat-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:9990;display:flex;align-items:flex-end;justify-content:flex-end;padding:20px}
+.support-chat{width:min(440px,100%);height:min(680px,calc(100vh - 40px));background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden}
+.support-chat-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--card)}
+.support-chat-log{flex:1;overflow:auto;padding:14px;background:var(--bg);display:flex;flex-direction:column;gap:9px}
+.support-chat-msg{max-width:82%;padding:10px 12px;border-radius:14px;white-space:pre-wrap;line-height:1.45;font-size:13px}
+.support-chat-msg.user{align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:5px}
+.support-chat-msg.admin{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:5px}
+.support-chat-meta{font-size:10px;color:var(--muted);margin-top:3px}
+.support-chat-compose{padding:12px;border-top:1px solid var(--line);background:var(--card);display:flex;gap:8px}
+.support-chat-compose textarea{flex:1;min-height:48px;max-height:120px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--card);color:var(--text);font-family:var(--font-sans);font-size:13px}
+.support-chat-compose .btn{align-self:flex-end}
+.support-thread{cursor:pointer}
+.support-thread.active{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
+.support-thread-meta{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.support-thread-preview{margin-top:7px;color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.support-admin-layout{display:grid;grid-template-columns:330px 1fr;gap:16px;align-items:start}
+.support-admin-log{min-height:360px;max-height:55vh;overflow:auto;padding:14px;background:var(--bg);border:1px solid var(--line);border-radius:var(--radius-sm);display:flex;flex-direction:column;gap:9px}
+@media(max-width:900px){.support-admin-layout{grid-template-columns:1fr}.support-admin-log{max-height:none}}
+
 /* ---------- Cards & readouts ---------- */
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow-sm)}
 .stat{position:relative;overflow:hidden;padding-top:20px}
@@ -250,6 +281,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
       <button data-view="favorites" id="favoritesNav"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17.2 3.8 10.8A4.1 4.1 0 0 1 9.6 5l.4.4.4-.4a4.1 4.1 0 0 1 5.8 5.8Z"/></svg><span>Favourite Questions</span></button>
       <button data-view="analytics" id="analyticsNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="17" x2="3" y2="3"/><line x1="3" y1="17" x2="18" y2="17"/><rect x="6" y="10" width="2.5" height="5" rx=".5"/><rect x="10.5" y="7" width="2.5" height="8" rx=".5"/><rect x="15" y="4" width="2.5" height="11" rx=".5"/></svg><span>Admin Analytics</span></button>
       <button data-view="reports" id="adminReportsNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5 17 5v4.7c0 4.2-2.8 6.6-7 7.8-4.2-1.2-7-3.6-7-7.8V5z"/><path d="M10 6.2v4.2"/><circle cx="10" cy="13.2" r=".7" fill="currentColor" stroke="none"/></svg><span>Question Reports</span></button>
+      <button data-view="replies" id="adminRepliesNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h14v9H8l-4.5 3v-12z"/><path d="M6 8h8M6 11h5"/></svg><span>Replies</span></button>
       <button data-view="settings"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round"><line x1="2" y1="5" x2="18" y2="5"/><circle cx="13" cy="5" r="2"/><line x1="2" y1="10" x2="18" y2="10"/><circle cx="7" cy="10" r="2"/><line x1="2" y1="15" x2="18" y2="15"/><circle cx="14" cy="15" r="2"/></svg><span>Settings</span></button>
       <button data-view="account"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="6.5" r="3.2"/><path d="M4 17c.8-3.2 2.8-4.8 6-4.8s5.2 1.6 6 4.8"/></svg><span>Account</span></button>
     </div>
@@ -303,7 +335,8 @@ const CONFIG = {
   aiChatKey: 'med64_ai_chat_v1',
   favoritesKey: 'med64_favorite_questions_v1',
   visitorIdKey: 'med64_visitor_id_v1',
-  activeExamKey: 'med64_active_exam_v1'
+  activeExamKey: 'med64_active_exam_v1',
+  supportChatKey: 'med64_support_chat_v1'
 };
 
 const DEFAULT_SETTINGS = {
@@ -871,7 +904,7 @@ function layout(title,subtitle,body,actions=''){
 function render(){
   updateSidebarFoot();
   const view=location.hash.replace('#','')||'dashboard';
-  const allowed=['dashboard','exam','progress','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics','reports'];
+  const allowed=['dashboard','exam','progress','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics','reports','replies'];
   const v=allowed.includes(view)?view:'dashboard';
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   const adminNav=document.getElementById('adminNav'); if(adminNav) adminNav.style.display=isAdmin?'flex':'none';
@@ -879,7 +912,8 @@ function render(){
   const aiQuestionsNav=document.querySelector('[data-view="aiquestions"]'); if(aiQuestionsNav) aiQuestionsNav.style.display=isAdmin?'flex':'none';
   const analyticsNav=document.getElementById('analyticsNav'); if(analyticsNav) analyticsNav.style.display=isAdmin?'flex':'none';
   const adminReportsNav=document.getElementById('adminReportsNav'); if(adminReportsNav) adminReportsNav.style.display=isAdmin?'flex':'none';
-  if((['bank','import','aiquestions','analytics','reports'].includes(v)) && !isAdmin){ location.hash='dashboard'; return; }
+  const adminRepliesNav=document.getElementById('adminRepliesNav'); if(adminRepliesNav) adminRepliesNav.style.display=isAdmin?'flex':'none';
+  if((['bank','import','aiquestions','analytics','reports','replies'].includes(v)) && !isAdmin){ location.hash='dashboard'; return; }
   if(v==='dashboard') renderDashboard();
   else if(v==='exam') { if(exam && !exam.submitted) renderQuiz(); else renderExamSetup(); }
   else if(v==='progress') renderProgress();
@@ -892,6 +926,7 @@ function render(){
   else if(v==='favorites') renderFavorites();
   else if(v==='analytics') renderAdminAnalytics();
   else if(v==='reports') renderQuestionReports();
+  else if(v==='replies') renderSupportReplies();
   else if(v==='settings') renderSettings();
   else if(v==='account') renderAccount();
   else renderResults();
@@ -951,6 +986,14 @@ function renderDashboard(){
     <div class="bar"><i style="width:${progressFor(list)}%"></i></div>
     <div class="mini" style="margin-top:8px">${practicedCount(list)} of ${list.length} practiced</div></div>`;
   }).join('') || '<div class="card empty">No questions loaded yet.</div>'}</div>
+  <h2 class="section-title">Contact MedEx team</h2>
+  <div class="card support-contact-card">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="support-contact-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9l-5 3.5z"/><path d="M7 9h10M7 12h6"/></svg></div>
+      <div><strong>Contact MedEx team</strong><div class="mini" style="margin-top:4px">Send suggestions, complaints, or questions. You can continue as a visitor.</div></div>
+    </div>
+    <button class="btn primary" onclick="openSupportChat()">Open chat</button>
+  </div>
   <h2 class="section-title">Recent exams</h2>
   <div class="card">${renderRecentExamsList(3)}
     <div class="actions" style="margin-top:12px"><button class="btn" onclick="go('history')">View full history</button></div>
@@ -963,14 +1006,89 @@ function renderDashboard(){
   document.getElementById('app').innerHTML=layout('Dashboard','Your personal progress is stored in this browser.',body);
 }
 
+function examMultiPicker(id,name,label,items,selected=[]){
+  const selectedSet=new Set(selected.map(String));
+  const safeItems=items||[];
+  const count=selectedSet.size;
+  const summary=count ? `${count} selected` : `All ${label.toLowerCase()}s`;
+  return `<div class="field multi-picker" id="${id}Wrap">
+    <label>${esc(label)}</label>
+    <button type="button" class="multi-picker-toggle" id="${id}Toggle" onclick="toggleExamMultiPicker('${id}')" aria-expanded="false"><span id="${id}Summary">${esc(summary)}</span><span class="multi-count">${count||'All'}</span></button>
+    <div class="multi-picker-menu hidden" id="${id}Menu">
+      ${safeItems.length ? safeItems.map(v=>`<label><input type="checkbox" name="${name}" value="${attrJs(v)}" ${selectedSet.has(String(v))?'checked':''} onchange="onExamMultiChange('${name}')"><span>${esc(v)}</span></label>`).join('') : '<div class="multi-picker-empty">No options available.</div>'}
+    </div>
+  </div>`;
+}
+function selectedExamValues(name){
+  return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(x=>x.value);
+}
+function updateExamPickerSummary(id,label){
+  const name=id==='examModulePicker'?'examModule':id==='examSubjectPicker'?'examSubject':'examLecture';
+  const values=selectedExamValues(name);
+  const summary=document.getElementById(id+'Summary');
+  const countEl=document.querySelector('#'+id+'Toggle .multi-count');
+  if(summary)summary.textContent=values.length?`${values.length} selected`:`All ${label.toLowerCase()}s`;
+  if(countEl)countEl.textContent=values.length||'All';
+}
+function toggleExamMultiPicker(id){
+  document.querySelectorAll('.multi-picker-menu').forEach(m=>{if(m.id!==id+'Menu')m.classList.add('hidden');});
+  const menu=document.getElementById(id+'Menu');
+  const toggle=document.getElementById(id+'Toggle');
+  if(!menu)return;
+  const opening=menu.classList.contains('hidden');
+  menu.classList.toggle('hidden',!opening);
+  if(toggle)toggle.setAttribute('aria-expanded',opening?'true':'false');
+}
+function renderExamPickerOptions(id,name,label,items,selected=[]){
+  const menu=document.getElementById(id+'Menu');
+  if(!menu)return;
+  const selectedSet=new Set((selected||[]).map(String));
+  menu.innerHTML=items.length ? items.map(v=>`<label><input type="checkbox" name="${name}" value="${attrJs(v)}" ${selectedSet.has(String(v))?'checked':''} onchange="onExamMultiChange('${name}')"><span>${esc(v)}</span></label>`).join('') : '<div class="multi-picker-empty">No options available.</div>';
+  updateExamPickerSummary(id,label);
+}
+function onExamMultiChange(name){
+  if(name==='examModule') updateExamSubjects();
+  else if(name==='examSubject') updateExamLectures();
+  else updateExamPickerSummary('examLecturePicker','Lecture');
+}
+function updateExamSubjects(){
+  const selectedModules=selectedExamValues('examModule');
+  const previous=selectedExamValues('examSubject');
+  const available=getSubjectsForModules(selectedModules);
+  const kept=previous.filter(x=>available.includes(x));
+  renderExamPickerOptions('examSubjectPicker','examSubject','Subject',available,kept);
+  updateExamLectures();
+}
+function updateExamLectures(){
+  const selectedModules=selectedExamValues('examModule');
+  const selectedSubjects=selectedExamValues('examSubject');
+  const previous=selectedExamValues('examLecture');
+  const available=getLecturesForSelections(selectedModules,selectedSubjects);
+  const kept=previous.filter(x=>available.includes(x));
+  renderExamPickerOptions('examLecturePicker','examLecture','Lecture',available,kept);
+}
+function getSubjectsForModules(modules=[]){
+  const set=new Set(modules.map(String));
+  return [...new Set(bank.filter(q=>!set.size||set.has(String(q.module))).map(q=>q.subject))].sort((a,b)=>a.localeCompare(b));
+}
+function getLecturesForSelections(modules=[],subjects=[]){
+  const ms=new Set(modules.map(String)), ss=new Set(subjects.map(String));
+  return [...new Set(bank.filter(q=>(!ms.size||ms.has(String(q.module)))&&(!ss.size||ss.has(String(q.subject)))).map(q=>q.lecture))].sort((a,b)=>a.localeCompare(b));
+}
+function closeExamPickersOnOutsideClick(e){
+  if(!e.target.closest('.multi-picker')) document.querySelectorAll('.multi-picker-menu').forEach(m=>m.classList.add('hidden'));
+}
+document.addEventListener('click',closeExamPickersOnOutsideClick);
+
 function renderExamSetup(){
   const modules=getModules();
   const body=`
   <div class="card">
+    <div class="mini" style="margin-bottom:12px">You can select multiple modules, subjects, and lectures. Leave a list empty to include all of that category.</div>
     <div class="filters">
-      <div class="field"><label>Module</label><select id="examModule" onchange="updateExamSubjects()"><option value="">All modules</option>${modules.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div>
-      <div class="field"><label>Subject</label><select id="examSubject" onchange="updateExamLectures()"><option value="">All subjects</option>${getSubjects().map(s=>`<option>${esc(s)}</option>`).join('')}</select></div>
-      <div class="field"><label>Lecture</label><select id="examLecture"><option value="">All lectures</option>${getLectures().map(l=>`<option>${esc(l)}</option>`).join('')}</select></div>
+      ${examMultiPicker('examModulePicker','examModule','Module',modules)}
+      ${examMultiPicker('examSubjectPicker','examSubject','Subject',getSubjects())}
+      ${examMultiPicker('examLecturePicker','examLecture','Lecture',getLectures())}
       <div class="field"><label>Number of questions</label><input id="examCount" type="number" min="1" value="${Math.min(20,bank.length||1)}"></div>
       <div class="field"><label>Time limit (minutes, 0 = unlimited)</label><input id="examMinutes" type="number" min="0" value="0"></div>
       <div class="field"><label>Answer display</label><select id="answerMode">
@@ -985,19 +1103,9 @@ function renderExamSetup(){
   </div>
   <div class="card" style="margin-top:16px">
     <strong>Exam behavior</strong>
-    <p class="mini">Questions are loaded from the current GitHub bank. Each question accepts exactly one selected answer. Choose whether the correct answer is revealed immediately after selection or only after the exam is finished. Your module/subject/lecture progress and accuracy update when the exam is submitted.</p>
+    <p class="mini">Questions are loaded from the current GitHub/Supabase bank. Select any combination of modules, subjects, and lectures. Questions are chosen from the matching pool, with already-correct questions excluded by the adaptive exam system.</p>
   </div>`;
-  document.getElementById('app').innerHTML=layout('Start Exam','Choose exactly what you want to practice.',body);
-}
-function updateExamSubjects(){
-  const m=document.getElementById('examModule').value;
-  document.getElementById('examSubject').innerHTML='<option value="">All subjects</option>'+getSubjects(m).map(s=>`<option>${esc(s)}</option>`).join('');
-  updateExamLectures();
-}
-function updateExamLectures(){
-  const m=document.getElementById('examModule').value;
-  const s=document.getElementById('examSubject').value;
-  document.getElementById('examLecture').innerHTML='<option value="">All lectures</option>'+getLectures(m,s).map(l=>`<option>${esc(l)}</option>`).join('');
+  document.getElementById('app').innerHTML=layout('Start Exam','Choose one or more modules, subjects, and lectures.',body);
 }
 function startExam(customList=null, overrides=null, customLabel=null){
   if(!customList && !bank.length){toast('No questions are loaded. Refresh from GitHub first.','error');return;}
@@ -1006,6 +1114,7 @@ function startExam(customList=null, overrides=null, customLabel=null){
   let list=customList||[...bank];
   let answerMode=settings.showAnswerImmediately?'immediate':'finish';
   let label=customLabel||'Random review', moduleFilter='', subjectFilter='', lectureFilter='';
+  let moduleFilters=[], subjectFilters=[], lectureFilters=[];
   let minutesValue=0;
 
   if(customList){
@@ -1015,29 +1124,35 @@ function startExam(customList=null, overrides=null, customLabel=null){
   if(!customList){
     let m,s,l,n;
     if(overrides){
-      m=overrides.module||'';
-      s=overrides.subject||'';
-      l=overrides.lecture||'';
+      moduleFilters=Array.isArray(overrides.modules)?overrides.modules.slice(): (overrides.module?[overrides.module]:[]);
+      subjectFilters=Array.isArray(overrides.subjects)?overrides.subjects.slice(): (overrides.subject?[overrides.subject]:[]);
+      lectureFilters=Array.isArray(overrides.lectures)?overrides.lectures.slice(): (overrides.lecture?[overrides.lecture]:[]);
+      m=moduleFilters[0]||'';
+      s=subjectFilters[0]||'';
+      l=lectureFilters[0]||'';
       n=Math.max(1,Number(overrides.count)||20);
       answerMode=overrides.answerMode||answerMode;
       minutesValue=Number(overrides.minutes)||0;
     } else {
-      m=document.getElementById('examModule').value;
-      s=document.getElementById('examSubject').value;
-      l=document.getElementById('examLecture').value;
+      moduleFilters=selectedExamValues('examModule');
+      subjectFilters=selectedExamValues('examSubject');
+      lectureFilters=selectedExamValues('examLecture');
+      m=moduleFilters[0]||'';
+      s=subjectFilters[0]||'';
+      l=lectureFilters[0]||'';
       n=Math.max(1,Number(document.getElementById('examCount').value)||1);
       answerMode=document.getElementById('answerMode').value;
       minutesValue=Number(document.getElementById('examMinutes').value)||0;
     }
 
-    moduleFilter=m;
-    subjectFilter=s;
-    lectureFilter=l;
+    moduleFilter=moduleFilters.join(', ');
+    subjectFilter=subjectFilters.join(', ');
+    lectureFilter=lectureFilters.join(', ');
 
     list=list.filter(q=>
-      (!m||q.module===m)&&
-      (!s||q.subject===s)&&
-      (!l||q.lecture===l)
+      (!moduleFilters.length||moduleFilters.includes(String(q.module)))&&
+      (!subjectFilters.length||subjectFilters.includes(String(q.subject)))&&
+      (!lectureFilters.length||lectureFilters.includes(String(q.lecture)))
     );
 
     if(!list.length){
@@ -1075,7 +1190,7 @@ function startExam(customList=null, overrides=null, customLabel=null){
       };
     });
 
-    label=[m||'All modules',s||'All subjects',l||'All lectures'].join(' · ');
+    label=[moduleFilters.length?moduleFilters.join(', '):'All modules',subjectFilters.length?subjectFilters.join(', '):'All subjects',lectureFilters.length?lectureFilters.join(', '):'All lectures'].join(' · ');
   } else {
     // Mistakes practice is also randomized, including answer order.
     list=shuffle([...list]);
@@ -1101,7 +1216,10 @@ function startExam(customList=null, overrides=null, customLabel=null){
     label,
     moduleFilter,
     subjectFilter,
-    lectureFilter
+    lectureFilter,
+    moduleFilters,
+    subjectFilters,
+    lectureFilters
   };
 
   if(exam.minutes>0) startTimer(exam.minutes*60);
@@ -1109,7 +1227,7 @@ function startExam(customList=null, overrides=null, customLabel=null){
   renderQuiz();
 }
 function startModuleExam(module){
-  startExam(null,{module,count:20});
+  startExam(null,{modules:[module],count:20});
 }
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function startTimer(sec){
@@ -1938,6 +2056,109 @@ function downloadTemplate(){
 }
 function downloadBlob(text,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 
+
+let supportChatState={open:false,conversationId:null,messages:[],busy:false,pollId:null};
+let supportAdminState={conversationId:null,messages:[],conversations:[],busy:false,pollId:null};
+function supportStorageKey(){
+  return CONFIG.supportChatKey+'_'+(currentUser?.id||getVisitorId());
+}
+function saveSupportLocal(){
+  try{ localStorage.setItem(supportStorageKey(),JSON.stringify({conversationId:supportChatState.conversationId,messages:supportChatState.messages.slice(-200)})); }catch(e){ console.warn('Support chat local save failed:',e.message); }
+}
+function loadSupportLocal(){
+  const saved=loadJSON(supportStorageKey(),null);
+  if(saved){ supportChatState.conversationId=saved.conversationId||null; supportChatState.messages=Array.isArray(saved.messages)?saved.messages:[]; }
+}
+function supportMessageHTML(m,adminView=false){
+  const isAdmin=String(m.sender_type||'')==='admin';
+  return `<div class="support-chat-msg ${isAdmin?'admin':'user'}">${esc(m.message||'')}<div class="support-chat-meta">${isAdmin?'MedEx team':'You'} · ${m.created_at?new Date(m.created_at).toLocaleString():''}</div></div>`;
+}
+async function openSupportChat(){
+  if(document.getElementById('supportChatBackdrop')) return;
+  supportChatState.open=true; supportChatState.busy=false; loadSupportLocal();
+  document.body.insertAdjacentHTML('beforeend',`<div class="support-chat-backdrop" id="supportChatBackdrop" onclick="if(event.target===this)closeSupportChat()"><div class="support-chat" role="dialog" aria-modal="true" aria-label="Contact MedEx team"><div class="support-chat-head"><div><strong>Contact MedEx team</strong><div class="mini">Suggestions, complaints, and support</div></div><button class="icon-btn" onclick="closeSupportChat()" aria-label="Close chat">×</button></div><div class="support-chat-log" id="supportChatLog"></div><div class="support-chat-compose"><textarea id="supportChatInput" placeholder="Write your message…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendSupportMessage();}"></textarea><button class="btn primary" id="supportChatSend" onclick="sendSupportMessage()">Send</button></div></div></div>`);
+  renderSupportChatLog();
+  if(SUPABASE_ENABLED){
+    await ensureSupportConversation();
+    await refreshSupportChat();
+    clearInterval(supportChatState.pollId);
+    supportChatState.pollId=setInterval(refreshSupportChat,10000);
+  }
+  setTimeout(()=>document.getElementById('supportChatInput')?.focus(),0);
+}
+function closeSupportChat(){
+  clearInterval(supportChatState.pollId); supportChatState.pollId=null; supportChatState.open=false;
+  document.getElementById('supportChatBackdrop')?.remove();
+  saveSupportLocal();
+}
+function renderSupportChatLog(){
+  const el=document.getElementById('supportChatLog'); if(!el)return;
+  el.innerHTML=supportChatState.messages.length?supportChatState.messages.map(m=>supportMessageHTML(m)).join(''):`<div class="empty" style="padding:30px 10px;text-align:center">Start a conversation with the MedEx team. Your chat history is saved in this browser.</div>`;
+  el.scrollTop=el.scrollHeight;
+}
+async function ensureSupportConversation(){
+  if(!SUPABASE_ENABLED)return null;
+  const visitorId=currentUser?null:getVisitorId();
+  const {data,error}=await supabaseClient.rpc('support_get_or_create_conversation',{p_visitor_id:visitorId});
+  if(error){toast('Could not open MedEx chat: '+error.message,'error');return null;}
+  supportChatState.conversationId=typeof data==='string'?data:data?.id||null;
+  saveSupportLocal();
+  return supportChatState.conversationId;
+}
+async function refreshSupportChat(){
+  if(!SUPABASE_ENABLED||!supportChatState.conversationId)return;
+  const visitorId=currentUser?null:getVisitorId();
+  const {data,error}=await supabaseClient.rpc('support_get_messages',{p_conversation_id:supportChatState.conversationId,p_visitor_id:visitorId});
+  if(error){console.warn('Support chat load failed:',error.message);return;}
+  supportChatState.messages=Array.isArray(data)?data:[]; saveSupportLocal(); renderSupportChatLog();
+}
+async function sendSupportMessage(){
+  if(supportChatState.busy)return;
+  const input=document.getElementById('supportChatInput'); const message=(input?.value||'').trim();
+  if(!message)return;
+  if(!SUPABASE_ENABLED){toast('Contact chat requires Supabase connection.','error');return;}
+  supportChatState.busy=true; const btn=document.getElementById('supportChatSend'); if(btn)btn.disabled=true;
+  if(!supportChatState.conversationId) await ensureSupportConversation();
+  if(!supportChatState.conversationId){supportChatState.busy=false;if(btn)btn.disabled=false;return;}
+  const visitorId=currentUser?null:getVisitorId();
+  const {data,error}=await supabaseClient.rpc('support_send_message',{p_conversation_id:supportChatState.conversationId,p_visitor_id:visitorId,p_message:message});
+  if(error){toast('Could not send message: '+error.message,'error');}
+  else { if(input)input.value=''; if(data) supportChatState.messages.push(data); saveSupportLocal(); renderSupportChatLog(); }
+  supportChatState.busy=false; if(btn)btn.disabled=false;
+}
+
+async function renderSupportReplies(){
+  if(!(await requireAdmin()))return;
+  if(!SUPABASE_ENABLED){document.getElementById('app').innerHTML=layout('Replies','Reply to MedEx users and visitors.',`<div class="card"><div class="notice error">Supabase is required for support chat.</div></div>`);return;}
+  const {data,error}=await supabaseClient.rpc('admin_list_support_conversations');
+  if(error){document.getElementById('app').innerHTML=layout('Replies','Reply to MedEx users and visitors.',`<div class="card"><div class="notice error">Could not load conversations: ${esc(error.message)}</div></div>`);return;}
+  supportAdminState.conversations=Array.isArray(data)?data:[];
+  if(!supportAdminState.conversationId && supportAdminState.conversations.length) supportAdminState.conversationId=supportAdminState.conversations[0].id;
+  const selected=supportAdminState.conversations.find(x=>x.id===supportAdminState.conversationId)||supportAdminState.conversations[0];
+  if(selected)supportAdminState.conversationId=selected.id;
+  let messages=[];
+  if(selected){
+    const r=await supabaseClient.rpc('admin_get_support_messages',{p_conversation_id:selected.id});
+    if(!r.error)messages=Array.isArray(r.data)?r.data:[];
+  }
+  supportAdminState.messages=messages;
+  const threads=supportAdminState.conversations.map(c=>`<div class="card support-thread ${c.id===supportAdminState.conversationId?'active':''}" onclick="selectSupportThread('${attrJs(c.id)}')"><div class="support-thread-meta"><strong>${esc(c.user_email|| (c.user_id?'Signed-in user':'Visitor'))}</strong><span class="pill">${esc(c.status||'open')}</span></div><div class="mini" style="margin-top:5px">${c.updated_at?new Date(c.updated_at).toLocaleString():''}</div><div class="support-thread-preview">${esc(c.last_message||'No messages yet')}</div></div>`).join('');
+  const selectedName=selected?(selected.user_email||(selected.user_id?'Signed-in user':'Visitor')):'No conversation selected';
+  const body=`<div class="support-admin-layout"><div><div class="card"><div class="category-head"><div><strong>Conversations</strong><div class="mini">${supportAdminState.conversations.length} chat${supportAdminState.conversations.length===1?'':'s'}</div></div><button class="btn" onclick="renderSupportReplies()">Refresh</button></div><div style="display:grid;gap:10px;margin-top:12px">${threads||'<div class="empty">No support conversations yet.</div>'}</div></div></div><div class="card"><div class="category-head"><div><strong>${esc(selectedName)}</strong><div class="mini">${selected?.visitor_id?'Visitor chat':'Signed-in user chat'}</div></div></div><div class="support-admin-log" id="supportAdminLog" style="margin-top:12px">${messages.length?messages.map(m=>supportMessageHTML(m,true)).join(''):'<div class="empty" style="padding:30px;text-align:center">Select a conversation to view its history.</div>'}</div>${selected?`<div class="support-chat-compose" style="margin-top:12px;padding:0;border-top:0"><textarea id="supportAdminInput" placeholder="Write a reply…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendSupportAdminReply();}"></textarea><button class="btn primary" onclick="sendSupportAdminReply()">Reply</button></div>`:''}</div></div>`;
+  document.getElementById('app').innerHTML=layout('Replies','Reply to suggestions, complaints, and support messages.',body);
+  const log=document.getElementById('supportAdminLog'); if(log)log.scrollTop=log.scrollHeight;
+  clearInterval(supportAdminState.pollId); supportAdminState.pollId=null;
+}
+async function selectSupportThread(id){supportAdminState.conversationId=id;await renderSupportReplies();}
+async function sendSupportAdminReply(){
+  if(supportAdminState.busy||!supportAdminState.conversationId)return;
+  const input=document.getElementById('supportAdminInput'); const message=(input?.value||'').trim(); if(!message)return;
+  supportAdminState.busy=true;
+  const {data,error}=await supabaseClient.rpc('admin_send_support_reply',{p_conversation_id:supportAdminState.conversationId,p_message:message});
+  if(error)toast('Could not send reply: '+error.message,'error');
+  else {if(input)input.value='';await renderSupportReplies();}
+  supportAdminState.busy=false;
+}
 async function renderQuestionReports(){
   if(!(await requireAdmin())) return;
   if(!SUPABASE_ENABLED){document.getElementById('app').innerHTML=layout('Question Reports','Review reports submitted by students and visitors.',`<div class="card"><div class="notice error">Supabase is required for question reports.</div></div>`);return;}
