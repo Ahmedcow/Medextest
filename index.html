@@ -285,17 +285,11 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 @media(max-width:700px){.main{padding:16px}.stats,.filters,.two,.three{grid-template-columns:1fr}.progress-row{grid-template-columns:1fr 1fr}}
 
 /* v31 Phase 1 study intelligence */
-.study-coach{border-left:4px solid var(--primary);background:linear-gradient(135deg,var(--card),var(--panel2))}
-.study-coach-grid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px}
-.study-coach-item{padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
-.study-coach-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .goal-track{height:9px;border-radius:999px;background:var(--panel2);overflow:hidden;border:1px solid var(--line)}
 .goal-track i{display:block;height:100%;background:var(--primary);border-radius:999px}
 .streak-days{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
 .streak-day{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--muted);background:var(--card)}
 .streak-day.done{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
-.smart-recommendation{border:1px solid var(--primary);background:var(--primary-soft)}
-@media(max-width:800px){.study-coach-grid{grid-template-columns:1fr}}
 /* v30 daily study analytics */
 .dashboard-progress-shortcut{display:flex;align-items:center;gap:14px;border-left:4px solid var(--primary);transition:transform .15s ease,border-color .15s ease}
 .dashboard-progress-shortcut:hover{transform:translateY(-1px);border-color:var(--primary)}
@@ -819,35 +813,15 @@ function weakTopicData(limit=5){
   return [...map.values()].map(x=>({...x,errorRate:x.attempts?Math.round(x.wrong/x.attempts*100):0}))
     .sort((a,b)=>b.errorRate-a.errorRate||b.wrong-a.wrong||b.attempts-a.attempts).slice(0,limit);
 }
-function recommendedQuestionPool(){
-  const weakIds=new Set();
-  weakTopicData(3).forEach(t=>t.items.forEach(q=>weakIds.add(q.id)));
-  const unseen=[],wrong=[],weak=[],other=[];
-  bank.forEach(q=>{
-    const p=progress[key(q)];
-    if(!p || !Number(p.attempts||0)) unseen.push(q);
-    else if(Number(p.wrong||0)>0 && p.last!=='correct') wrong.push(q);
-    else if(weakIds.has(q.id) && p.last!=='correct') weak.push(q);
-    else other.push(q);
-  });
-  return [...shuffle(wrong),...shuffle(weak),...shuffle(unseen),...shuffle(other.filter(q=>!progress[key(q)]||progress[key(q)].last!=='correct'))];
-}
-function startSmartDailyExam(){
-  const goal=getDailyGoal();
-  const pool=recommendedQuestionPool();
-  if(!pool.length){toast('No eligible questions are available for today. Reset progress or add more questions.','error');return;}
-  startExam(pool.slice(0,Math.min(goal,pool.length)),null,'Today\'s Smart Review');
-}
-function studyCoachHTML(){
+function dailyGoalStreakHTML(){
   const today=getStudyActivity()[localDayKey()]||{};
-  const solved=Number(today.solved||today.attempts||0), goal=getDailyGoal(), remaining=Math.max(0,goal-solved), pctGoal=Math.min(100,Math.round(solved/goal*100));
-  const streak=studyStreak(), weak=weakTopicData(1)[0];
+  const solved=Number(today.solved||today.attempts||0), goal=getDailyGoal();
+  const remaining=Math.max(0,goal-solved);
+  const pctGoal=Math.min(100,Math.round(solved/goal*100));
+  const streak=studyStreak();
   const recent=recentStudyDays(7);
   const days=recent.map(d=>`<div class="streak-day ${d.solved?'done':''}" title="${d.key}: ${d.solved} solved">${d.label}<br><span>${d.solved}</span></div>`).join('');
-  const rec=weak
-    ? `Your weakest area is <b>${esc(weak.lecture)}</b> (${esc(weak.subject)} · ${esc(weak.module)}) with <b>${weak.errorRate}%</b> wrong answers.`
-    : 'You do not have enough answered questions yet. Start a short Smart Review to build your personalized data.';
-  return `<div class="card study-coach" style="margin-bottom:16px"><div class="category-head"><div><strong>🧠 Your Study Coach</strong><div class="mini" style="margin-top:4px">Recommendations are based on your actual question performance.</div></div><span class="pill">${streak} day streak</span></div><div class="study-coach-grid" style="margin-top:14px"><div class="study-coach-item"><strong>Today's recommendation</strong><div class="mini" style="margin-top:7px">${rec}</div><div class="study-coach-actions"><button class="btn primary" onclick="startSmartDailyExam()">🎯 Start Smart Review</button>${weak?`<button class="btn" onclick="startTopicPractice(${JSON.stringify(weak.module)},${JSON.stringify(weak.subject)},${JSON.stringify(weak.lecture)})">Practice Weakest Topic</button>`:''}</div></div><div class="study-coach-item"><div class="category-head"><strong>Daily goal</strong><span class="mini">${solved}/${goal}</span></div><div class="goal-track" style="margin-top:9px"><i style="width:${pctGoal}%"></i></div><div class="mini" style="margin-top:7px">${remaining?`${remaining} more question${remaining===1?'':'s'} to reach today's goal.`:'Goal completed — excellent work!'}</div><div class="mini" style="margin-top:10px"><b>Recent days</b></div><div class="streak-days">${days}</div></div></div></div>`;
+  return `<div class="card study-goal-card" style="margin-bottom:16px"><div class="category-head"><div><strong>Daily goal</strong><div class="mini" style="margin-top:4px">Track today's solved questions and your study streak.</div></div><span class="pill">${streak} day streak</span></div><div class="category-head" style="margin-top:14px"><strong>Today's progress</strong><span class="mini">${solved}/${goal}</span></div><div class="goal-track" style="margin-top:9px"><i style="width:${pctGoal}%"></i></div><div class="mini" style="margin-top:7px">${remaining?`${remaining} more question${remaining===1?'':'s'} to reach today's goal.`:'Goal completed — excellent work!'}</div><div class="mini" style="margin-top:10px"><b>Recent days</b></div><div class="streak-days">${days}</div></div>`;
 }
 function renderStudyWeekChart(){
   const data=weekStudyData();
@@ -1183,11 +1157,11 @@ function renderDashboard(){
   const noticeHtml=(activeNotifications||[]).length ? activeNotifications.map(n=>`<div class="card" style="margin-bottom:16px;border-left:4px solid var(--primary)"><div class="category-head"><strong>${esc(n.title||'Announcement')}</strong><span class="mini">${n.created_at?new Date(n.created_at).toLocaleString():''}</span></div><div style="margin-top:8px;white-space:pre-wrap">${esc(n.message||'')}</div></div>`).join('') : '';
   const body=`
   ${noticeHtml}
-  ${studyCoachHTML()}
+  ${dailyGoalStreakHTML()}
   <div class="card dashboard-progress-shortcut" style="margin-bottom:16px;cursor:pointer" onclick="go('progress')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')go('progress')">
     <div class="dashboard-progress-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,17 8,11 12,14 21,5"/><polyline points="15,5 21,5 21,11"/><line x1="3" y1="20" x2="21" y2="20"/></svg></div>
     <div style="flex:1"><strong>Progress & Accuracy</strong><div class="mini" style="margin-top:4px">View your daily solved, true and false questions.</div></div>
-    <div class="actions"><button class="btn primary" onclick="event.stopPropagation();startSmartDailyExam()">🎯 Smart Exam</button><span class="shortcut-arrow" aria-hidden="true">→</span></div>
+    <div class="actions"><span class="shortcut-arrow" aria-hidden="true">→</span></div>
   </div>
   <div class="grid stats">
     <div class="card stat"><div class="label">Questions available</div><div class="value">${bank.length}</div></div>
@@ -1435,7 +1409,6 @@ function renderExamSetup(){
     <div class="category-head"><div><strong>Choose Exam Builder</strong><div class="mini" style="margin-top:4px">Use the classic step-by-step builder, or use Smart Exam Builder for mixed selections.</div></div><span class="pill">${total} Q available</span></div>
     <div class="field" style="margin-top:14px"><label>Exam builder</label><select id="examBuilderMode" onchange="setExamBuilderMode(this.value)"><option value="simple">Simple Exam Builder — Module → Subject → Lecture</option><option value="advanced">Advanced — Smart Exam Builder</option></select></div>
   </div>
-  <div class="card smart-recommendation" style="margin-bottom:16px"><div class="category-head"><div><strong>🎯 Smart Daily Exam</strong><div class="mini" style="margin-top:4px">MedEx prioritizes unseen questions and your weak areas using your performance data.</div></div><span class="pill">${getDailyGoal()} Q goal</span></div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startSmartDailyExam()">Start Today's Smart Review</button><button class="btn" onclick="go('mistakes')">Review Weak Topics</button></div></div>
   <div id="simpleExamBuilderWrap">${simpleExamControlsHTML()}</div>
   <div id="advancedExamBuilderWrap" class="hidden">
     <div class="card">
@@ -2019,7 +1992,7 @@ function renderProgress(){
   const week=weekStudyData();
   const weekTotal=week.reduce((n,d)=>n+d.total,0), weekTrue=week.reduce((n,d)=>n+d.correct,0), weekFalse=week.reduce((n,d)=>n+d.wrong,0);
   const body=`
-    ${studyCoachHTML()}
+    ${dailyGoalStreakHTML()}
     <div class="grid stats">
       <div class="card stat"><div class="label">My progress</div><div class="value">${myP.done}/${myP.total}</div><div class="mini">${myP.pct}% of available questions mastered</div></div>
       <div class="card stat"><div class="label">My accuracy</div><div class="value">${myA.correct}/${myA.attempts}</div><div class="mini">${myA.pct}%</div></div>
@@ -2612,7 +2585,7 @@ function renderSettings(){
   const body=`<div class="card"><h3 style="margin-top:0">Exam settings</h3>
   <label><input type="checkbox" id="sImmediate" ${settings.showAnswerImmediately?'checked':''}> Use “Show answer immediately” as the default exam mode</label><br><br>
   <label><input type="checkbox" id="sAuto" ${settings.autoSubmit?'checked':''}> Auto-submit when timer reaches zero</label>
-  <div class="field" style="margin-top:14px;max-width:360px"><label>Daily question goal</label><input id="sDailyGoal" type="number" min="1" max="200" value="${getDailyGoal()}"><div class="mini" style="margin-top:5px">Used by the Smart Review and your daily progress goal.</div></div>
+  <div class="field" style="margin-top:14px;max-width:360px"><label>Daily question goal</label><input id="sDailyGoal" type="number" min="1" max="200" value="${getDailyGoal()}"><div class="mini" style="margin-top:5px">Used for your daily progress goal.</div></div>
   <div class="card" style="margin-top:16px;padding:14px">
     <strong>Appearance</strong>
     <p class="mini" style="margin:8px 0 12px">Switch between light and dark color themes for this browser.</p>
