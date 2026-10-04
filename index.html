@@ -362,7 +362,8 @@ const CONFIG = {
   favoritesKey: 'med64_favorite_questions_v1',
   visitorIdKey: 'med64_visitor_id_v1',
   activeExamKey: 'med64_active_exam_v1',
-  supportChatKey: 'med64_support_chat_v1'
+  supportChatKey: 'med64_support_chat_v1',
+  studyActivityKey: 'med64_study_activity_v1'
 };
 
 const DEFAULT_SETTINGS = {
@@ -408,6 +409,7 @@ let examBuilderSelection = new Set();
 let examBuilderExpanded = new Set();
 let examBuilderSearch = '';
 let reportPanelOpen=false;
+let examBuilderMode='simple';
 
 function getVisitorId(){
   let id=localStorage.getItem(CONFIG.visitorIdKey);
@@ -692,6 +694,27 @@ function authCard(){
 function loadJSON(key, fallback){
   try { const x = JSON.parse(localStorage.getItem(key)); return x ?? fallback; }
   catch(e){ return fallback; }
+}
+function getStudyActivity(){
+  return loadJSON(CONFIG.studyActivityKey, {});
+}
+function recordStudyActivity(questionIds){
+  const ids=[...new Set((questionIds||[]).map(String).filter(Boolean))];
+  if(!ids.length)return;
+  const activity=getStudyActivity();
+  const day=new Date().toISOString().slice(0,10);
+  if(!activity[day])activity[day]={questions:{},attempts:0};
+  if(!activity[day].questions)activity[day].questions={};
+  ids.forEach(id=>{ activity[day].questions[id]=true; });
+  activity[day].attempts=(activity[day].attempts||0)+ids.length;
+  localStorage.setItem(CONFIG.studyActivityKey,JSON.stringify(activity));
+}
+function studyStats(){
+  const activity=getStudyActivity();
+  const today=new Date().toISOString().slice(0,10);
+  const todayQuestions=activity[today]?.questions ? Object.keys(activity[today].questions).length : 0;
+  const days=Object.keys(activity).filter(d=>activity[d]?.questions&&Object.keys(activity[d].questions).length>0).sort();
+  return {todayQuestions,daysStudied:days.length,days,activity};
 }
 function saveState(){
   localStorage.setItem(CONFIG.progressKey, JSON.stringify(progress));
@@ -1012,6 +1035,7 @@ function renderDashboard(){
     <div class="card stat"><div class="label">Overall accuracy</div><div class="value">${accuracyFor(bank)}%</div></div>
     <div class="card stat"><div class="label">All-student submitted exams</div><div class="value">${globalAnalytics.submittedExams||0}</div><div class="mini">Average score: ${Number(globalAnalytics.averageScore||0).toFixed(1)}%</div></div>
   </div>
+  <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Study activity</strong><div class="mini" style="margin-top:4px">${studyStats().todayQuestions} questions solved today · ${studyStats().daysStudied} days studied</div></div><button class="btn primary" onclick="go('progress')">Progress & Accuracy</button></div></div>
   <h2 class="section-title">Modules</h2>
   <div class="grid three">${modules.map(m=>{
     const list=bank.filter(q=>q.module===m);
@@ -1206,29 +1230,76 @@ function selectedExamQuestions(){ return bank.filter(questionSelectedByBuilder);
 function updateExamBuilderSearch(value){ examBuilderSearch=value||''; renderExamTree(); }
 
 
+function simpleExamControlsHTML(){
+  const modules=getModules().filter(isModuleVisible);
+  return `<div class="card" id="simpleExamBuilder" style="margin-bottom:16px">
+    <div class="category-head"><div><strong>Simple Exam Builder</strong><div class="mini" style="margin-top:4px">Choose one module, then one subject, then one lecture.</div></div><span class="pill">Classic</span></div>
+    <div class="filters" style="margin-top:14px">
+      <div class="field"><label>Module</label><select id="simpleModule" onchange="updateSimpleExamSubjects()"><option value="">All modules</option>${modules.map(m=>`<option value="${attrJs(m)}">${esc(m)}</option>`).join('')}</select></div>
+      <div class="field"><label>Subject</label><select id="simpleSubject" onchange="updateSimpleExamLectures()"><option value="">All subjects</option></select></div>
+      <div class="field"><label>Lecture</label><select id="simpleLecture"><option value="">All lectures</option></select></div>
+    </div>
+    <div class="mini" id="simpleExamHint" style="margin-top:10px">Choose a module to narrow the subject list, then choose a subject to narrow the lecture list.</div>
+  </div>`;
+}
+function updateSimpleExamSubjects(){
+  const m=document.getElementById('simpleModule'), s=document.getElementById('simpleSubject'), l=document.getElementById('simpleLecture');
+  if(!m||!s||!l)return;
+  const module=m.value;
+  const subjects=getSubjects(module||undefined).filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  s.innerHTML='<option value="">All subjects</option>'+subjects.map(x=>`<option value="${attrJs(x)}">${esc(x)}</option>`).join('');
+  l.innerHTML='<option value="">All lectures</option>';
+  const hint=document.getElementById('simpleExamHint');
+  if(hint)hint.textContent=module?`Subjects available in ${module}: ${subjects.length}. Select one to see its lectures.`:'Choose a module to narrow the subject list.';
+}
+function updateSimpleExamLectures(){
+  const m=document.getElementById('simpleModule'), s=document.getElementById('simpleSubject'), l=document.getElementById('simpleLecture');
+  if(!m||!s||!l)return;
+  const lectures=getLectures(m.value||undefined,s.value||undefined).filter(Boolean).sort((a,b)=>a.localeCompare(b));
+  l.innerHTML='<option value="">All lectures</option>'+lectures.map(x=>`<option value="${attrJs(x)}">${esc(x)}</option>`).join('');
+  const hint=document.getElementById('simpleExamHint');
+  if(hint)hint.textContent=s.value?`Lectures available in ${s.value}: ${lectures.length}. Select one or keep “All lectures”.`:(m.value?'Select a subject to see its lectures.':'Choose a module first.');
+}
+function setExamBuilderMode(mode){
+  examBuilderMode=mode==='advanced'?'advanced':'simple';
+  const simple=document.getElementById('simpleExamBuilderWrap'), advanced=document.getElementById('advancedExamBuilderWrap');
+  if(simple)simple.classList.toggle('hidden',examBuilderMode!=='simple');
+  if(advanced)advanced.classList.toggle('hidden',examBuilderMode!=='advanced');
+  const sel=document.getElementById('examBuilderMode'); if(sel)sel.value=examBuilderMode;
+  if(examBuilderMode==='advanced'){ renderExamTree(); updateExamSelectionSummary(); }
+}
 function renderExamSetup(){
   const total=bank.length;
   const body=`
-  <div class="card">
-    <div class="category-head"><div><strong>Smart Exam Builder</strong><div class="mini" style="margin-top:4px">Choose exactly what you want: an entire module, a whole subject, specific lectures, or any mixture of them.</div></div><span class="pill">${total} Q available</span></div>
-    <div class="exam-builder">
-      <div class="exam-builder-toolbar">
-        <input class="exam-builder-search" value="${esc(examBuilderSearch)}" oninput="updateExamBuilderSearch(this.value)" placeholder="Search module, subject, or lecture…" aria-label="Search module, subject, or lecture">
-        <div class="exam-builder-actions"><button class="btn" type="button" onclick="selectAllExamBuilder()">Select all</button><button class="btn" type="button" onclick="clearExamBuilder()">Clear</button></div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="category-head"><div><strong>Choose Exam Builder</strong><div class="mini" style="margin-top:4px">Use the classic step-by-step builder, or use Smart Exam Builder for mixed selections.</div></div><span class="pill">${total} Q available</span></div>
+    <div class="field" style="margin-top:14px"><label>Exam builder</label><select id="examBuilderMode" onchange="setExamBuilderMode(this.value)"><option value="simple">Simple Exam Builder — Module → Subject → Lecture</option><option value="advanced">Advanced — Smart Exam Builder</option></select></div>
+  </div>
+  <div id="simpleExamBuilderWrap">${simpleExamControlsHTML()}</div>
+  <div id="advancedExamBuilderWrap" class="hidden">
+    <div class="card">
+      <div class="category-head"><div><strong>Advanced Smart Exam Builder</strong><div class="mini" style="margin-top:4px">Select an entire module, a whole subject, specific lectures, or any mixture of branches.</div></div><span class="pill">Advanced</span></div>
+      <div class="exam-builder">
+        <div class="exam-builder-toolbar">
+          <input class="exam-builder-search" value="${esc(examBuilderSearch)}" oninput="updateExamBuilderSearch(this.value)" placeholder="Search module, subject, or lecture…" aria-label="Search module, subject, or lecture">
+          <div class="exam-builder-actions"><button class="btn" type="button" onclick="selectAllExamBuilder()">Select all</button><button class="btn" type="button" onclick="clearExamBuilder()">Clear</button></div>
+        </div>
+        <div id="examTree" class="exam-tree"></div>
       </div>
-      <div id="examTree" class="exam-tree"></div>
+      <div id="examSelectionSummary" class="exam-selection-summary"><div><strong>Selection</strong><div id="examSelectedCount" class="mini" style="margin-top:4px">No specific selection — all questions</div></div><div class="exam-selection-paths" id="examSelectionPaths"></div></div>
     </div>
-    <div id="examSelectionSummary" class="exam-selection-summary"><div><strong>Selection</strong><div id="examSelectedCount" class="mini" style="margin-top:4px">No specific selection — all questions</div></div><div class="exam-selection-paths" id="examSelectionPaths"></div></div>
-    <div class="filters" style="margin-top:14px">
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="filters">
       <div class="field"><label>Number of questions</label><input id="examCount" type="number" min="1" value="${Math.min(20,bank.length||1)}"></div>
       <div class="field"><label>Time limit (minutes, 0 = unlimited)</label><input id="examMinutes" type="number" min="0" value="0"></div>
       <div class="field"><label>Answer display</label><select id="answerMode"><option value="immediate" ${settings.showAnswerImmediately?'selected':''}>Show answer immediately after selection</option><option value="finish" ${!settings.showAnswerImmediately?'selected':''}>Show answers after finishing</option></select></div>
     </div>
     <div style="margin-top:14px" class="actions"><button class="btn primary btn-lg" onclick="startExam()">Start Exam</button><button class="btn" onclick="go('mistakes')">Practice Mistakes</button></div>
-  </div>
-  <div class="card" style="margin-top:16px"><strong>How selection works</strong><p class="mini" style="margin:8px 0 0">Select a module to include everything inside it. Select a subject to include all its lectures. Or select individual lectures. You can mix different branches in one exam, such as Cardiology → ECG + Hematology → Iron deficiency + Respiratory → Asthma.</p></div>`;
-  document.getElementById('app').innerHTML=layout('Start Exam','Build a precise exam from your module → subject → lecture hierarchy.',body);
-  renderExamTree(); updateExamSelectionSummary();
+  </div>`;
+  document.getElementById('app').innerHTML=layout('Start Exam','Choose the classic builder or the advanced mixed Module → Subject → Lecture builder.',body);
+  updateSimpleExamSubjects();
+  setExamBuilderMode(examBuilderMode);
 }
 function startExam(customList=null, overrides=null, customLabel=null){
   if(!customList && !bank.length){toast('No questions are loaded. Refresh from GitHub first.','error');return;}
@@ -1260,11 +1331,20 @@ function startExam(customList=null, overrides=null, customLabel=null){
       n=Math.max(1,Number(document.getElementById('examCount').value)||1);
       answerMode=document.getElementById('answerMode').value;
       minutesValue=Number(document.getElementById('examMinutes').value)||0;
-      selectionPaths=[...examBuilderSelection];
-      const selected=selectedExamQuestions();
-      moduleFilters=[...new Set(selected.map(q=>String(q.module)))];
-      subjectFilters=[...new Set(selected.map(q=>String(q.subject)))];
-      lectureFilters=[...new Set(selected.map(q=>String(q.lecture)))];
+      if(examBuilderMode==='simple'){
+        const sm=document.getElementById('simpleModule')?.value||'';
+        const ss=document.getElementById('simpleSubject')?.value||'';
+        const sl=document.getElementById('simpleLecture')?.value||'';
+        moduleFilters=sm?[sm]:[];
+        subjectFilters=ss?[ss]:[];
+        lectureFilters=sl?[sl]:[];
+      }else{
+        selectionPaths=[...examBuilderSelection];
+        const selected=selectedExamQuestions();
+        moduleFilters=[...new Set(selected.map(q=>String(q.module)))];
+        subjectFilters=[...new Set(selected.map(q=>String(q.subject)))];
+        lectureFilters=[...new Set(selected.map(q=>String(q.lecture)))];
+      }
     }
 
     moduleFilter=moduleFilters.join(', ');
@@ -1272,6 +1352,12 @@ function startExam(customList=null, overrides=null, customLabel=null){
     lectureFilter=lectureFilters.join(', ');
 
     if(overrides){
+      list=list.filter(q=>
+        (!moduleFilters.length||moduleFilters.includes(String(q.module)))&&
+        (!subjectFilters.length||subjectFilters.includes(String(q.subject)))&&
+        (!lectureFilters.length||lectureFilters.includes(String(q.lecture)))
+      );
+    } else if(examBuilderMode==='simple'){
       list=list.filter(q=>
         (!moduleFilters.length||moduleFilters.includes(String(q.module)))&&
         (!subjectFilters.length||subjectFilters.includes(String(q.subject)))&&
@@ -1591,6 +1677,7 @@ function chooseAnswer(i){
   if(exam.answerMode==='immediate' && exam.answers[q.id]!==undefined)return;
 
   exam.answers[q.id]=i;
+  recordStudyActivity([q.id]);
   saveActiveExam();
   updateAnswerFeedback(q,i);
 }
@@ -1610,6 +1697,8 @@ async function submitExam(auto){
     if(a===q.correctIndex){progress[k].correct++;correct++;progress[k].last='correct';}
     else {progress[k].wrong++;progress[k].last='wrong';}
   });
+  const solvedIds=exam.list.filter(q=>exam.answers[q.id]!==undefined).map(q=>q.id);
+  recordStudyActivity(solvedIds);
   saveState();
   const unanswered=exam.list.filter(q=>exam.answers[q.id]===undefined).length;
   const durationSec=Math.round((Date.now()-exam.started)/1000);
@@ -1765,17 +1854,20 @@ function renderProgress(){
       <div style="margin-top:12px">${subjectRows||'<div class="empty">No subjects.</div>'}</div>
     </div>`;
   }).join('');
-
-  const myP=progressStats(bank), myA=accuracyStats(bank);
+  const myP=progressStats(bank), myA=accuracyStats(bank), study=studyStats();
+  const recent=study.days.slice(-7).reverse().map(d=>`<div class="progress-row" style="grid-template-columns:1fr 120px"><span>${new Date(d+'T00:00:00').toLocaleDateString()}</span><span class="pill">${Object.keys(study.activity[d].questions||{}).length} solved</span></div>`).join('');
   const body=`
     <div class="grid stats">
       <div class="card stat"><div class="label">My progress</div><div class="value">${myP.done}/${myP.total}</div><div class="mini">${myP.pct}% of available questions mastered</div></div>
       <div class="card stat"><div class="label">My accuracy</div><div class="value">${myA.correct}/${myA.attempts}</div><div class="mini">${myA.pct}%</div></div>
+      <div class="card stat"><div class="label">Solved today</div><div class="value">${study.todayQuestions}</div><div class="mini">Unique questions solved today</div></div>
+      <div class="card stat"><div class="label">Days studied</div><div class="value">${study.daysStudied}</div><div class="mini">Days with at least one solved question</div></div>
     </div>
+    <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Study activity</strong><div class="mini">Your recent daily question-solving activity.</div></div><span class="pill">${study.daysStudied} study days</span></div>${recent||'<div class="empty" style="margin-top:12px">No study activity recorded yet. Complete questions to start your study history.</div>'}</div>
     <h2 class="section-title">Detailed progress: Module → Subject → Lecture</h2>
     ${moduleRows||'<div class="card empty">No visible modules or questions loaded.</div>'}
-    <div class="card"><button class="btn danger" onclick="resetProgress()">Reset my progress</button><span class="mini" style="margin-left:10px">This resets browser progress. Cloud records are not deleted.</span></div>`;
-  document.getElementById('app').innerHTML=layout('Progress & Accuracy','Track your personal progress and accuracy for every module, subject and lecture.',body);
+    <div class="card"><button class="btn danger" onclick="resetProgress()">Reset my progress</button><span class="mini" style="margin-left:10px">This resets browser question progress. Study-day activity is kept.</span></div>`;
+  document.getElementById('app').innerHTML=layout('Progress & Accuracy','Track your progress, accuracy, daily solved questions, and study days.',body);
 }
 function resetProgress(){
   if(confirm('Reset your local progress?')){
@@ -1784,10 +1876,21 @@ function resetProgress(){
 }
 function renderMistakes(){
   const wrong=bank.filter(q=>progress[key(q)]&&progress[key(q)].wrong>0);
-  const body=`<div class="card"><div class="category-head"><strong>${wrong.length} questions in your mistakes bank</strong><span class="mini">Wrong answers are retained locally.</span></div>
-  ${wrong.length?`<div style="margin-top:14px">${wrong.map(q=>`<div class="category-card"><div class="category-head"><b>${esc(q.question)}</b><span class="pill">${progress[key(q)].wrong} wrong</span></div><div class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)} · Correct: ${esc(q.options[q.correctIndex])}</div></div>`).join('')}</div>
-  <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startExam(bank.filter(q=>progress[key(q)]&&progress[key(q)].wrong>0))">Practice Mistakes</button></div>`:'<div class="empty">No mistakes yet. Great work.</div>'}</div>`;
-  document.getElementById('app').innerHTML=layout('Mistakes','Questions you answered incorrectly at least once.',body);
+  const topicMap=new Map();
+  wrong.forEach(q=>{
+    const p=progress[key(q)]||{};
+    const topicKey=[q.module,q.subject,q.lecture].map(String).join('|||');
+    const row=topicMap.get(topicKey)||{module:q.module,subject:q.subject,lecture:q.lecture,attempts:0,wrong:0,correct:0,questions:0};
+    row.attempts+=Number(p.attempts||0); row.wrong+=Number(p.wrong||0); row.correct+=Number(p.correct||0); row.questions++;
+    topicMap.set(topicKey,row);
+  });
+  const weakTopics=[...topicMap.values()].map(x=>({...x,errorRate:x.attempts?Math.round((x.wrong/x.attempts)*100):0}))
+    .sort((a,b)=>b.errorRate-a.errorRate||b.wrong-a.wrong||b.attempts-a.attempts);
+  const weakHtml=weakTopics.length?weakTopics.map((t,i)=>`<div class="category-card" style="margin-top:10px"><div class="category-head"><div><b>#${i+1} ${esc(t.lecture)}</b><div class="mini">${esc(t.module)} · ${esc(t.subject)} · ${t.questions} question${t.questions===1?'':'s'}</div></div><span class="pill">${t.errorRate}% weak</span></div><div class="mini" style="margin-top:8px">${t.wrong} wrong · ${t.correct} correct · ${t.attempts} attempts</div><div class="bar" style="margin-top:8px"><i style="width:${Math.min(100,t.errorRate)}%"></i></div></div>`).join(''):'<div class="empty">No weak topics yet. Answer some questions incorrectly to build your weakness analytics.</div>';
+  const questionHtml=wrong.length?wrong.map(q=>`<div class="category-card"><div class="category-head"><b>${esc(q.question)}</b><span class="pill">${progress[key(q)].wrong} wrong</span></div><div class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)} · Correct: ${esc(q.options[q.correctIndex])}</div></div>`).join(''):'<div class="empty">No mistakes yet. Great work.</div>';
+  const body=`<div class="card"><div class="category-head"><div><strong>Weak topics</strong><div class="mini">Topics are ranked from most weak to least weak using wrong answers ÷ attempts.</div></div><span class="pill">${weakTopics.length} topics</span></div>${weakHtml}</div>
+  <div class="card" style="margin-top:16px"><div class="category-head"><strong>${wrong.length} questions in your mistakes bank</strong><span class="mini">Wrong answers are retained locally.</span></div><div style="margin-top:14px">${questionHtml}</div>${wrong.length?`<div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startExam(bank.filter(q=>progress[key(q)]&&progress[key(q)].wrong>0))">Practice Mistakes</button></div>`:''}</div>`;
+  document.getElementById('app').innerHTML=layout('Mistakes','Review incorrect questions and see your weakest topics ranked first.',body);
 }
 
 function renderBank(){
