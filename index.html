@@ -284,7 +284,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 @media(max-width:1000px){.stats,.filters{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.main{padding:16px}.stats,.filters,.two,.three{grid-template-columns:1fr}.progress-row{grid-template-columns:1fr 1fr}}
 
-/* v31 Phase 1 study intelligence */
+/* v33 Phase 2 study intelligence (v31/v32 retained features) */
 .goal-track{height:9px;border-radius:999px;background:var(--panel2);overflow:hidden;border:1px solid var(--line)}
 .goal-track i{display:block;height:100%;background:var(--primary);border-radius:999px}
 .streak-days{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
@@ -312,6 +312,20 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .legend-correct{background:#45c98a}
 .legend-wrong{background:#ef6b73}
 @media(max-width:700px){.dashboard-progress-shortcut{padding:14px}.study-chart{min-width:610px}}
+/* v33 Phase 2 study intelligence */
+.phase2-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.phase2-mini-card{padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel2)}
+.phase2-stat{font-size:22px;font-weight:800}
+.phase2-label{font-size:12px;color:var(--muted);margin-top:3px}
+.phase2-table{width:100%;border-collapse:collapse}
+.phase2-table th,.phase2-table td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+.phase2-table th{font-size:12px;color:var(--muted);font-weight:700}
+.phase2-table td{font-size:13px}
+.phase2-good{color:#45c98a}
+.phase2-bad{color:#ef6b73}
+.similar-box{margin-top:12px;padding:14px;border:1px solid var(--primary);border-radius:14px;background:var(--panel2)}
+.similar-option{padding:9px 11px;border:1px solid var(--line);border-radius:10px;margin-top:7px}
+@media(max-width:850px){.phase2-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -392,7 +406,8 @@ const CONFIG = {
   visitorIdKey: 'med64_visitor_id_v1',
   activeExamKey: 'med64_active_exam_v1',
   supportChatKey: 'med64_support_chat_v1',
-  studyActivityKey: 'med64_study_activity_v1'
+  studyActivityKey: 'med64_study_activity_v1',
+  phase2SimilarKey: 'med64_phase2_similar_v1'
 };
 
 const DEFAULT_SETTINGS = {
@@ -552,6 +567,7 @@ async function afterAuthChanged(){
   await loadActiveNotifications();
   applyModuleVisibility();
   await loadSupabaseProgress();
+  await loadReviewScheduleFromSupabase();
   await loadSupabaseHistory();
   await loadFavorites();
   await loadGlobalAnalytics();
@@ -598,6 +614,30 @@ async function loadSupabaseProgress(){
   });
   progress=remote;
   saveState();
+}
+async function loadReviewScheduleFromSupabase(){
+  if(!SUPABASE_ENABLED || !currentUser)return;
+  try{
+    const {data,error}=await supabaseClient.from('student_review_schedule').select('question_id,interval_days,review_streak,next_review_at,last_answered_at').eq('user_id',currentUser.id);
+    if(error){console.warn('Review schedule load unavailable:',error.message);return;}
+    (data||[]).forEach(row=>{
+      const p=progress[row.question_id]||{attempts:0,correct:0,wrong:0,last:null};
+      p.reviewIntervalDays=Number(row.interval_days||1);
+      p.reviewStreak=Number(row.review_streak||0);
+      p.nextReviewAt=Date.parse(row.next_review_at)||0;
+      p.lastAnsweredAt=Date.parse(row.last_answered_at)||0;
+      progress[row.question_id]=p;
+    });
+    saveState();
+  }catch(e){console.warn('Review schedule load unavailable:',e.message);}
+}
+async function syncReviewSchedulesToSupabase(questions){
+  if(!SUPABASE_ENABLED || !currentUser || !questions?.length)return;
+  const rows=questions.map(q=>{const p=progress[key(q)]||{};return {user_id:currentUser.id,question_id:q.id,interval_days:Math.max(1,Number(p.reviewIntervalDays||1)),review_streak:Math.max(0,Number(p.reviewStreak||0)),next_review_at:new Date(Number(p.nextReviewAt||Date.now())).toISOString(),last_answered_at:new Date(Number(p.lastAnsweredAt||Date.now())).toISOString(),updated_at:new Date().toISOString()};});
+  try{
+    const {error}=await supabaseClient.from('student_review_schedule').upsert(rows,{onConflict:'user_id,question_id'});
+    if(error)console.warn('Review schedule sync unavailable:',error.message);
+  }catch(e){console.warn('Review schedule sync unavailable:',e.message);}
 }
 
 async function recordAttemptToSupabase(q, selectedIndex, isCorrect, examId){
@@ -800,6 +840,54 @@ function recentStudyDays(count=7){
   }
   return out;
 }
+function spacedReviewState(q){
+  const p=progress[key(q)]||{};
+  return {intervalDays:Math.max(0,Number(p.reviewIntervalDays||0)),reviewStreak:Math.max(0,Number(p.reviewStreak||0)),nextReviewAt:Number(p.nextReviewAt||0),lastAnsweredAt:Number(p.lastAnsweredAt||0)};
+}
+function updateSpacedRepetition(q,isCorrect){
+  const k=key(q);
+  if(!progress[k])progress[k]={attempts:0,correct:0,wrong:0,last:null};
+  const p=progress[k];
+  const previousCorrect=p.last==='correct';
+  let intervalDays=1, reviewStreak=0;
+  if(isCorrect){
+    reviewStreak=previousCorrect?Math.max(1,Number(p.reviewStreak||1)+1):1;
+    const ladder=[1,3,7,14,30,60];
+    intervalDays=ladder[Math.min(reviewStreak-1,ladder.length-1)];
+  }else{reviewStreak=0;intervalDays=1;}
+  p.reviewIntervalDays=intervalDays; p.reviewStreak=reviewStreak; p.lastAnsweredAt=Date.now(); p.nextReviewAt=Date.now()+intervalDays*86400000;
+}
+function dueSpacedQuestions(){
+  const now=Date.now();
+  return bank.filter(q=>{const p=progress[key(q)];return p&&Number(p.attempts||0)>0&&Number(p.nextReviewAt||0)>0&&Number(p.nextReviewAt)<=now;});
+}
+function nextSpacedReviewDate(){
+  let soonest=0;
+  bank.forEach(q=>{const p=progress[key(q)];const t=Number(p?.nextReviewAt||0);if(t>0&&(!soonest||t<soonest))soonest=t;});
+  return soonest;
+}
+function startSpacedReview(){
+  const due=dueSpacedQuestions();
+  if(!due.length){const next=nextSpacedReviewDate();toast(next?`No reviews are due yet. Next review: ${new Date(next).toLocaleString()}.`:'No spaced-repetition reviews are scheduled yet. Answer some questions first.','ok');return;}
+  const list=shuffle([...due]).slice(0,Math.min(getDailyGoal(),due.length));
+  startExam(list,null,'Spaced Repetition Review');
+}
+function spacedReviewSummaryHTML(){
+  const due=dueSpacedQuestions(), next=nextSpacedReviewDate();
+  const cycle=bank.filter(q=>progress[key(q)]&&Number(progress[key(q)].attempts||0)>0).length;
+  return `<div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Spaced repetition</strong><div class="mini">Review questions again at the right interval based on your previous answers.</div></div><span class="pill">${due.length} due</span></div><div class="phase2-grid" style="margin-top:12px"><div class="phase2-mini-card"><div class="phase2-stat">${due.length}</div><div class="phase2-label">Questions due now</div></div><div class="phase2-mini-card"><div class="phase2-stat">${cycle}</div><div class="phase2-label">Questions in review cycle</div></div><div class="phase2-mini-card"><div class="phase2-stat">${next?new Date(next).toLocaleDateString():'—'}</div><div class="phase2-label">Next scheduled review</div></div></div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startSpacedReview()" ${due.length?'':'disabled'}>Start Spaced Review</button></div></div>`;
+}
+function lecturePerformanceData(){
+  const map=new Map();
+  bank.forEach(q=>{const p=progress[key(q)];if(!p||!Number(p.attempts||0))return;const k=[q.module,q.subject,q.lecture].map(String).join('|||');const r=map.get(k)||{module:q.module,subject:q.subject,lecture:q.lecture,attempts:0,correct:0,wrong:0,questions:0};r.attempts+=Number(p.attempts||0);r.correct+=Number(p.correct||0);r.wrong+=Number(p.wrong||0);r.questions++;map.set(k,r);});
+  return [...map.values()].map(r=>({...r,accuracy:r.attempts?Math.round(r.correct/r.attempts*100):0}));
+}
+function difficultyPerformanceData(){
+  const map=new Map();
+  bank.forEach(q=>{const p=progress[key(q)];if(!p||!Number(p.attempts||0))return;const difficulty=String(q.difficulty||'Unrated').trim()||'Unrated';const r=map.get(difficulty)||{difficulty,attempts:0,correct:0,wrong:0,questions:0};r.attempts+=Number(p.attempts||0);r.correct+=Number(p.correct||0);r.wrong+=Number(p.wrong||0);r.questions++;map.set(difficulty,r);});
+  return [...map.values()].map(r=>({...r,accuracy:r.attempts?Math.round(r.correct/r.attempts*100):0})).sort((a,b)=>a.difficulty.localeCompare(b.difficulty));
+}
+
 function weakTopicData(limit=5){
   const map=new Map();
   bank.forEach(q=>{
@@ -1821,6 +1909,7 @@ async function submitExam(auto){
   if(!auto && !confirm('Submit this exam now?'))return;
   clearInterval(timerId);
   let correct=0;
+  const answeredQuestionsForReview=[];
   exam.list.forEach(q=>{
     const a=exam.answers[q.id];
     if(a===undefined)return;
@@ -1829,9 +1918,12 @@ async function submitExam(auto){
     progress[k].attempts++;
     if(a===q.correctIndex){progress[k].correct++;correct++;progress[k].last='correct';}
     else {progress[k].wrong++;progress[k].last='wrong';}
+    updateSpacedRepetition(q,a===q.correctIndex);
+    answeredQuestionsForReview.push(q);
     recordStudyAnswer(q.id, a===q.correctIndex);
   });
   saveState();
+  await syncReviewSchedulesToSupabase(answeredQuestionsForReview);
   const unanswered=exam.list.filter(q=>exam.answers[q.id]===undefined).length;
   const durationSec=Math.round((Date.now()-exam.started)/1000);
   const result={
@@ -1929,6 +2021,44 @@ async function submitAuth(mode){
   if(mode==='signup') await signUpStudent(email,password); else await signInStudent(email,password);
 }
 
+async function generateSimilarQuestion(questionId){
+  const r=loadJSON(CONFIG.lastResultKey,null);
+  const q=r?.list?.find(x=>String(x.id)===String(questionId)) || bank.find(x=>String(x.id)===String(questionId));
+  if(!q){toast('Question not found.','error');return;}
+  const targetId='similar_'+String(questionId).replace(/[^a-zA-Z0-9_-]/g,'_');
+  const target=document.getElementById(targetId);
+  if(target)target.innerHTML='<div class="mini">Generating a similar question…</div>';
+  const prompt=`Create ONE new medical multiple-choice question similar in concept and difficulty to the source question below, but do not copy its wording, options, or answer.
+Module: ${q.module}
+Subject: ${q.subject}
+Lecture: ${q.lecture}
+Difficulty: ${q.difficulty||'Mixed'}
+Source question: ${q.question}
+Options: ${q.options.map((o,i)=>String.fromCharCode(65+i)+'. '+o).join(' | ')}
+Return JSON only in this exact shape: {"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"...","difficulty":"${q.difficulty||'Medium'}"}.`;
+  try{
+    const text=await callAI([{role:'user',parts:[{text:prompt}]}],{maxOutputTokens:1200,responseMimeType:'application/json'},{provider:'groq',model:'openai/gpt-oss-120b',accessCode:aiSettings.accessCode||''});
+    const list=parseAIQuestionJSON(text), raw=list?.[0];
+    if(!raw||!raw.question||!Array.isArray(raw.options)||raw.options.length<2)throw new Error('The AI returned an invalid question.');
+    const generated={id:'ai_similar_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),module:q.module,subject:q.subject,lecture:q.lecture,question:String(raw.question),options:raw.options.map(String),correctIndex:Math.max(0,Math.min(raw.options.length-1,Number(raw.correctIndex)||0)),explanation:String(raw.explanation||''),difficulty:String(raw.difficulty||q.difficulty||'Medium'),reference:q.reference||null,imageUrl:null};
+    localStorage.setItem(CONFIG.phase2SimilarKey,JSON.stringify(generated));
+    const host=document.getElementById(targetId);
+    if(host)host.innerHTML=similarQuestionHTML(generated);
+  }catch(e){
+    const host=document.getElementById(targetId);
+    if(host)host.innerHTML=`<div class="notice error">Could not generate a similar question: ${esc(e.message)}</div>`;
+  }
+}
+function practiceSimilarQuestion(){
+  const q=loadJSON(CONFIG.phase2SimilarKey,null);
+  if(!q){toast('The generated question is no longer available.','error');return;}
+  startExam([q],null,'AI Similar Question');
+}
+function similarQuestionHTML(q){
+  const opts=q.options.map((o,i)=>`<div class="similar-option"><b>${String.fromCharCode(65+i)}.</b> ${esc(o)}</div>`).join('');
+  return `<div class="similar-box"><div class="category-head"><strong>AI Similar Question</strong><span class="ai-badge">✦ Groq</span></div><div style="margin-top:9px"><b>${esc(q.question)}</b></div><div style="margin-top:8px">${opts}</div><div class="mini" style="margin-top:9px"><b>Correct:</b> ${esc(q.options[q.correctIndex])}${q.explanation?` · ${esc(q.explanation)}`:''}</div><div class="actions" style="margin-top:10px"><button class="btn primary" onclick="practiceSimilarQuestion()">Practice this question</button></div></div>`;
+}
+
 function renderResults(){
   const r=loadJSON(CONFIG.lastResultKey,null);
   if(!r){go('dashboard');return;}
@@ -1946,7 +2076,7 @@ function renderResults(){
       <div><b>${i+1}. ${esc(q.question)}</b></div>
       <div class="mini" style="margin-top:6px">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</div>
       <div style="margin-top:12px">${choices}</div>
-      <div class="review ${a===undefined?'bad':ok?'good':'bad'}">${a===undefined?'Unanswered':ok?'Correct':'Incorrect'} · Your answer: ${a===undefined?'—':esc(q.options[a])}<br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b>${q.explanation?`<br>${esc(q.explanation)}`:''}</div>
+      <div class="review ${a===undefined?'bad':ok?'good':'bad'}">${a===undefined?'Unanswered':ok?'Correct':'Incorrect'} · Your answer: ${a===undefined?'—':esc(q.options[a])}<br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b>${q.explanation?`<br>${esc(q.explanation)}`:''}</div><div class="actions" style="margin-top:10px"><button class="btn" onclick="generateSimilarQuestion('${attrJs(q.id)}')">✦ Generate Similar Question</button></div><div id="similar_${attrJs(q.id).replace(/[^a-zA-Z0-9_-]/g,'_')}"></div>
     </div>`;
   }).join('');
   const meta=`<div class="mini">${esc(r.label||'Exam')} · ${r.date?new Date(r.date).toLocaleString():''}${r.durationSec?' · '+formatTime(r.durationSec)+' taken':''}</div>`;
@@ -1993,6 +2123,7 @@ function renderProgress(){
   const weekTotal=week.reduce((n,d)=>n+d.total,0), weekTrue=week.reduce((n,d)=>n+d.correct,0), weekFalse=week.reduce((n,d)=>n+d.wrong,0);
   const body=`
     ${dailyGoalStreakHTML()}
+    ${spacedReviewSummaryHTML()}
     <div class="grid stats">
       <div class="card stat"><div class="label">My progress</div><div class="value">${myP.done}/${myP.total}</div><div class="mini">${myP.pct}% of available questions mastered</div></div>
       <div class="card stat"><div class="label">My accuracy</div><div class="value">${myA.correct}/${myA.attempts}</div><div class="mini">${myA.pct}%</div></div>
@@ -2007,6 +2138,8 @@ function renderProgress(){
         <div class="card stat"><div class="label">False</div><div class="value">${weekFalse}</div><div class="mini">Incorrect answers</div></div>
       </div>
     </div>
+    <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Lecture performance</strong><div class="mini">Accuracy and attempts for each lecture you have practiced.</div></div><span class="pill">${lecturePerformanceData().length} lectures</span></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Lecture</th><th>Attempts</th><th>Correct</th><th>Accuracy</th></tr></thead><tbody>${lecturePerformanceData().sort((a,b)=>a.accuracy-b.accuracy||b.attempts-a.attempts).map(r=>`<tr><td><b>${esc(r.lecture)}</b><div class="mini">${esc(r.module)} · ${esc(r.subject)}</div></td><td>${r.attempts}</td><td>${r.correct}</td><td class="${r.accuracy<60?'phase2-bad':r.accuracy>=80?'phase2-good':''}"><b>${r.accuracy}%</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Answer questions to build lecture analytics.</td></tr>'}</tbody></table></div></div>
+    <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Difficulty performance</strong><div class="mini">Your accuracy by question difficulty.</div></div></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Difficulty</th><th>Questions</th><th>Attempts</th><th>Accuracy</th></tr></thead><tbody>${difficultyPerformanceData().map(r=>`<tr><td><b>${esc(r.difficulty)}</b></td><td>${r.questions}</td><td>${r.attempts}</td><td class="${r.accuracy<60?'phase2-bad':r.accuracy>=80?'phase2-good':''}"><b>${r.accuracy}%</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">No difficulty-tagged attempts yet.</td></tr>'}</tbody></table></div></div>
     <h2 class="section-title">Detailed progress: Module → Subject → Lecture</h2>
     ${moduleRows||'<div class="card empty">No visible modules or questions loaded.</div>'}
     <div class="card"><button class="btn danger" onclick="resetProgress()">Reset my progress</button><span class="mini" style="margin-left:10px">This resets browser question progress. Study-day activity is kept.</span></div>`;
@@ -2035,7 +2168,7 @@ function renderMistakes(){
   const weakTopics=[...topicMap.values()].map(x=>({...x,errorRate:x.attempts?Math.round((x.wrong/x.attempts)*100):0}))
     .sort((a,b)=>b.errorRate-a.errorRate||b.wrong-a.wrong||b.attempts-a.attempts);
   const weakHtml=weakTopics.length?weakTopics.map((t,i)=>`<div class="category-card" style="margin-top:10px"><div class="category-head"><div><b>#${i+1} ${esc(t.lecture)}</b><div class="mini">${esc(t.module)} · ${esc(t.subject)} · ${t.questions} question${t.questions===1?'':'s'}</div></div><span class="pill">${t.errorRate}% weak</span></div><div class="mini" style="margin-top:8px">${t.wrong} wrong · ${t.correct} correct · ${t.attempts} attempts</div><div class="bar" style="margin-top:8px"><i style="width:${Math.min(100,t.errorRate)}%"></i></div><div class="actions" style="margin-top:10px"><button class="btn primary" onclick="startTopicPractice(${JSON.stringify(t.module)},${JSON.stringify(t.subject)},${JSON.stringify(t.lecture)})">Practice this topic</button></div></div>`).join(''):'<div class="empty">No weak topics yet. Answer some questions incorrectly to build your weakness analytics.</div>';
-  const questionHtml=wrong.length?wrong.map(q=>`<div class="category-card"><div class="category-head"><b>${esc(q.question)}</b><span class="pill">${progress[key(q)].wrong} wrong</span></div><div class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)} · Correct: ${esc(q.options[q.correctIndex])}</div></div>`).join(''):'<div class="empty">No mistakes yet. Great work.</div>';
+  const questionHtml=wrong.length?wrong.map(q=>`<div class="category-card"><div class="category-head"><b>${esc(q.question)}</b><span class="pill">${progress[key(q)].wrong} wrong</span></div><div class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)} · Correct: ${esc(q.options[q.correctIndex])}</div><div class="actions" style="margin-top:10px"><button class="btn" onclick="generateSimilarQuestion('${attrJs(q.id)}')">✦ Generate Similar Question</button></div><div id="similar_${attrJs(q.id).replace(/[^a-zA-Z0-9_-]/g,'_')}"></div></div>`).join(''):'<div class="empty">No mistakes yet. Great work.</div>';
   const body=`<div class="card"><div class="category-head"><div><strong>Weak topics</strong><div class="mini">Topics are ranked from most weak to least weak using wrong answers ÷ attempts.</div></div><span class="pill">${weakTopics.length} topics</span></div>${weakHtml}</div>
   <div class="card" style="margin-top:16px"><div class="category-head"><strong>${wrong.length} questions in your mistakes bank</strong><span class="mini">Wrong answers are retained locally.</span></div><div style="margin-top:14px">${questionHtml}</div>${wrong.length?`<div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startExam(bank.filter(q=>progress[key(q)]&&progress[key(q)].wrong>0))">Practice Mistakes</button></div>`:''}</div>`;
   document.getElementById('app').innerHTML=layout('Mistakes','Review incorrect questions and see your weakest topics ranked first.',body);
@@ -2565,12 +2698,24 @@ async function setQuestionReportStatus(id,status){
 
 async function renderAdminAnalytics(){
   if(!(await loadAdminAnalytics())) return;
+  let quality={difficulty:[],hardest:[],reported:[],lectures:[]};
+  if(SUPABASE_ENABLED){
+    try{const {data,error}=await supabaseClient.rpc('get_admin_question_quality_analytics');if(!error&&data)quality=data;}catch(e){console.warn('Question quality analytics unavailable:',e.message);}
+  }
+  const localDifficulty=new Map();
+  bank.forEach(q=>{const d=String(q.difficulty||'Unrated').trim()||'Unrated';localDifficulty.set(d,(localDifficulty.get(d)||0)+1);});
+  const difficultyCards=[...localDifficulty.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([d,n])=>`<div class="phase2-mini-card"><div class="phase2-stat">${n}</div><div class="phase2-label">${esc(d)} questions</div></div>`).join('');
+  const hardest=(quality.hardest||[]).slice(0,12).map(r=>`<tr><td><b>${esc(r.question_id||'')}</b><div class="mini">${esc(r.question||'')}</div></td><td>${Number(r.attempts||0)}</td><td>${Number(r.correct||0)}</td><td class="${Number(r.accuracy||0)<60?'phase2-bad':''}"><b>${Number(r.accuracy||0)}%</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">No aggregate question-attempt data is available yet.</td></tr>';
+  const reported=(quality.reported||[]).slice(0,12).map(r=>`<tr><td><b>${esc(r.question_id||'')}</b></td><td>${Number(r.reports||0)}</td><td>${Number(r.open_reports||0)}</td><td>${Number(r.resolved_reports||0)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No question reports yet.</td></tr>';
   const body=`<div class="grid stats">
     <div class="card stat"><div class="label">All submitted exams</div><div class="value">${Number(analyticsSummary.total||0)}</div><div class="mini">Signed-in + non-signed-in users</div></div>
     <div class="card stat"><div class="label">Signed-in submissions</div><div class="value">${Number(analyticsSummary.signedIn||0)}</div><div class="mini">Linked to Supabase accounts</div></div>
     <div class="card stat"><div class="label">Non-signed-in submissions</div><div class="value">${Number(analyticsSummary.anonymous||0)}</div><div class="mini">Anonymous visitor submissions</div></div>
   </div>
-  <div class="card" style="margin-top:16px"><div class="category-head"><strong>Submission coverage</strong><button class="btn" onclick="renderAdminAnalytics()">Refresh</button></div><p class="mini" style="margin:8px 0 0">This page is restricted to administrators. Anonymous exams are counted when Supabase is connected and the analytics migration has been applied.</p></div>`;
+  <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Question bank quality</strong><div class="mini">Difficulty distribution and aggregate performance signals.</div></div><button class="btn" onclick="renderAdminAnalytics()">Refresh</button></div><div class="phase2-grid" style="margin-top:12px">${difficultyCards||'<div class="empty">No questions loaded.</div>'}</div></div>
+  <div class="card" style="margin-top:16px"><div class="category-head"><strong>Hardest questions</strong><span class="mini">Lowest aggregate accuracy · minimum 3 attempts</span></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Question</th><th>Attempts</th><th>Correct</th><th>Accuracy</th></tr></thead><tbody>${hardest}</tbody></table></div></div>
+  <div class="card" style="margin-top:16px"><div class="category-head"><strong>Reported questions</strong><span class="mini">Question-quality signals from student reports</span></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Question ID</th><th>Reports</th><th>Open</th><th>Resolved</th></tr></thead><tbody>${reported}</tbody></table></div></div>
+  <div class="card" style="margin-top:16px"><div class="category-head"><strong>Submission coverage</strong><button class="btn" onclick="renderAdminAnalytics()">Refresh</button></div><p class="mini" style="margin:8px 0 0">This page is restricted to administrators. Anonymous exams are counted when Supabase is connected and the analytics migration has been applied. Aggregate question-quality data uses the Phase 2 Supabase function.</p></div>`;
   document.getElementById('app').innerHTML=layout('Admin Analytics','Exam submissions across signed-in and non-signed-in users.',body);
 }
 
