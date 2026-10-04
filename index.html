@@ -147,6 +147,8 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .exam-node-toggle:hover{background:var(--primary-soft);color:var(--primary)}
 .exam-node-toggle.spacer{visibility:hidden}
 .exam-node-title{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.exam-node-title.exam-node-clickable{cursor:pointer}
+.exam-node-title.exam-node-clickable:hover{color:var(--primary)}
 .exam-node-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);white-space:nowrap}
 .exam-node-children{margin-left:28px;padding-left:10px;border-left:1px dashed var(--line)}
 .exam-node-children.hidden{display:none}
@@ -1003,10 +1005,6 @@ function renderDashboard(){
   const noticeHtml=(activeNotifications||[]).length ? activeNotifications.map(n=>`<div class="card" style="margin-bottom:16px;border-left:4px solid var(--primary)"><div class="category-head"><strong>${esc(n.title||'Announcement')}</strong><span class="mini">${n.created_at?new Date(n.created_at).toLocaleString():''}</span></div><div style="margin-top:8px;white-space:pre-wrap">${esc(n.message||'')}</div></div>`).join('') : '';
   const body=`
   ${noticeHtml}
-  <div class="card dashboard-theme-card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px">
-    <div><strong>Appearance</strong><div class="mini" style="margin-top:3px">Switch between dark and light mode.</div></div>
-    ${dashboardThemeToggleHTML()}
-  </div>
   <div class="grid stats">
     <div class="card stat"><div class="label">Questions available</div><div class="value">${bank.length}</div></div>
     <div class="card stat"><div class="label">Questions practiced</div><div class="value">${practicedCount(bank)}</div></div>
@@ -1109,34 +1107,50 @@ function renderExamTree(){
       s.lectures.forEach(l=>{
         const ls=examNodeState('lecture',m.module,s.subject,l.lecture);
         lecturesHtml += '<div class="exam-node-row">'+
-          '<button type="button" class="exam-node-toggle spacer" aria-hidden="true">▸</button>'+
-          '<input type="checkbox" data-exam-node="lecture" data-module="'+attrJs(m.module)+'" data-subject="'+attrJs(s.subject)+'" data-lecture="'+attrJs(l.lecture)+'" '+(ls.checked?'checked':'')+'>'+
+          '<button type="button" class="exam-node-toggle spacer" aria-hidden="true" tabindex="-1">▸</button>'+
+          '<input type="checkbox" data-exam-node="lecture" data-module="'+esc(lv(m.module))+'" data-subject="'+esc(lv(s.subject))+'" data-lecture="'+esc(lv(l.lecture))+'" '+(ls.checked?'checked':'')+'>'+
           '<span class="exam-node-title">'+esc(l.lecture)+'</span><span class="exam-node-meta">'+l.count+' Q</span></div>';
       });
       subjectsHtml += '<div class="exam-node">'+
         '<div class="exam-node-row">'+
-          '<button type="button" class="exam-node-toggle" onclick="toggleExamTreeExpand(\'s\','+JSON.stringify(m.module)+','+JSON.stringify(s.subject)+')" aria-label="Expand or collapse '+esc(s.subject)+'">'+(subOpen?'▾':'▸')+'</button>'+
-          '<input type="checkbox" data-exam-node="subject" data-module="'+attrJs(m.module)+'" data-subject="'+attrJs(s.subject)+'" '+(ss.checked?'checked':'')+'>'+
-          '<span class="exam-node-title">'+esc(s.subject)+'</span><span class="exam-node-meta">'+s.total+' Q</span>'+
+          '<button type="button" class="exam-node-toggle" data-exam-toggle="subject" data-module="'+esc(lv(m.module))+'" data-subject="'+esc(lv(s.subject))+'" aria-label="Expand or collapse '+esc(s.subject)+'">'+(subOpen?'▾':'▸')+'</button>'+
+          '<input type="checkbox" data-exam-node="subject" data-module="'+esc(lv(m.module))+'" data-subject="'+esc(lv(s.subject))+'" '+(ss.checked?'checked':'')+'>'+
+          '<span class="exam-node-title exam-node-clickable" data-exam-toggle="subject" data-module="'+esc(lv(m.module))+'" data-subject="'+esc(lv(s.subject))+'">'+esc(s.subject)+'</span><span class="exam-node-meta">'+s.total+' Q</span>'+
         '</div><div class="exam-node-children '+(subOpen?'':'hidden')+'">'+lecturesHtml+'</div></div>';
     });
     parts.push('<div class="exam-node">'+
       '<div class="exam-node-row">'+
-        '<button type="button" class="exam-node-toggle" onclick="toggleExamTreeExpand(\'m\','+JSON.stringify(m.module)+')" aria-label="Expand or collapse '+esc(m.module)+'">'+(open?'▾':'▸')+'</button>'+
-        '<input type="checkbox" data-exam-node="module" data-module="'+attrJs(m.module)+'" '+(ms.checked?'checked':'')+'>'+
-        '<span class="exam-node-title">'+esc(m.module)+'</span><span class="exam-node-meta">'+m.total+' Q</span>'+
+        '<button type="button" class="exam-node-toggle" data-exam-toggle="module" data-module="'+esc(lv(m.module))+'" aria-label="Expand or collapse '+esc(m.module)+'">'+(open?'▾':'▸')+'</button>'+
+        '<input type="checkbox" data-exam-node="module" data-module="'+esc(lv(m.module))+'" '+(ms.checked?'checked':'')+'>'+
+        '<span class="exam-node-title exam-node-clickable" data-exam-toggle="module" data-module="'+esc(lv(m.module))+'">'+esc(m.module)+'</span><span class="exam-node-meta">'+m.total+' Q</span>'+
       '</div><div class="exam-node-children '+(open?'':'hidden')+'">'+subjectsHtml+'</div></div>');
   });
   tree.innerHTML=parts.join('') || '<div class="exam-builder-hint">No module, subject, or lecture matches your search.</div>';
+
+  // Use real DOM listeners instead of inline onclick handlers. The old version
+  // embedded JSON inside an HTML onclick attribute; module names containing
+  // quotes/special characters could break that handler and prevent expansion.
+  tree.onclick=(event)=>{
+    const toggle=event.target.closest('[data-exam-toggle]');
+    if(!toggle || !tree.contains(toggle))return;
+    event.preventDefault();
+    toggleExamTreeExpand(toggle.dataset.examToggle, toggle.dataset.module||'', toggle.dataset.subject||'');
+  };
+
   tree.querySelectorAll('input[data-exam-node]').forEach(input=>{
     if(input.dataset.examNode==='module') input.indeterminate=examNodeState('module',input.dataset.module).partial;
     if(input.dataset.examNode==='subject') input.indeterminate=examNodeState('subject',input.dataset.module,input.dataset.subject).partial;
     input.addEventListener('change',()=>{
       const type=input.dataset.examNode==='module'?'m':input.dataset.examNode==='subject'?'s':'l';
+      // Selecting a module/subject also opens its children so the user can
+      // immediately refine the selection down to individual lectures.
+      if(type==='m' && input.checked)examBuilderExpanded.add('m:'+input.dataset.module);
+      if(type==='s' && input.checked)examBuilderExpanded.add('s:'+input.dataset.module+'|||'+input.dataset.subject);
       toggleExamTreeNode(type,input.dataset.module,input.dataset.subject||'',input.dataset.lecture||'',input.checked);
     });
   });
 }
+function lv(v){ return String(v ?? ''); }
 function addAllLecturesForModule(module){
   bank.filter(q=>String(q.module)===String(module)).forEach(q=>examBuilderSelection.add(examPathKey('l',q.module,q.subject,q.lecture)));
 }
