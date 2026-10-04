@@ -2328,27 +2328,6 @@ function flashcardSummaryHTML(){
   return `<section class="study-tools-card study-progress-card"><div class="study-card-heading"><div><span class="study-eyebrow">YOUR REVIEW</span><h3>Local spaced-repetition progress</h3><p>Learning steps, review intervals, ease, lapses and due dates are stored locally. Nothing here is synced to Supabase.</p></div></div><div class="study-progress-grid"><div><b>${due}</b><span>Due now</span></div><div><b>${learning}</b><span>Learning / relearning</span></div><div><b>${mature}</b><span>Mature cards</span></div></div></section>`;
 }
 function renderFlashcards(){renderStudyTools();}
-function launchFocusedExam(list,label){
-  if(!Array.isArray(list)||!list.length){toast('No questions are available for this review.','error');return;}
-  let focused=shuffle([...list]).map(q=>{
-    const pairs=q.options.map((text,index)=>({text,index}));
-    shuffle(pairs);
-    return {...q,options:pairs.map(x=>x.text),correctIndex:pairs.findIndex(x=>x.index===q.correctIndex)};
-  });
-  exam={list:focused,index:0,answers:{},started:Date.now(),minutes:0,answerMode:settings.showAnswerImmediately?'immediate':'finish',submitted:false,label:label||'Focused review',moduleFilter:'',subjectFilter:'',lectureFilter:'',moduleFilters:[],subjectFilters:[],lectureFilters:[],selectionPaths:[]};
-  clearInterval(timerId);
-  saveActiveExam();
-  location.hash='exam';
-  renderQuiz();
-}
-function startLectureQuickReview(module,subject,lecture){
-  const qs=bank.filter(q=>String(q.module)===String(module)&&String(q.subject)===String(subject)&&String(q.lecture)===String(lecture));
-  if(!qs.length){toast('No questions were found for this lecture.','error');return;}
-  const mistakes=qs.filter(q=>progress[key(q)]&&Number(progress[key(q)].wrong||0)>0);
-  const rest=qs.filter(q=>!mistakes.includes(q));
-  const list=[...shuffle(mistakes),...shuffle(rest)].slice(0,Math.min(12,qs.length));
-  launchFocusedExam(list,`Quick Review: ${module} → ${subject} → ${lecture}`);
-}
 function studyPlans(){return loadJSON('med64_study_plans_v1',[]);}
 function saveStudyPlans(x){localStorage.setItem('med64_study_plans_v1',JSON.stringify(x));}
 function createStudyPlan(){
@@ -2399,7 +2378,7 @@ function renderProgress(){
         const lp=progressStats(llist);
         return `<div class="progress-row" style="grid-template-columns:minmax(170px,1.2fr) 1fr">
           <span><b>${esc(lecture)}</b><div class="mini">${llist.length} questions</div></span>
-          <div><div class="bar"><i style="width:${lp.pct}%"></i></div><div class="mini" style="margin-top:4px">Progress ${lp.done}/${lp.total} · Accuracy ${accuracyStats(llist).pct}%</div><button class="btn" style="margin-top:8px" onclick="startLectureQuickReview(${JSON.stringify(m)},${JSON.stringify(subject)},${JSON.stringify(lecture)})">Quick Review</button></div>
+          <div><div class="bar"><i style="width:${lp.pct}%"></i></div><div class="mini" style="margin-top:4px">Progress ${lp.done}/${lp.total} · Accuracy ${accuracyStats(llist).pct}%</div></div>
         </div>`;
       }).join('');
       return `<div class="category-card" style="margin-top:10px">
@@ -2436,7 +2415,7 @@ function renderProgress(){
         <div class="card stat"><div class="label">False</div><div class="value">${weekFalse}</div><div class="mini">Incorrect answers</div></div>
       </div>
     </div>
-    <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Lecture performance</strong><div class="mini">Accuracy and attempts for each lecture you have practiced. Quick Review opens a focused lecture session.</div></div><span class="pill">${lecturePerformanceData().length} lectures</span></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Lecture</th><th>Attempts</th><th>Correct</th><th>Accuracy</th></tr></thead><tbody>${lecturePerformanceData().sort((a,b)=>a.accuracy-b.accuracy||b.attempts-a.attempts).map(r=>`<tr><td><b>${esc(r.lecture)}</b><div class="mini">${esc(r.module)} · ${esc(r.subject)}</div></td><td>${r.attempts}</td><td>${r.correct}</td><td class="${r.accuracy<60?'phase2-bad':r.accuracy>=80?'phase2-good':''}"><b>${r.accuracy}%</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Answer questions to build lecture analytics.</td></tr>'}</tbody></table></div></div>
+    <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Lecture performance</strong><div class="mini">Accuracy and attempts for each lecture you have practiced.</div></div><span class="pill">${lecturePerformanceData().length} lectures</span></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Lecture</th><th>Attempts</th><th>Correct</th><th>Accuracy</th></tr></thead><tbody>${lecturePerformanceData().sort((a,b)=>a.accuracy-b.accuracy||b.attempts-a.attempts).map(r=>`<tr><td><b>${esc(r.lecture)}</b><div class="mini">${esc(r.module)} · ${esc(r.subject)}</div></td><td>${r.attempts}</td><td>${r.correct}</td><td class="${r.accuracy<60?'phase2-bad':r.accuracy>=80?'phase2-good':''}"><b>${r.accuracy}%</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Answer questions to build lecture analytics.</td></tr>'}</tbody></table></div></div>
     <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Difficulty performance</strong><div class="mini">Your accuracy by question difficulty.</div></div></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Difficulty</th><th>Questions</th><th>Attempts</th><th>Accuracy</th></tr></thead><tbody>${difficultyPerformanceData().map(r=>`<tr><td><b>${esc(r.difficulty)}</b></td><td>${r.questions}</td><td>${r.attempts}</td><td class="${r.accuracy<60?'phase2-bad':r.accuracy>=80?'phase2-good':''}"><b>${r.accuracy}%</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">No difficulty-tagged attempts yet.</td></tr>'}</tbody></table></div></div>
     <h2 class="section-title">Detailed progress: Module → Subject → Lecture</h2>
     ${moduleRows||'<div class="card empty">No visible modules or questions loaded.</div>'}
@@ -2447,14 +2426,6 @@ function resetProgress(){
   if(confirm('Reset your local progress?')){
     progress={};saveState();render();toast('Local progress reset.','ok');
   }
-}
-function startTopicPractice(module,subject,lecture){
-  const topic=bank.filter(q=>String(q.module)===String(module)&&String(q.subject)===String(subject)&&String(q.lecture)===String(lecture));
-  if(!topic.length){toast('No questions were found for this topic.','error');return;}
-  const mistakes=topic.filter(q=>progress[key(q)]&&Number(progress[key(q)].wrong||0)>0);
-  const untouched=topic.filter(q=>!mistakes.includes(q));
-  const list=[...shuffle(mistakes),...shuffle(untouched)].slice(0,Math.min(20,topic.length));
-  launchFocusedExam(list,`Practice: ${module} → ${subject} → ${lecture}`);
 }
 function renderMistakes(){
   const wrong=bank.filter(q=>progress[key(q)]&&progress[key(q)].wrong>0);
@@ -2468,7 +2439,7 @@ function renderMistakes(){
   });
   const weakTopics=[...topicMap.values()].map(x=>({...x,errorRate:x.attempts?Math.round((x.wrong/x.attempts)*100):0}))
     .sort((a,b)=>b.errorRate-a.errorRate||b.wrong-a.wrong||b.attempts-a.attempts);
-  const weakHtml=weakTopics.length?weakTopics.map((t,i)=>`<div class="category-card" style="margin-top:10px"><div class="category-head"><div><b>#${i+1} ${esc(t.lecture)}</b><div class="mini">${esc(t.module)} · ${esc(t.subject)} · ${t.questions} question${t.questions===1?'':'s'}</div></div><span class="pill">${t.errorRate}% weak</span></div><div class="mini" style="margin-top:8px">${t.wrong} wrong · ${t.correct} correct · ${t.attempts} attempts</div><div class="bar" style="margin-top:8px"><i style="width:${Math.min(100,t.errorRate)}%"></i></div><div class="actions" style="margin-top:10px"><button class="btn primary" onclick="startTopicPractice(${JSON.stringify(t.module)},${JSON.stringify(t.subject)},${JSON.stringify(t.lecture)})">Practice this topic</button></div></div>`).join(''):'<div class="empty">No weak topics yet. Answer some questions incorrectly to build your weakness analytics.</div>';
+  const weakHtml=weakTopics.length?weakTopics.map((t,i)=>`<div class="category-card" style="margin-top:10px"><div class="category-head"><div><b>#${i+1} ${esc(t.lecture)}</b><div class="mini">${esc(t.module)} · ${esc(t.subject)} · ${t.questions} question${t.questions===1?'':'s'}</div></div><span class="pill">${t.errorRate}% weak</span></div><div class="mini" style="margin-top:8px">${t.wrong} wrong · ${t.correct} correct · ${t.attempts} attempts</div><div class="bar" style="margin-top:8px"><i style="width:${Math.min(100,t.errorRate)}%"></i></div></div>`).join(''):'<div class="empty">No weak topics yet. Answer some questions incorrectly to build your weakness analytics.</div>';
   const questionHtml=wrong.length?wrong.map(q=>`<div class="category-card"><div class="category-head"><b>${esc(q.question)}</b><span class="pill">${progress[key(q)].wrong} wrong</span></div><div class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)} · Correct: ${esc(q.options[q.correctIndex])}</div></div>`).join(''):'<div class="empty">No mistakes yet. Great work.</div>';
   const body=`<div class="card"><div class="category-head"><div><strong>Weak topics</strong><div class="mini">Topics are ranked from most weak to least weak using wrong answers ÷ attempts.</div></div><span class="pill">${weakTopics.length} topics</span></div>${weakHtml}</div>
   <div class="card" style="margin-top:16px"><div class="category-head"><strong>${wrong.length} questions in your mistakes bank</strong><span class="mini">Wrong answers are retained locally.</span></div><div style="margin-top:14px">${questionHtml}</div>${wrong.length?`<div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startExam(bank.filter(q=>progress[key(q)]&&progress[key(q)].wrong>0))">Practice Mistakes</button></div>`:''}</div>`;
