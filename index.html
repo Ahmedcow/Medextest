@@ -341,7 +341,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .study-count-badge{min-width:76px;text-align:center;border-radius:14px;padding:9px 11px;background:var(--primary-soft);color:var(--primary);border:1px solid rgba(var(--primary-rgb),.22)}
 .study-count-badge b{display:block;font-size:21px}.study-count-badge span{font-size:10px;font-weight:700}
 .study-filter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}.study-filter-grid-2{grid-template-columns:1fr 1fr;margin-top:10px}
-.study-selection-summary{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}.study-selection-summary span{padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:11px;color:var(--muted)}.study-selection-summary b{color:var(--primary);font-size:14px;margin-right:3px}
+.study-selection-summary strong{font-weight:800}.study-selection-summary{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}.study-selection-summary strong{font-weight:800}.study-selection-summary span{padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:11px;color:var(--muted)}.study-selection-summary strong{font-weight:800}.study-selection-summary b{color:var(--primary);font-size:14px;margin-right:3px}
 .study-builder-actions{margin-top:14px}
 .study-progress-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.study-progress-grid>div{padding:14px;border-radius:13px;background:var(--bg);border:1px solid var(--line)}.study-progress-grid b{display:block;font-size:24px;color:var(--text)}.study-progress-grid span{font-size:11px;color:var(--muted)}
 .study-tools-columns{display:grid;grid-template-columns:1.35fr .65fr;gap:16px}.study-plan-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:13px;margin-top:9px;background:var(--bg)}.study-plan-row .actions{grid-column:1/-1}
@@ -2204,19 +2204,24 @@ function renderFlashcardSetup(){
   const {mods,subjects,lectures}=flashcardFilterOptions();
   const all=flashcardItems({...flashcardFilter,mode:'all'}), due=flashcardItems({...flashcardFilter,mode:'due'}), fresh=flashcardItems({...flashcardFilter,mode:'new'});
   const daily=flashcardDailyStats().row;
-  const select=(id,items,value,placeholder)=>`<select id="${id}" onchange="updateFlashcardFilter('${id}')"><option value="">${placeholder}</option>${items.map(x=>`<option value="${attrJs(x)}" ${String(x)===String(value)?'selected':''}>${esc(x)}</option>`).join('')}`;
+  const scope=[flashcardFilter.module,flashcardFilter.subject,flashcardFilter.lecture].filter(Boolean);
+  const scopeLabel=scope.length?scope.join(' → '):'All modules → all subjects → all lectures';
+  const selectedLimit=Number(flashcardFilter.count||0);
+  const effectiveLimit=selectedLimit>0?Math.min(selectedLimit,all.length):all.length;
+  const select=(id,items,value,placeholder)=>`<select id="${id}" onchange="updateFlashcardFilter('${id}')"><option value="">${placeholder}</option>${items.map(x=>`<option value="${attrJs(x)}" ${String(x)===String(value)?'selected':''}>${esc(x)}</option>`).join('')}</select>`;
   return `<section class="study-tools-card study-builder-card">
-    <div class="study-card-heading"><div><span class="study-eyebrow">ANKI-STYLE REVIEW</span><h3>Spaced-repetition flashcards</h3><p>Cards move through learning, review and relearning stages. Your schedule, ease, lapses and due dates stay only on this device.</p></div><div class="study-count-badge"><b>${due.length}</b><span>due now</span></div></div>
+    <div class="study-card-heading"><div><span class="study-eyebrow">ANKI-STYLE REVIEW</span><h3>Spaced-repetition flashcards</h3><p>Select a precise path: <b>Module → Subject → Lecture</b>. The card limit is applied only to that exact selection, and all scheduling stays local on this device.</p></div><div class="study-count-badge"><b>${due.length}</b><span>due now</span></div></div>
     <div class="study-filter-grid">
-      <div class="field"><label>Module</label>${select('flashModule',mods,flashcardFilter.module,'All modules')}</div>
-      <div class="field"><label>Subject</label>${select('flashSubject',subjects,flashcardFilter.subject,'All subjects')}</div>
-      <div class="field"><label>Lecture</label>${select('flashLecture',lectures,flashcardFilter.lecture,'All lectures')}</div>
+      <div class="field"><label>1. Module</label>${select('flashModule',mods,flashcardFilter.module,'All modules')}</div>
+      <div class="field"><label>2. Subject in selected module</label>${select('flashSubject',subjects,flashcardFilter.subject,'All subjects')}</div>
+      <div class="field"><label>3. Lecture in selected subject</label>${select('flashLecture',lectures,flashcardFilter.lecture,'All lectures')}</div>
     </div>
+    <div class="study-selection-summary" style="margin-top:12px"><span><b>Selected:</b> ${esc(scopeLabel)}</span><span><b>${all.length}</b> cards match</span><span><b>${effectiveLimit}</b> max this session</span></div>
     <div class="study-filter-grid study-filter-grid-2">
       <div class="field"><label>Review queue</label><select id="flashMode" onchange="updateFlashcardFilter('flashMode')"><option value="all" ${flashcardFilter.mode==='all'?'selected':''}>Due + new</option><option value="due" ${flashcardFilter.mode==='due'?'selected':''}>Due only</option><option value="new" ${flashcardFilter.mode==='new'?'selected':''}>New only</option></select></div>
-      <div class="field"><label>Cards per session</label><select id="flashCount" onchange="updateFlashcardFilter('flashCount')">${[5,10,20,50,100].map(n=>`<option value="${n}" ${Number(flashcardFilter.count)===n?'selected':''}>${n}</option>`).join('')}<option value="0" ${Number(flashcardFilter.count)===0?'selected':''}>All available</option></select></div>
+      <div class="field"><label>Card limit for this exact selection</label><select id="flashCount" onchange="updateFlashcardFilter('flashCount')">${[5,10,20,50,100].map(n=>`<option value="${n}" ${Number(flashcardFilter.count)===n?'selected':''}>${n} cards</option>`).join('')}<option value="0" ${Number(flashcardFilter.count)===0?'selected':''}>All matching cards</option></select></div>
     </div>
-    <div class="study-selection-summary"><span><b>${due.length}</b> due</span><span><b>${fresh.length}</b> new</span><span><b>${all.length}</b> available</span><span><b>${Number(daily.newCards||0)}</b> new today</span><span><b>${Number(daily.reviews||0)}</b> reviews today</span></div>
+    <div class="study-selection-summary"><span><b>${due.length}</b> due</span><span><b>${fresh.length}</b> new</span><span><b>${all.length}</b> available in selection</span><span><b>${Number(daily.newCards||0)}</b> new today</span><span><b>${Number(daily.reviews||0)}</b> reviews today</span></div>
     <div class="actions study-builder-actions"><button class="btn primary btn-lg" onclick="startFlashcardSession()" ${all.length?'':'disabled'}>Start Review</button><button class="btn" onclick="resetFlashcardFilter()">Reset filters</button></div>
   </section>`;
 }
@@ -2321,18 +2326,13 @@ function flashcardSummaryHTML(){
   return `<section class="study-tools-card study-progress-card"><div class="study-card-heading"><div><span class="study-eyebrow">YOUR REVIEW</span><h3>Local spaced-repetition progress</h3><p>Learning steps, review intervals, ease, lapses and due dates are stored locally. Nothing here is synced to Supabase.</p></div></div><div class="study-progress-grid"><div><b>${due}</b><span>Due now</span></div><div><b>${learning}</b><span>Learning / relearning</span></div><div><b>${mature}</b><span>Mature cards</span></div></div></section>`;
 }
 function renderFlashcards(){renderStudyTools();}
-function lectureQuickReviewHTML(module,subject,lecture){
-  const qs=bank.filter(q=>q.module===module&&q.subject===subject&&q.lecture===lecture).slice(0,12);
-  if(!qs.length)return '<div class="empty">No questions found for this lecture.</div>';
-  const topics=[...new Set(qs.flatMap(q=>String(q.question).split(/[.!?]/).filter(Boolean).slice(0,1)))].slice(0,5);
-  return `<div class="category-card"><div class="category-head"><strong>${esc(lecture)} — Quick Review</strong><span class="pill">${qs.length} Q</span></div><div class="mini" style="margin-top:8px">Key recall points from the lecture question bank:</div><ul style="margin:10px 0 0 20px">${qs.slice(0,5).map(q=>`<li style="margin:7px 0">${esc(q.question)}</li>`).join('')}</ul><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startExam(${JSON.stringify(qs)},null,${JSON.stringify('Quick Review: '+lecture)})">Practice lecture</button></div></div>`;
-}
-function showLectureQuickReview(module,subject,lecture){
-  const id='qr_'+btoa(unescape(encodeURIComponent(module+'|'+subject+'|'+lecture))).replace(/[^a-zA-Z0-9]/g,'');
-  const existing=document.getElementById(id); if(existing){existing.remove();return;}
-  const buttons=[...document.querySelectorAll('[data-quick-review]')];
-  const btn=buttons.find(b=>b.dataset.quickReview===module+'|'+subject+'|'+lecture); if(!btn)return;
-  const host=document.createElement('div');host.id=id;host.style.marginTop='10px';host.innerHTML=lectureQuickReviewHTML(module,subject,lecture);btn.parentElement.parentElement.appendChild(host);
+function startLectureQuickReview(module,subject,lecture){
+  const qs=bank.filter(q=>String(q.module)===String(module)&&String(q.subject)===String(subject)&&String(q.lecture)===String(lecture));
+  if(!qs.length){toast('No questions were found for this lecture.','error');return;}
+  const mistakes=qs.filter(q=>progress[key(q)]&&Number(progress[key(q)].wrong||0)>0);
+  const rest=qs.filter(q=>!mistakes.includes(q));
+  const list=[...shuffle(mistakes),...shuffle(rest)].slice(0,Math.min(12,qs.length));
+  startExam(list,null,`Quick Review: ${lecture}`);
 }
 function studyPlans(){return loadJSON('med64_study_plans_v1',[]);}
 function saveStudyPlans(x){localStorage.setItem('med64_study_plans_v1',JSON.stringify(x));}
@@ -2359,21 +2359,15 @@ function renderStudyTools(){
   const planHtml=plans.length?plans.map(p=>{const end=new Date(p.createdAt+Math.max(0,p.days-1)*86400000);const countdown=p.examDate?Math.max(0,Math.ceil((new Date(p.examDate+'T23:59:59').getTime()-Date.now())/86400000)):null;return `<div class="study-plan-row"><div><b>${esc(p.name)}</b><div class="mini">${p.days} days · ${p.target} questions/day · ends ${end.toLocaleDateString()}</div></div><span class="study-local-pill">${countdown===null?'No exam date':countdown+' days'}</span><div class="actions"><button class="btn" onclick="setExamCountdown('${attrJs(p.id)}')">${countdown===null?'Set exam date':'Change exam date'}</button><button class="btn" onclick="deleteStudyPlan('${attrJs(p.id)}')">Delete</button></div></div>`}).join(''):'<div class="empty">No study plans yet.</div>';
   const ach=achievements().map(a=>`<div class="study-achievement"><strong>${a[1]?'🏆':'○'} ${esc(a[0])}</strong><span>${a[1]?'Unlocked':'Keep studying to unlock this achievement.'}</span></div>`).join('');
   const body=`<div class="study-tools-page">
-    <section class="study-tools-hero"><div><span class="study-eyebrow">STUDY TOOLS</span><h2>Focused review, built into MedEx</h2><p>Build flashcards from any module, subject or lecture, then review them with Anki-style active recall, learning steps, lapses and spaced intervals.</p></div><div class="study-hero-actions"><button class="btn primary" onclick="startSpacedReview()">Review due questions</button><button class="btn" onclick="startMockExam()">Mock Exam</button></div></section>
+    <section class="study-tools-hero"><div><span class="study-eyebrow">STUDY TOOLS</span><h2>Focused review, built into MedEx</h2><p>Build flashcards from any module, subject or lecture, then review them with Anki-style active recall, learning steps, lapses and spaced intervals.</p></div><div class="study-hero-actions"><button class="btn primary" onclick="startSpacedReview()">Review due questions</button></div></section>
     ${renderFlashcardSetup()}
     ${flashcardSummaryHTML()}
     <div class="study-tools-columns">
       <section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">PLANNING</span><h3>Study Plans & Exam Countdown</h3><p>Set a target, daily workload and optional exam date.</p></div><button class="btn primary" onclick="createStudyPlan()">+ New Plan</button></div><div style="margin-top:12px">${planHtml}</div></section>
-      <section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">PRACTICE</span><h3>Mock Exam Mode</h3><p>Timed mixed exam using your current question bank.</p></div></div><button class="btn primary" style="margin-top:14px" onclick="startMockExam()">Start Mock Exam</button></section>
     </div>
     <section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">MILESTONES</span><h3>Achievements</h3><p>Small milestones based on your real study activity.</p></div></div><div class="study-achievements-grid" style="margin-top:12px">${ach}</div></section>
   </div>`;
-  document.getElementById('app').innerHTML=layout('Study Tools','Flashcards, adaptive review, study planning, mock exams and achievements.',body);
-}
-function startMockExam(){
-  if(!bank.length){toast('No questions are available.','error');return;}
-  const n=Math.min(100,Math.max(20,Math.min(bank.length,Number(prompt('Mock exam question count',String(Math.min(50,bank.length))))||50)));
-  startExam(shuffle([...bank]).slice(0,n),{minutes:Math.max(10,Math.round(n*1.2))},'Mock Exam');
+  document.getElementById('app').innerHTML=layout('Study Tools','Flashcards, adaptive review, study planning and achievements.',body);
 }
 function renderProgress(){
   const modules=[...new Set(allQuestionBank.map(q=>q.module))].filter(isModuleVisible).sort((a,b)=>a.localeCompare(b));
@@ -2390,7 +2384,7 @@ function renderProgress(){
         const lp=progressStats(llist);
         return `<div class="progress-row" style="grid-template-columns:minmax(170px,1.2fr) 1fr">
           <span><b>${esc(lecture)}</b><div class="mini">${llist.length} questions</div></span>
-          <div><div class="bar"><i style="width:${lp.pct}%"></i></div><div class="mini" style="margin-top:4px">Progress ${lp.done}/${lp.total} · Accuracy ${accuracyStats(llist).pct}%</div><button class="btn" style="margin-top:8px" data-quick-review="${attrJs(m+"|"+subject+"|"+lecture)}" onclick="showLectureQuickReview(${JSON.stringify(m)},${JSON.stringify(subject)},${JSON.stringify(lecture)})">Quick Review</button></div>
+          <div><div class="bar"><i style="width:${lp.pct}%"></i></div><div class="mini" style="margin-top:4px">Progress ${lp.done}/${lp.total} · Accuracy ${accuracyStats(llist).pct}%</div><button class="btn" style="margin-top:8px" onclick="startLectureQuickReview(${JSON.stringify(m)},${JSON.stringify(subject)},${JSON.stringify(lecture)})">Quick Review</button></div>
         </div>`;
       }).join('');
       return `<div class="category-card" style="margin-top:10px">
@@ -2427,7 +2421,7 @@ function renderProgress(){
         <div class="card stat"><div class="label">False</div><div class="value">${weekFalse}</div><div class="mini">Incorrect answers</div></div>
       </div>
     </div>
-    <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Lecture performance</strong><div class="mini">Accuracy and attempts for each lecture you have practiced.</div></div><span class="pill">${lecturePerformanceData().length} lectures</span></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Lecture</th><th>Attempts</th><th>Correct</th><th>Accuracy</th></tr></thead><tbody>${lecturePerformanceData().sort((a,b)=>a.accuracy-b.accuracy||b.attempts-a.attempts).map(r=>`<tr><td><b>${esc(r.lecture)}</b><div class="mini">${esc(r.module)} · ${esc(r.subject)}</div></td><td>${r.attempts}</td><td>${r.correct}</td><td class="${r.accuracy<60?'phase2-bad':r.accuracy>=80?'phase2-good':''}"><b>${r.accuracy}%</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Answer questions to build lecture analytics.</td></tr>'}</tbody></table></div></div>
+    <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Lecture performance</strong><div class="mini">Accuracy and attempts for each lecture you have practiced. Quick Review opens a focused lecture session.</div></div><span class="pill">${lecturePerformanceData().length} lectures</span></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Lecture</th><th>Attempts</th><th>Correct</th><th>Accuracy</th></tr></thead><tbody>${lecturePerformanceData().sort((a,b)=>a.accuracy-b.accuracy||b.attempts-a.attempts).map(r=>`<tr><td><b>${esc(r.lecture)}</b><div class="mini">${esc(r.module)} · ${esc(r.subject)}</div></td><td>${r.attempts}</td><td>${r.correct}</td><td class="${r.accuracy<60?'phase2-bad':r.accuracy>=80?'phase2-good':''}"><b>${r.accuracy}%</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Answer questions to build lecture analytics.</td></tr>'}</tbody></table></div></div>
     <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Difficulty performance</strong><div class="mini">Your accuracy by question difficulty.</div></div></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Difficulty</th><th>Questions</th><th>Attempts</th><th>Accuracy</th></tr></thead><tbody>${difficultyPerformanceData().map(r=>`<tr><td><b>${esc(r.difficulty)}</b></td><td>${r.questions}</td><td>${r.attempts}</td><td class="${r.accuracy<60?'phase2-bad':r.accuracy>=80?'phase2-good':''}"><b>${r.accuracy}%</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">No difficulty-tagged attempts yet.</td></tr>'}</tbody></table></div></div>
     <h2 class="section-title">Detailed progress: Module → Subject → Lecture</h2>
     ${moduleRows||'<div class="card empty">No visible modules or questions loaded.</div>'}
@@ -2440,8 +2434,11 @@ function resetProgress(){
   }
 }
 function startTopicPractice(module,subject,lecture){
-  const list=bank.filter(q=>String(q.module)===String(module)&&String(q.subject)===String(subject)&&String(q.lecture)===String(lecture)&&progress[key(q)]&&Number(progress[key(q)].wrong||0)>0);
-  if(!list.length){toast('No incorrect questions remain in this topic.','ok');return;}
+  const topic=bank.filter(q=>String(q.module)===String(module)&&String(q.subject)===String(subject)&&String(q.lecture)===String(lecture));
+  if(!topic.length){toast('No questions were found for this topic.','error');return;}
+  const mistakes=topic.filter(q=>progress[key(q)]&&Number(progress[key(q)].wrong||0)>0);
+  const untouched=topic.filter(q=>!mistakes.includes(q));
+  const list=[...shuffle(mistakes),...shuffle(untouched)].slice(0,Math.min(20,topic.length));
   startExam(list,null,`Weak Topic: ${lecture}`);
 }
 function renderMistakes(){
