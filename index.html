@@ -12,6 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
+<meta name="medex-build" content="v39-anki-local-fixes">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -2219,8 +2220,9 @@ function renderFlashcardSetup(){
     <div class="study-selection-summary" style="margin-top:12px"><span><b>Selected:</b> ${esc(scopeLabel)}</span><span><b>${all.length}</b> cards match</span><span><b>${effectiveLimit}</b> max this session</span></div>
     <div class="study-filter-grid study-filter-grid-2">
       <div class="field"><label>Review queue</label><select id="flashMode" onchange="updateFlashcardFilter('flashMode')"><option value="all" ${flashcardFilter.mode==='all'?'selected':''}>Due + new</option><option value="due" ${flashcardFilter.mode==='due'?'selected':''}>Due only</option><option value="new" ${flashcardFilter.mode==='new'?'selected':''}>New only</option></select></div>
-      <div class="field"><label>Card limit for this exact selection</label><select id="flashCount" onchange="updateFlashcardFilter('flashCount')">${[5,10,20,50,100].map(n=>`<option value="${n}" ${Number(flashcardFilter.count)===n?'selected':''}>${n} cards</option>`).join('')}<option value="0" ${Number(flashcardFilter.count)===0?'selected':''}>All matching cards</option></select></div>
+      <div class="field"><label>Card limit for this exact Module → Subject → Lecture</label><select id="flashCount" onchange="updateFlashcardFilter('flashCount')">${[5,10,20,50,100].map(n=>`<option value="${n}" ${Number(flashcardFilter.count)===n?'selected':''}>${n} cards</option>`).join('')}<option value="0" ${Number(flashcardFilter.count)===0?'selected':''}>All matching cards</option></select></div>
     </div>
+    <div class="study-selection-summary"><span><b>Important:</b> the limit above applies only to the selected path.</span><span><b>${effectiveLimit}</b> cards will be used from this selection.</span></div>
     <div class="study-selection-summary"><span><b>${due.length}</b> due</span><span><b>${fresh.length}</b> new</span><span><b>${all.length}</b> available in selection</span><span><b>${Number(daily.newCards||0)}</b> new today</span><span><b>${Number(daily.reviews||0)}</b> reviews today</span></div>
     <div class="actions study-builder-actions"><button class="btn primary btn-lg" onclick="startFlashcardSession()" ${all.length?'':'disabled'}>Start Review</button><button class="btn" onclick="resetFlashcardFilter()">Reset filters</button></div>
   </section>`;
@@ -2326,13 +2328,26 @@ function flashcardSummaryHTML(){
   return `<section class="study-tools-card study-progress-card"><div class="study-card-heading"><div><span class="study-eyebrow">YOUR REVIEW</span><h3>Local spaced-repetition progress</h3><p>Learning steps, review intervals, ease, lapses and due dates are stored locally. Nothing here is synced to Supabase.</p></div></div><div class="study-progress-grid"><div><b>${due}</b><span>Due now</span></div><div><b>${learning}</b><span>Learning / relearning</span></div><div><b>${mature}</b><span>Mature cards</span></div></div></section>`;
 }
 function renderFlashcards(){renderStudyTools();}
+function launchFocusedExam(list,label){
+  if(!Array.isArray(list)||!list.length){toast('No questions are available for this review.','error');return;}
+  let focused=shuffle([...list]).map(q=>{
+    const pairs=q.options.map((text,index)=>({text,index}));
+    shuffle(pairs);
+    return {...q,options:pairs.map(x=>x.text),correctIndex:pairs.findIndex(x=>x.index===q.correctIndex)};
+  });
+  exam={list:focused,index:0,answers:{},started:Date.now(),minutes:0,answerMode:settings.showAnswerImmediately?'immediate':'finish',submitted:false,label:label||'Focused review',moduleFilter:'',subjectFilter:'',lectureFilter:'',moduleFilters:[],subjectFilters:[],lectureFilters:[],selectionPaths:[]};
+  clearInterval(timerId);
+  saveActiveExam();
+  location.hash='exam';
+  renderQuiz();
+}
 function startLectureQuickReview(module,subject,lecture){
   const qs=bank.filter(q=>String(q.module)===String(module)&&String(q.subject)===String(subject)&&String(q.lecture)===String(lecture));
   if(!qs.length){toast('No questions were found for this lecture.','error');return;}
   const mistakes=qs.filter(q=>progress[key(q)]&&Number(progress[key(q)].wrong||0)>0);
   const rest=qs.filter(q=>!mistakes.includes(q));
   const list=[...shuffle(mistakes),...shuffle(rest)].slice(0,Math.min(12,qs.length));
-  startExam(list,null,`Quick Review: ${lecture}`);
+  launchFocusedExam(list,`Quick Review: ${module} → ${subject} → ${lecture}`);
 }
 function studyPlans(){return loadJSON('med64_study_plans_v1',[]);}
 function saveStudyPlans(x){localStorage.setItem('med64_study_plans_v1',JSON.stringify(x));}
@@ -2439,7 +2454,7 @@ function startTopicPractice(module,subject,lecture){
   const mistakes=topic.filter(q=>progress[key(q)]&&Number(progress[key(q)].wrong||0)>0);
   const untouched=topic.filter(q=>!mistakes.includes(q));
   const list=[...shuffle(mistakes),...shuffle(untouched)].slice(0,Math.min(20,topic.length));
-  startExam(list,null,`Weak Topic: ${lecture}`);
+  launchFocusedExam(list,`Practice: ${module} → ${subject} → ${lecture}`);
 }
 function renderMistakes(){
   const wrong=bank.filter(q=>progress[key(q)]&&progress[key(q)].wrong>0);
@@ -3709,7 +3724,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=39',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
