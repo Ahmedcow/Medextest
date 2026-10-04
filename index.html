@@ -323,9 +323,9 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .phase2-table td{font-size:13px}
 .phase2-good{color:#45c98a}
 .phase2-bad{color:#ef6b73}
-.similar-box{margin-top:12px;padding:14px;border:1px solid var(--primary);border-radius:14px;background:var(--panel2)}
-.similar-option{padding:9px 11px;border:1px solid var(--line);border-radius:10px;margin-top:7px}
 @media(max-width:850px){.phase2-grid{grid-template-columns:1fr}}
+
+.flashcard{padding:22px;border:1px solid var(--line);border-radius:18px;background:var(--panel2);cursor:pointer;min-height:280px;display:flex;flex-direction:column;justify-content:center}.flash-question{font-size:20px;font-weight:700;line-height:1.5;margin:18px 0}.flash-options>div{padding:7px 0}.flash-answer{margin-top:18px;padding:14px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}.flash-hint{margin-top:18px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -341,6 +341,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
       <button data-view="dashboard"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linejoin="round"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg><span>Dashboard</span></button>
       <button data-view="exam"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="12" height="15" rx="2"/><rect x="7" y="1.3" width="6" height="3" rx="1"/><line x1="7" y1="9" x2="13" y2="9"/><line x1="7" y1="12.4" x2="13" y2="12.4"/><line x1="7" y1="15.8" x2="10.5" y2="15.8"/></svg><span>Start Exam</span></button>
       <button data-view="progress"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5,15 7,9.5 10.5,12.5 17.5,4"/><polyline points="12.5,4 17.5,4 17.5,9"/></svg><span>Progress & Accuracy</span></button>
+      <button data-view="tools"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M6.5 7h7M6.5 10h7M6.5 13h4"/></svg><span>Study Tools</span></button>
       <button data-view="history"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10.5" r="7.5"/><polyline points="10,6 10,10.5 13.2,12.6"/><polyline points="3.5,2 3.5,5 6.5,5"/></svg><span>Exam History</span></button>
       <button data-view="mistakes"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><line x1="7.3" y1="7.3" x2="12.7" y2="12.7"/><line x1="12.7" y1="7.3" x2="7.3" y2="12.7"/></svg><span>Mistakes</span></button>
       <button data-view="bank" id="bankNav"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="10,2 18,6.5 10,11 2,6.5"/><polyline points="2,10.5 10,15 18,10.5"/><polyline points="2,14.5 10,19 18,14.5"/></svg><span>Question Bank</span></button>
@@ -407,7 +408,6 @@ const CONFIG = {
   activeExamKey: 'med64_active_exam_v1',
   supportChatKey: 'med64_support_chat_v1',
   studyActivityKey: 'med64_study_activity_v1',
-  phase2SimilarKey: 'med64_phase2_similar_v1'
 };
 
 const DEFAULT_SETTINGS = {
@@ -1173,7 +1173,7 @@ function layout(title,subtitle,body,actions=''){
 function render(){
   updateSidebarFoot();
   const view=location.hash.replace('#','')||'dashboard';
-  const allowed=['dashboard','exam','progress','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics','reports','replies'];
+  const allowed=['dashboard','exam','progress','tools','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics','reports','replies'];
   const v=allowed.includes(view)?view:'dashboard';
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   const adminNav=document.getElementById('adminNav'); if(adminNav) adminNav.style.display=isAdmin?'flex':'none';
@@ -1186,6 +1186,7 @@ function render(){
   if(v==='dashboard') renderDashboard();
   else if(v==='exam') { if(exam && !exam.submitted) renderQuiz(); else renderExamSetup(); }
   else if(v==='progress') renderProgress();
+  else if(v==='tools') renderStudyTools();
   else if(v==='history') renderHistory();
   else if(v==='mistakes') renderMistakes();
   else if(v==='bank') renderBank();
@@ -1644,7 +1645,7 @@ function startExam(customList=null, overrides=null, customLabel=null){
     index:0,
     answers:{},
     started:Date.now(),
-    minutes:customList?0:minutesValue,
+    minutes:customList?Number(overrides?.minutes||0):minutesValue,
     answerMode,
     submitted:false,
     label,
@@ -2021,44 +2022,6 @@ async function submitAuth(mode){
   if(mode==='signup') await signUpStudent(email,password); else await signInStudent(email,password);
 }
 
-async function generateSimilarQuestion(questionId){
-  const r=loadJSON(CONFIG.lastResultKey,null);
-  const q=r?.list?.find(x=>String(x.id)===String(questionId)) || bank.find(x=>String(x.id)===String(questionId));
-  if(!q){toast('Question not found.','error');return;}
-  const targetId='similar_'+String(questionId).replace(/[^a-zA-Z0-9_-]/g,'_');
-  const target=document.getElementById(targetId);
-  if(target)target.innerHTML='<div class="mini">Generating a similar question…</div>';
-  const prompt=`Create ONE new medical multiple-choice question similar in concept and difficulty to the source question below, but do not copy its wording, options, or answer.
-Module: ${q.module}
-Subject: ${q.subject}
-Lecture: ${q.lecture}
-Difficulty: ${q.difficulty||'Mixed'}
-Source question: ${q.question}
-Options: ${q.options.map((o,i)=>String.fromCharCode(65+i)+'. '+o).join(' | ')}
-Return JSON only in this exact shape: {"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"...","difficulty":"${q.difficulty||'Medium'}"}.`;
-  try{
-    const text=await callAI([{role:'user',parts:[{text:prompt}]}],{maxOutputTokens:1200,responseMimeType:'application/json'},{provider:'groq',model:'openai/gpt-oss-120b',accessCode:aiSettings.accessCode||''});
-    const list=parseAIQuestionJSON(text), raw=list?.[0];
-    if(!raw||!raw.question||!Array.isArray(raw.options)||raw.options.length<2)throw new Error('The AI returned an invalid question.');
-    const generated={id:'ai_similar_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),module:q.module,subject:q.subject,lecture:q.lecture,question:String(raw.question),options:raw.options.map(String),correctIndex:Math.max(0,Math.min(raw.options.length-1,Number(raw.correctIndex)||0)),explanation:String(raw.explanation||''),difficulty:String(raw.difficulty||q.difficulty||'Medium'),reference:q.reference||null,imageUrl:null};
-    localStorage.setItem(CONFIG.phase2SimilarKey,JSON.stringify(generated));
-    const host=document.getElementById(targetId);
-    if(host)host.innerHTML=similarQuestionHTML(generated);
-  }catch(e){
-    const host=document.getElementById(targetId);
-    if(host)host.innerHTML=`<div class="notice error">Could not generate a similar question: ${esc(e.message)}</div>`;
-  }
-}
-function practiceSimilarQuestion(){
-  const q=loadJSON(CONFIG.phase2SimilarKey,null);
-  if(!q){toast('The generated question is no longer available.','error');return;}
-  startExam([q],null,'AI Similar Question');
-}
-function similarQuestionHTML(q){
-  const opts=q.options.map((o,i)=>`<div class="similar-option"><b>${String.fromCharCode(65+i)}.</b> ${esc(o)}</div>`).join('');
-  return `<div class="similar-box"><div class="category-head"><strong>AI Similar Question</strong><span class="ai-badge">✦ Groq</span></div><div style="margin-top:9px"><b>${esc(q.question)}</b></div><div style="margin-top:8px">${opts}</div><div class="mini" style="margin-top:9px"><b>Correct:</b> ${esc(q.options[q.correctIndex])}${q.explanation?` · ${esc(q.explanation)}`:''}</div><div class="actions" style="margin-top:10px"><button class="btn primary" onclick="practiceSimilarQuestion()">Practice this question</button></div></div>`;
-}
-
 function renderResults(){
   const r=loadJSON(CONFIG.lastResultKey,null);
   if(!r){go('dashboard');return;}
@@ -2076,7 +2039,7 @@ function renderResults(){
       <div><b>${i+1}. ${esc(q.question)}</b></div>
       <div class="mini" style="margin-top:6px">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</div>
       <div style="margin-top:12px">${choices}</div>
-      <div class="review ${a===undefined?'bad':ok?'good':'bad'}">${a===undefined?'Unanswered':ok?'Correct':'Incorrect'} · Your answer: ${a===undefined?'—':esc(q.options[a])}<br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b>${q.explanation?`<br>${esc(q.explanation)}`:''}</div><div class="actions" style="margin-top:10px"><button class="btn" onclick="generateSimilarQuestion('${attrJs(q.id)}')">✦ Generate Similar Question</button></div><div id="similar_${attrJs(q.id).replace(/[^a-zA-Z0-9_-]/g,'_')}"></div>
+      <div class="review ${a===undefined?'bad':ok?'good':'bad'}">${a===undefined?'Unanswered':ok?'Correct':'Incorrect'} · Your answer: ${a===undefined?'—':esc(q.options[a])}<br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b>${q.explanation?`<br>${esc(q.explanation)}`:''}</div>
     </div>`;
   }).join('');
   const meta=`<div class="mini">${esc(r.label||'Exam')} · ${r.date?new Date(r.date).toLocaleString():''}${r.durationSec?' · '+formatTime(r.durationSec)+' taken':''}</div>`;
@@ -2086,6 +2049,69 @@ function renderResults(){
   document.getElementById('app').innerHTML=layout('Exam Results',r.auto?'Time expired — exam submitted automatically.':'Exam completed.',body);
 }
 
+
+function flashcardItems(){
+  return bank.filter(q=>q.question&&Array.isArray(q.options)&&q.options.length).slice(0,200);
+}
+let flashIndex=0, flashFlipped=false;
+function renderFlashcard(){
+  const list=flashcardItems(); if(!list.length){return '<div class="empty">No questions are available for flashcards.</div>';}
+  const q=list[Math.min(flashIndex,list.length-1)];
+  const back=flashFlipped?`<div class="flash-answer"><b>Answer:</b> ${esc(q.options[q.correctIndex])}${q.explanation?`<div class="mini" style="margin-top:8px">${esc(q.explanation)}</div>`:''}</div>`:'<div class="flash-hint">Tap Flip Card to reveal the answer.</div>';
+  return `<div class="flashcard" onclick="toggleFlashcard()"><div class="mini">${flashIndex+1} / ${list.length} · ${esc(q.module)} · ${esc(q.lecture)}</div><div class="flash-question">${esc(q.question)}</div><div class="flash-options">${q.options.map((o,i)=>`<div><b>${String.fromCharCode(65+i)}.</b> ${esc(o)}</div>`).join('')}</div>${back}</div>`;
+}
+function renderFlashcards(){
+  const body=`<div class="card"><div class="category-head"><div><strong>Flashcards</strong><div class="mini">Review your existing MedEx questions as quick recall cards.</div></div><span class="pill">${flashcardItems().length} cards</span></div><div id="flashcardHost" style="margin-top:14px">${renderFlashcard()}</div><div class="actions" style="margin-top:12px"><button class="btn" onclick="toggleFlashcard()">Flip Card</button><button class="btn" onclick="flashIndex=Math.max(0,flashIndex-1);flashFlipped=false;renderFlashcards()">Previous</button><button class="btn primary" onclick="flashIndex=Math.min(flashcardItems().length-1,flashIndex+1);flashFlipped=false;renderFlashcards()">Next</button></div></div>`;
+  document.getElementById('app').innerHTML=layout('Flashcards','Fast active-recall review using your question bank.',body);
+}
+function toggleFlashcard(){flashFlipped=!flashFlipped;const host=document.getElementById('flashcardHost');if(host)host.innerHTML=renderFlashcard();}
+function lectureQuickReviewHTML(module,subject,lecture){
+  const qs=bank.filter(q=>q.module===module&&q.subject===subject&&q.lecture===lecture).slice(0,12);
+  if(!qs.length)return '<div class="empty">No questions found for this lecture.</div>';
+  const topics=[...new Set(qs.flatMap(q=>String(q.question).split(/[.!?]/).filter(Boolean).slice(0,1)))].slice(0,5);
+  return `<div class="category-card"><div class="category-head"><strong>${esc(lecture)} — Quick Review</strong><span class="pill">${qs.length} Q</span></div><div class="mini" style="margin-top:8px">Key recall points from the lecture question bank:</div><ul style="margin:10px 0 0 20px">${qs.slice(0,5).map(q=>`<li style="margin:7px 0">${esc(q.question)}</li>`).join('')}</ul><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startExam(${JSON.stringify(qs)},null,${JSON.stringify('Quick Review: '+lecture)})">Practice lecture</button></div></div>`;
+}
+function showLectureQuickReview(module,subject,lecture){
+  const id='qr_'+btoa(unescape(encodeURIComponent(module+'|'+subject+'|'+lecture))).replace(/[^a-zA-Z0-9]/g,'');
+  const existing=document.getElementById(id); if(existing){existing.remove();return;}
+  const buttons=[...document.querySelectorAll('[data-quick-review]')];
+  const btn=buttons.find(b=>b.dataset.quickReview===module+'|'+subject+'|'+lecture); if(!btn)return;
+  const host=document.createElement('div');host.id=id;host.style.marginTop='10px';host.innerHTML=lectureQuickReviewHTML(module,subject,lecture);btn.parentElement.parentElement.appendChild(host);
+}
+function studyPlans(){return loadJSON('med64_study_plans_v1',[]);}
+function saveStudyPlans(x){localStorage.setItem('med64_study_plans_v1',JSON.stringify(x));}
+function createStudyPlan(){
+  const name=prompt('Plan name','Medical exam preparation'); if(!name)return;
+  const days=Math.max(1,Math.min(365,Number(prompt('Number of days','30'))||30));
+  const target=Math.max(1,Math.min(500,Number(prompt('Questions per day',String(getDailyGoal())))||getDailyGoal()));
+  const plans=studyPlans(); plans.push({id:'plan_'+Date.now(),name,days,target,createdAt:Date.now(),examDate:''}); saveStudyPlans(plans); renderStudyTools();
+}
+function setExamCountdown(planId){
+  const date=prompt('Exam date (YYYY-MM-DD)', ''); if(!date)return;
+  const plans=studyPlans(); const p=plans.find(x=>x.id===planId); if(p){p.examDate=date;saveStudyPlans(plans);renderStudyTools();}
+}
+function deleteStudyPlan(id){saveStudyPlans(studyPlans().filter(x=>x.id!==id));renderStudyTools();}
+function achievements(){
+  const total=Object.values(progress).reduce((n,p)=>n+Number(p.attempts||0),0), correct=Object.values(progress).reduce((n,p)=>n+Number(p.correct||0),0);
+  const streak=studyStreak(); const days=studyStats().daysStudied; const due=dueSpacedQuestions().length;
+  return [
+    ['First 10 questions',total>=10],['50 questions',total>=50],['100 correct answers',correct>=100],['7-day streak',streak>=7],['7 study days',days>=7],['Spaced review started',due>0]
+  ];
+}
+function renderStudyTools(){
+  const plans=studyPlans();
+  const planHtml=plans.length?plans.map(p=>{const end=new Date(p.createdAt+Math.max(0,p.days-1)*86400000);const countdown=p.examDate?Math.max(0,Math.ceil((new Date(p.examDate+'T23:59:59').getTime()-Date.now())/86400000)):null;return `<div class="category-card" style="margin-top:10px"><div class="category-head"><div><b>${esc(p.name)}</b><div class="mini">${p.days} days · ${p.target} questions/day · ends ${end.toLocaleDateString()}</div></div><span class="pill">${countdown===null?'No exam date':countdown+' days'}</span></div><div class="actions" style="margin-top:10px"><button class="btn" onclick="setExamCountdown('${attrJs(p.id)}')">${countdown===null?'Set exam date':'Change exam date'}</button><button class="btn" onclick="deleteStudyPlan('${attrJs(p.id)}')">Delete</button></div></div>`}).join(''):'<div class="empty">No study plans yet.</div>';
+  const ach=achievements().map(a=>`<div class="category-card"><strong>${a[1]?'🏆':'○'} ${esc(a[0])}</strong><div class="mini" style="margin-top:5px">${a[1]?'Unlocked':'Keep studying to unlock this achievement.'}</div></div>`).join('');
+  const body=`<div class="grid two"><div class="card"><div class="category-head"><div><strong>Flashcards</strong><div class="mini">Active recall from your existing questions.</div></div></div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="renderFlashcards()">Open Flashcards</button></div></div><div class="card"><div class="category-head"><div><strong>Mock Exam Mode</strong><div class="mini">Timed exam using a larger mixed question set.</div></div></div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startMockExam()">Start Mock Exam</button></div></div></div>
+  <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Study Plans & Exam Countdown</strong><div class="mini">Set a target, daily workload, and exam date.</div></div><button class="btn primary" onclick="createStudyPlan()">+ New Plan</button></div><div style="margin-top:12px">${planHtml}</div></div>
+  <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Achievements</strong><div class="mini">Milestones from your real study activity.</div></div></div><div class="grid two" style="margin-top:12px">${ach}</div></div>`;
+  document.getElementById('app').innerHTML=layout('Study Tools','Flashcards, quick review, study planning, mock exams, countdowns, and achievements.',body);
+}
+function startMockExam(){
+  if(!bank.length){toast('No questions are available.','error');return;}
+  const n=Math.min(100,Math.max(20,Math.min(bank.length,Number(prompt('Mock exam question count',String(Math.min(50,bank.length))))||50)));
+  startExam(shuffle([...bank]).slice(0,n),{minutes:Math.max(10,Math.round(n*1.2))},'Mock Exam');
+}
 function renderProgress(){
   const modules=[...new Set(allQuestionBank.map(q=>q.module))].filter(isModuleVisible).sort((a,b)=>a.localeCompare(b));
   const moduleRows=modules.map(m=>{
@@ -2101,7 +2127,7 @@ function renderProgress(){
         const lp=progressStats(llist);
         return `<div class="progress-row" style="grid-template-columns:minmax(170px,1.2fr) 1fr">
           <span><b>${esc(lecture)}</b><div class="mini">${llist.length} questions</div></span>
-          <div><div class="bar"><i style="width:${lp.pct}%"></i></div><div class="mini" style="margin-top:4px">Progress ${lp.done}/${lp.total} · Accuracy ${accuracyStats(llist).pct}%</div></div>
+          <div><div class="bar"><i style="width:${lp.pct}%"></i></div><div class="mini" style="margin-top:4px">Progress ${lp.done}/${lp.total} · Accuracy ${accuracyStats(llist).pct}%</div><button class="btn" style="margin-top:8px" data-quick-review="${attrJs(m+"|"+subject+"|"+lecture)}" onclick="showLectureQuickReview(${JSON.stringify(m)},${JSON.stringify(subject)},${JSON.stringify(lecture)})">Quick Review</button></div>
         </div>`;
       }).join('');
       return `<div class="category-card" style="margin-top:10px">
@@ -2168,7 +2194,7 @@ function renderMistakes(){
   const weakTopics=[...topicMap.values()].map(x=>({...x,errorRate:x.attempts?Math.round((x.wrong/x.attempts)*100):0}))
     .sort((a,b)=>b.errorRate-a.errorRate||b.wrong-a.wrong||b.attempts-a.attempts);
   const weakHtml=weakTopics.length?weakTopics.map((t,i)=>`<div class="category-card" style="margin-top:10px"><div class="category-head"><div><b>#${i+1} ${esc(t.lecture)}</b><div class="mini">${esc(t.module)} · ${esc(t.subject)} · ${t.questions} question${t.questions===1?'':'s'}</div></div><span class="pill">${t.errorRate}% weak</span></div><div class="mini" style="margin-top:8px">${t.wrong} wrong · ${t.correct} correct · ${t.attempts} attempts</div><div class="bar" style="margin-top:8px"><i style="width:${Math.min(100,t.errorRate)}%"></i></div><div class="actions" style="margin-top:10px"><button class="btn primary" onclick="startTopicPractice(${JSON.stringify(t.module)},${JSON.stringify(t.subject)},${JSON.stringify(t.lecture)})">Practice this topic</button></div></div>`).join(''):'<div class="empty">No weak topics yet. Answer some questions incorrectly to build your weakness analytics.</div>';
-  const questionHtml=wrong.length?wrong.map(q=>`<div class="category-card"><div class="category-head"><b>${esc(q.question)}</b><span class="pill">${progress[key(q)].wrong} wrong</span></div><div class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)} · Correct: ${esc(q.options[q.correctIndex])}</div><div class="actions" style="margin-top:10px"><button class="btn" onclick="generateSimilarQuestion('${attrJs(q.id)}')">✦ Generate Similar Question</button></div><div id="similar_${attrJs(q.id).replace(/[^a-zA-Z0-9_-]/g,'_')}"></div></div>`).join(''):'<div class="empty">No mistakes yet. Great work.</div>';
+  const questionHtml=wrong.length?wrong.map(q=>`<div class="category-card"><div class="category-head"><b>${esc(q.question)}</b><span class="pill">${progress[key(q)].wrong} wrong</span></div><div class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)} · Correct: ${esc(q.options[q.correctIndex])}</div></div>`).join(''):'<div class="empty">No mistakes yet. Great work.</div>';
   const body=`<div class="card"><div class="category-head"><div><strong>Weak topics</strong><div class="mini">Topics are ranked from most weak to least weak using wrong answers ÷ attempts.</div></div><span class="pill">${weakTopics.length} topics</span></div>${weakHtml}</div>
   <div class="card" style="margin-top:16px"><div class="category-head"><strong>${wrong.length} questions in your mistakes bank</strong><span class="mini">Wrong answers are retained locally.</span></div><div style="margin-top:14px">${questionHtml}</div>${wrong.length?`<div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startExam(bank.filter(q=>progress[key(q)]&&progress[key(q)].wrong>0))">Practice Mistakes</button></div>`:''}</div>`;
   document.getElementById('app').innerHTML=layout('Mistakes','Review incorrect questions and see your weakest topics ranked first.',body);
