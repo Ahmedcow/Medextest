@@ -283,6 +283,29 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 
 @media(max-width:1000px){.stats,.filters{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.main{padding:16px}.stats,.filters,.two,.three{grid-template-columns:1fr}.progress-row{grid-template-columns:1fr 1fr}}
+
+/* v30 daily study analytics */
+.dashboard-progress-shortcut{display:flex;align-items:center;gap:14px;border-left:4px solid var(--primary);transition:transform .15s ease,border-color .15s ease}
+.dashboard-progress-shortcut:hover{transform:translateY(-1px);border-color:var(--primary)}
+.dashboard-progress-icon{width:46px;height:46px;display:grid;place-items:center;border:1px solid var(--border);border-radius:14px;background:var(--panel2);color:var(--primary);flex:0 0 auto}
+.dashboard-progress-icon svg{width:25px;height:25px}
+.shortcut-arrow{font-size:28px;color:var(--muted);padding:0 6px}
+.study-chart-wrap{margin-top:14px;overflow-x:auto}
+.study-chart{display:block;width:100%;min-width:640px;height:auto}
+.study-grid{stroke:var(--border);stroke-width:1;opacity:.7}
+.study-axis,.study-day{fill:var(--muted);font-size:11px;font-family:var(--font-sans)}
+.study-total{fill:var(--text);font-size:11px;font-weight:700;font-family:var(--font-sans)}
+.study-bar{opacity:.95}
+.study-bar.bar-0{fill:var(--primary)}
+.study-bar.bar-1{fill:#45c98a}
+.study-bar.bar-2{fill:#ef6b73}
+.study-legend{display:flex;justify-content:center;gap:22px;flex-wrap:wrap;margin-top:6px;color:var(--muted);font-size:12px}
+.study-legend span{display:inline-flex;align-items:center;gap:6px}
+.study-legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.legend-total{background:var(--primary)}
+.legend-correct{background:#45c98a}
+.legend-wrong{background:#ef6b73}
+@media(max-width:700px){.dashboard-progress-shortcut{padding:14px}.study-chart{min-width:610px}}
 </style>
 </head>
 <body>
@@ -695,26 +718,73 @@ function loadJSON(key, fallback){
   try { const x = JSON.parse(localStorage.getItem(key)); return x ?? fallback; }
   catch(e){ return fallback; }
 }
+function localDayKey(date=new Date()){
+  const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
 function getStudyActivity(){
   return loadJSON(CONFIG.studyActivityKey, {});
 }
-function recordStudyActivity(questionIds){
-  const ids=[...new Set((questionIds||[]).map(String).filter(Boolean))];
-  if(!ids.length)return;
+function recordStudyAnswer(questionId, isCorrect){
+  const id=String(questionId||'').trim();
+  if(!id)return;
   const activity=getStudyActivity();
-  const day=new Date().toISOString().slice(0,10);
-  if(!activity[day])activity[day]={questions:{},attempts:0};
-  if(!activity[day].questions)activity[day].questions={};
-  ids.forEach(id=>{ activity[day].questions[id]=true; });
-  activity[day].attempts=(activity[day].attempts||0)+ids.length;
+  const day=localDayKey();
+  if(!activity[day])activity[day]={questions:{},attempts:0,correct:0,wrong:0};
+  const row=activity[day];
+  if(!row.questions)row.questions={};
+  row.questions[id]=true;
+  row.attempts=Number(row.attempts||0)+1;
+  if(isCorrect){ row.correct=Number(row.correct||0)+1; }
+  else { row.wrong=Number(row.wrong||0)+1; }
+  row.solved=Number(row.solved||0)+1;
   localStorage.setItem(CONFIG.studyActivityKey,JSON.stringify(activity));
 }
 function studyStats(){
   const activity=getStudyActivity();
-  const today=new Date().toISOString().slice(0,10);
-  const todayQuestions=activity[today]?.questions ? Object.keys(activity[today].questions).length : 0;
-  const days=Object.keys(activity).filter(d=>activity[d]?.questions&&Object.keys(activity[d].questions).length>0).sort();
+  const today=localDayKey();
+  const todayRow=activity[today]||{};
+  const todayQuestions=Number(todayRow.solved||todayRow.attempts||0);
+  const days=Object.keys(activity).filter(d=>activity[d] && (Number(activity[d].solved||activity[d].attempts||0)>0 || Object.keys(activity[d].questions||{}).length>0)).sort();
   return {todayQuestions,daysStudied:days.length,days,activity};
+}
+function weekStudyData(baseDate=new Date()){
+  const activity=getStudyActivity();
+  const local=new Date(baseDate.getFullYear(),baseDate.getMonth(),baseDate.getDate());
+  const dayOfWeek=local.getDay();
+  const start=new Date(local); start.setDate(local.getDate()-dayOfWeek);
+  const labels=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  return labels.map((label,i)=>{
+    const d=new Date(start); d.setDate(start.getDate()+i);
+    const key=localDayKey(d);
+    const row=activity[key]||{};
+    const total=Number(row.solved||row.attempts||0);
+    const correct=Number(row.correct||0);
+    const wrong=Number(row.wrong||0);
+    return {label,key,total,correct,wrong};
+  });
+}
+function renderStudyWeekChart(){
+  const data=weekStudyData();
+  const max=Math.max(1,...data.map(d=>Math.max(d.total,d.correct,d.wrong)));
+  const chartH=190, baseY=230, plotTop=28, plotH=190;
+  const barW=26, groupW=82, startX=42;
+  const bars=data.map((d,i)=>{
+    const x=startX+i*groupW;
+    const vals=[d.total,d.correct,d.wrong];
+    const rects=vals.map((v,j)=>{
+      const h=Math.max(v?4:0,Math.round((v/max)*plotH));
+      const y=baseY-h;
+      return `<rect class="study-bar bar-${j}" x="${x+j*30}" y="${y}" width="${barW}" height="${h}" rx="5"><title>${d.label}: ${v}</title></rect>`;
+    }).join('');
+    return `${rects}<text class="study-day" x="${x+38}" y="252" text-anchor="middle">${d.label}</text><text class="study-total" x="${x+38}" y="${Math.max(20,baseY-Math.max(0,Math.round((d.total/max)*plotH))-8)}" text-anchor="middle">${d.total}</text>`;
+  }).join('');
+  const grid=[0,.25,.5,.75,1].map(t=>{
+    const y=baseY-Math.round(plotH*t);
+    const val=Math.round(max*t);
+    return `<line class="study-grid" x1="32" y1="${y}" x2="622" y2="${y}"/><text class="study-axis" x="25" y="${y+4}" text-anchor="end">${val}</text>`;
+  }).join('');
+  return `<div class="study-chart-wrap"><svg class="study-chart" viewBox="0 0 640 270" role="img" aria-label="Daily solved questions for Sunday through Saturday">${grid}${bars}</svg><div class="study-legend"><span><i class="legend-total"></i>Total solved</span><span><i class="legend-correct"></i>True</span><span><i class="legend-wrong"></i>False</span></div></div>`;
 }
 function saveState(){
   localStorage.setItem(CONFIG.progressKey, JSON.stringify(progress));
@@ -1028,6 +1098,11 @@ function renderDashboard(){
   const noticeHtml=(activeNotifications||[]).length ? activeNotifications.map(n=>`<div class="card" style="margin-bottom:16px;border-left:4px solid var(--primary)"><div class="category-head"><strong>${esc(n.title||'Announcement')}</strong><span class="mini">${n.created_at?new Date(n.created_at).toLocaleString():''}</span></div><div style="margin-top:8px;white-space:pre-wrap">${esc(n.message||'')}</div></div>`).join('') : '';
   const body=`
   ${noticeHtml}
+  <div class="card dashboard-progress-shortcut" style="margin-bottom:16px;cursor:pointer" onclick="go('progress')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')go('progress')">
+    <div class="dashboard-progress-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,17 8,11 12,14 21,5"/><polyline points="15,5 21,5 21,11"/><line x1="3" y1="20" x2="21" y2="20"/></svg></div>
+    <div style="flex:1"><strong>Progress & Accuracy</strong><div class="mini" style="margin-top:4px">View your daily solved, true and false questions.</div></div>
+    <div class="shortcut-arrow" aria-hidden="true">→</div>
+  </div>
   <div class="grid stats">
     <div class="card stat"><div class="label">Questions available</div><div class="value">${bank.length}</div></div>
     <div class="card stat"><div class="label">Questions practiced</div><div class="value">${practicedCount(bank)}</div></div>
@@ -1035,7 +1110,6 @@ function renderDashboard(){
     <div class="card stat"><div class="label">Overall accuracy</div><div class="value">${accuracyFor(bank)}%</div></div>
     <div class="card stat"><div class="label">All-student submitted exams</div><div class="value">${globalAnalytics.submittedExams||0}</div><div class="mini">Average score: ${Number(globalAnalytics.averageScore||0).toFixed(1)}%</div></div>
   </div>
-  <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Study activity</strong><div class="mini" style="margin-top:4px">${studyStats().todayQuestions} questions solved today · ${studyStats().daysStudied} days studied</div></div><button class="btn primary" onclick="go('progress')">Progress & Accuracy</button></div></div>
   <h2 class="section-title">Modules</h2>
   <div class="grid three">${modules.map(m=>{
     const list=bank.filter(q=>q.module===m);
@@ -1677,7 +1751,7 @@ function chooseAnswer(i){
   if(exam.answerMode==='immediate' && exam.answers[q.id]!==undefined)return;
 
   exam.answers[q.id]=i;
-  recordStudyActivity([q.id]);
+  recordStudyAnswer(q.id, i===q.correctIndex);
   saveActiveExam();
   updateAnswerFeedback(q,i);
 }
@@ -1697,8 +1771,6 @@ async function submitExam(auto){
     if(a===q.correctIndex){progress[k].correct++;correct++;progress[k].last='correct';}
     else {progress[k].wrong++;progress[k].last='wrong';}
   });
-  const solvedIds=exam.list.filter(q=>exam.answers[q.id]!==undefined).map(q=>q.id);
-  recordStudyActivity(solvedIds);
   saveState();
   const unanswered=exam.list.filter(q=>exam.answers[q.id]===undefined).length;
   const durationSec=Math.round((Date.now()-exam.started)/1000);
@@ -1855,15 +1927,25 @@ function renderProgress(){
     </div>`;
   }).join('');
   const myP=progressStats(bank), myA=accuracyStats(bank), study=studyStats();
-  const recent=study.days.slice(-7).reverse().map(d=>`<div class="progress-row" style="grid-template-columns:1fr 120px"><span>${new Date(d+'T00:00:00').toLocaleDateString()}</span><span class="pill">${Object.keys(study.activity[d].questions||{}).length} solved</span></div>`).join('');
+  const todayRow=study.activity[localDayKey()]||{};
+  const todayTrue=Number(todayRow.correct||0), todayFalse=Number(todayRow.wrong||0), todayTotal=Number(todayRow.solved||todayRow.attempts||0);
+  const week=weekStudyData();
+  const weekTotal=week.reduce((n,d)=>n+d.total,0), weekTrue=week.reduce((n,d)=>n+d.correct,0), weekFalse=week.reduce((n,d)=>n+d.wrong,0);
   const body=`
     <div class="grid stats">
       <div class="card stat"><div class="label">My progress</div><div class="value">${myP.done}/${myP.total}</div><div class="mini">${myP.pct}% of available questions mastered</div></div>
       <div class="card stat"><div class="label">My accuracy</div><div class="value">${myA.correct}/${myA.attempts}</div><div class="mini">${myA.pct}%</div></div>
-      <div class="card stat"><div class="label">Solved today</div><div class="value">${study.todayQuestions}</div><div class="mini">Unique questions solved today</div></div>
-      <div class="card stat"><div class="label">Days studied</div><div class="value">${study.daysStudied}</div><div class="mini">Days with at least one solved question</div></div>
+      <div class="card stat"><div class="label">Today solved</div><div class="value">${todayTotal}</div><div class="mini">${todayTrue} true · ${todayFalse} false</div></div>
+      <div class="card stat"><div class="label">Days studied</div><div class="value">${study.daysStudied}</div><div class="mini">Days with answered questions</div></div>
     </div>
-    <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Study activity</strong><div class="mini">Your recent daily question-solving activity.</div></div><span class="pill">${study.daysStudied} study days</span></div>${recent||'<div class="empty" style="margin-top:12px">No study activity recorded yet. Complete questions to start your study history.</div>'}</div>
+    <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Daily study analytics</strong><div class="mini">This week · Sunday to Saturday</div></div><span class="pill">${weekTotal} solved</span></div>
+      ${renderStudyWeekChart()}
+      <div class="grid stats" style="margin-top:12px">
+        <div class="card stat"><div class="label">Total solved</div><div class="value">${weekTotal}</div><div class="mini">This week</div></div>
+        <div class="card stat"><div class="label">True</div><div class="value">${weekTrue}</div><div class="mini">Correct answers</div></div>
+        <div class="card stat"><div class="label">False</div><div class="value">${weekFalse}</div><div class="mini">Incorrect answers</div></div>
+      </div>
+    </div>
     <h2 class="section-title">Detailed progress: Module → Subject → Lecture</h2>
     ${moduleRows||'<div class="card empty">No visible modules or questions loaded.</div>'}
     <div class="card"><button class="btn danger" onclick="resetProgress()">Reset my progress</button><span class="mini" style="margin-left:10px">This resets browser question progress. Study-day activity is kept.</span></div>`;
