@@ -1003,6 +1003,10 @@ function renderDashboard(){
   const noticeHtml=(activeNotifications||[]).length ? activeNotifications.map(n=>`<div class="card" style="margin-bottom:16px;border-left:4px solid var(--primary)"><div class="category-head"><strong>${esc(n.title||'Announcement')}</strong><span class="mini">${n.created_at?new Date(n.created_at).toLocaleString():''}</span></div><div style="margin-top:8px;white-space:pre-wrap">${esc(n.message||'')}</div></div>`).join('') : '';
   const body=`
   ${noticeHtml}
+  <div class="card dashboard-theme-card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px">
+    <div><strong>Appearance</strong><div class="mini" style="margin-top:3px">Switch between dark and light mode.</div></div>
+    ${dashboardThemeToggleHTML()}
+  </div>
   <div class="grid stats">
     <div class="card stat"><div class="label">Questions available</div><div class="value">${bank.length}</div></div>
     <div class="card stat"><div class="label">Questions practiced</div><div class="value">${practicedCount(bank)}</div></div>
@@ -1106,20 +1110,20 @@ function renderExamTree(){
         const ls=examNodeState('lecture',m.module,s.subject,l.lecture);
         lecturesHtml += '<div class="exam-node-row">'+
           '<button type="button" class="exam-node-toggle spacer" aria-hidden="true">▸</button>'+
-          '<input type="checkbox" data-exam-node="lecture" data-module="'+attrJs(m.module)+'" data-subject="'+attrJs(s.subject)+'" data-lecture="'+attrJs(l.lecture)+'" '+(ls.checked?'checked':'')+' onchange="toggleExamTreeNode(\'l\','+JSON.stringify(m.module)+','+JSON.stringify(s.subject)+','+JSON.stringify(l.lecture)+',this.checked)">'+
+          '<input type="checkbox" data-exam-node="lecture" data-module="'+attrJs(m.module)+'" data-subject="'+attrJs(s.subject)+'" data-lecture="'+attrJs(l.lecture)+'" '+(ls.checked?'checked':'')+'>'+
           '<span class="exam-node-title">'+esc(l.lecture)+'</span><span class="exam-node-meta">'+l.count+' Q</span></div>';
       });
       subjectsHtml += '<div class="exam-node">'+
         '<div class="exam-node-row">'+
           '<button type="button" class="exam-node-toggle" onclick="toggleExamTreeExpand(\'s\','+JSON.stringify(m.module)+','+JSON.stringify(s.subject)+')" aria-label="Expand or collapse '+esc(s.subject)+'">'+(subOpen?'▾':'▸')+'</button>'+
-          '<input type="checkbox" data-exam-node="subject" data-module="'+attrJs(m.module)+'" data-subject="'+attrJs(s.subject)+'" '+(ss.checked?'checked':'')+' onchange="toggleExamTreeNode(\'s\','+JSON.stringify(m.module)+','+JSON.stringify(s.subject)+',\'\',this.checked)">'+
+          '<input type="checkbox" data-exam-node="subject" data-module="'+attrJs(m.module)+'" data-subject="'+attrJs(s.subject)+'" '+(ss.checked?'checked':'')+'>'+
           '<span class="exam-node-title">'+esc(s.subject)+'</span><span class="exam-node-meta">'+s.total+' Q</span>'+
         '</div><div class="exam-node-children '+(subOpen?'':'hidden')+'">'+lecturesHtml+'</div></div>';
     });
     parts.push('<div class="exam-node">'+
       '<div class="exam-node-row">'+
         '<button type="button" class="exam-node-toggle" onclick="toggleExamTreeExpand(\'m\','+JSON.stringify(m.module)+')" aria-label="Expand or collapse '+esc(m.module)+'">'+(open?'▾':'▸')+'</button>'+
-        '<input type="checkbox" data-exam-node="module" data-module="'+attrJs(m.module)+'" '+(ms.checked?'checked':'')+' onchange="toggleExamTreeNode(\'m\','+JSON.stringify(m.module)+',\'\',\'\',this.checked)">'+
+        '<input type="checkbox" data-exam-node="module" data-module="'+attrJs(m.module)+'" '+(ms.checked?'checked':'')+'>'+
         '<span class="exam-node-title">'+esc(m.module)+'</span><span class="exam-node-meta">'+m.total+' Q</span>'+
       '</div><div class="exam-node-children '+(open?'':'hidden')+'">'+subjectsHtml+'</div></div>');
   });
@@ -1127,6 +1131,10 @@ function renderExamTree(){
   tree.querySelectorAll('input[data-exam-node]').forEach(input=>{
     if(input.dataset.examNode==='module') input.indeterminate=examNodeState('module',input.dataset.module).partial;
     if(input.dataset.examNode==='subject') input.indeterminate=examNodeState('subject',input.dataset.module,input.dataset.subject).partial;
+    input.addEventListener('change',()=>{
+      const type=input.dataset.examNode==='module'?'m':input.dataset.examNode==='subject'?'s':'l';
+      toggleExamTreeNode(type,input.dataset.module,input.dataset.subject||'',input.dataset.lecture||'',input.checked);
+    });
   });
 }
 function addAllLecturesForModule(module){
@@ -1167,8 +1175,13 @@ function updateExamSelectionSummary(){
   const summary=document.getElementById('examSelectionSummary');
   if(!summary)return;
   const selectedQuestions=bank.filter(questionSelectedByBuilder);
-  const modules=new Set(selectedQuestions.map(q=>q.module)), subjects=new Set(selectedQuestions.map(q=>`${q.module}|||${q.subject}`)), lectures=new Set(selectedQuestions.map(q=>`${q.module}|||${q.subject}|||${q.lecture}`));
-  const countEl=document.getElementById('examSelectedCount'); if(countEl)countEl.textContent=`${modules.size} module${modules.size===1?'':'s'} · ${subjects.size} subject${subjects.size===1?'':'s'} · ${lectures.size} lecture${lectures.size===1?'':'s'} · ${selectedQuestions.length} questions`;
+  const modules=new Set([...examBuilderSelection].map(k=>parseExamPathKey(k)[1]));
+  const subjects=new Set([...examBuilderSelection].map(k=>{const p=parseExamPathKey(k);return p[1]+'|||'+p[2];}));
+  const lectures=new Set([...examBuilderSelection].map(k=>{const p=parseExamPathKey(k);return p[1]+'|||'+p[2]+'|||'+p[3];}));
+  const countEl=document.getElementById('examSelectedCount');
+  if(countEl) countEl.textContent=examBuilderSelection.size
+    ? `${modules.size} module${modules.size===1?'':'s'} · ${subjects.size} subject${subjects.size===1?'':'s'} · ${lectures.size} lecture${lectures.size===1?'':'s'} · ${selectedQuestions.length} questions`
+    : 'No specific selection — all questions';
   const groupedModules=new Set(), groupedSubjects=new Set();
   [...examBuilderSelection].forEach(k=>{const p=parseExamPathKey(k); if(p[0]==='l'){groupedModules.add(p[1]); groupedSubjects.add(p[1]+'|||'+p[2]);}});
   const chips=[...examBuilderSelection].slice(0,10).map(k=>{const p=parseExamPathKey(k); return `<span class="exam-selection-chip">${esc(p[1])} → ${esc(p[2])} → ${esc(p[3])}</span>`;}).join('');
