@@ -131,6 +131,30 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .multi-picker-menu label:hover{background:var(--primary-soft)}
 .multi-picker-menu input{width:16px;height:16px;accent-color:var(--primary);flex:0 0 auto}
 .multi-picker-empty{padding:10px 8px;color:var(--muted);font-size:12px}
+
+/* ---------- Smart exam builder ---------- */
+.exam-builder{margin-top:14px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card)}
+.exam-builder-toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid var(--line);background:var(--bg);flex-wrap:wrap}
+.exam-builder-search{flex:1;min-width:220px;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 12px;color:var(--text)}
+.exam-builder-actions{display:flex;gap:7px;flex-wrap:wrap}
+.exam-tree{padding:8px;max-height:560px;overflow:auto}
+.exam-node{border-radius:10px}
+.exam-node + .exam-node{margin-top:2px}
+.exam-node-row{display:flex;align-items:center;gap:8px;min-height:40px;padding:6px 8px;border-radius:9px}
+.exam-node-row:hover{background:var(--primary-soft)}
+.exam-node-row input{width:17px;height:17px;accent-color:var(--primary);flex:0 0 auto}
+.exam-node-toggle{width:28px;height:28px;border:0;background:transparent;color:var(--muted);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;flex:0 0 auto}
+.exam-node-toggle:hover{background:var(--primary-soft);color:var(--primary)}
+.exam-node-toggle.spacer{visibility:hidden}
+.exam-node-title{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.exam-node-meta{font-family:var(--font-mono);font-size:10px;color:var(--muted);white-space:nowrap}
+.exam-node-children{margin-left:28px;padding-left:10px;border-left:1px dashed var(--line)}
+.exam-node-children.hidden{display:none}
+.exam-selection-summary{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+.exam-selection-paths{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.exam-selection-chip{font-size:11px;padding:5px 8px;border-radius:999px;background:var(--primary-soft);color:var(--primary2);border:1px solid rgba(var(--primary-rgb),.2)}
+.exam-builder-hint{padding:12px;color:var(--muted);font-size:12px;text-align:center}
+@media(max-width:880px){.exam-tree{max-height:none}.exam-node-children{margin-left:20px}.exam-builder-search{min-width:100%}}
 .support-contact-card{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .support-contact-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:var(--primary-soft);color:var(--primary);flex:0 0 auto}
 .support-contact-icon svg{width:24px;height:24px}
@@ -378,6 +402,9 @@ let remoteHistoryLoaded = false;
 let moduleVisibility = {};
 let allQuestionBank = [];
 let activeNotifications = [];
+let examBuilderSelection = new Set();
+let examBuilderExpanded = new Set();
+let examBuilderSearch = '';
 let reportPanelOpen=false;
 
 function getVisitorId(){
@@ -966,6 +993,11 @@ function updateSidebarFoot(){
   el.textContent=bank.length?`${bank.length} questions loaded`:'No questions loaded yet';
 }
 
+function dashboardThemeToggleHTML(){
+  const dark=!!settings.darkMode;
+  return `<button class="icon-btn" onclick="toggleDarkMode()" title="${dark?'Switch to light mode':'Switch to dark mode'}" aria-label="${dark?'Switch to light mode':'Switch to dark mode'}">${dark?'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.4"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M15.7 4.3l-1.4 1.4M5.7 14.3l-1.4 1.4"/></svg>':'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M15.5 12.7A6.4 6.4 0 0 1 7.3 4.5a6.4 6.4 0 1 0 8.2 8.2Z"/></svg>'}</button>`;
+}
+
 function renderDashboard(){
   const modules=getModules();
   const noticeHtml=(activeNotifications||[]).length ? activeNotifications.map(n=>`<div class="card" style="margin-bottom:16px;border-left:4px solid var(--primary)"><div class="category-head"><strong>${esc(n.title||'Announcement')}</strong><span class="mini">${n.created_at?new Date(n.created_at).toLocaleString():''}</span></div><div style="margin-top:8px;white-space:pre-wrap">${esc(n.message||'')}</div></div>`).join('') : '';
@@ -1003,109 +1035,173 @@ function renderDashboard(){
     <div id="syncStatus">Source: <b>questions/index.json</b>${lastSync?` · Last successful sync: ${lastSync.toLocaleString()}`:''}</div>
     <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="loadFromGitHub()">Refresh from GitHub</button><button class="btn" onclick="go('import')">Upload / Update Questions</button><button class="btn primary btn-lg" onclick="go('exam')">Start an Exam</button></div>
   </div>`;
-  document.getElementById('app').innerHTML=layout('Dashboard','Your personal progress is stored in this browser.',body);
+  document.getElementById('app').innerHTML=layout('Dashboard','Your personal progress is stored in this browser.',body,dashboardThemeToggleHTML());
 }
 
-function examMultiPicker(id,name,label,items,selected=[]){
-  const selectedSet=new Set(selected.map(String));
-  const safeItems=items||[];
-  const count=selectedSet.size;
-  const summary=count ? `${count} selected` : `All ${label.toLowerCase()}s`;
-  return `<div class="field multi-picker" id="${id}Wrap">
-    <label>${esc(label)}</label>
-    <button type="button" class="multi-picker-toggle" id="${id}Toggle" onclick="toggleExamMultiPicker('${id}')" aria-expanded="false"><span id="${id}Summary">${esc(summary)}</span><span class="multi-count">${count||'All'}</span></button>
-    <div class="multi-picker-menu hidden" id="${id}Menu">
-      ${safeItems.length ? safeItems.map(v=>`<label><input type="checkbox" name="${name}" value="${attrJs(v)}" ${selectedSet.has(String(v))?'checked':''} onchange="onExamMultiChange('${name}')"><span>${esc(v)}</span></label>`).join('') : '<div class="multi-picker-empty">No options available.</div>'}
-    </div>
-  </div>`;
+function examPathKey(type,module='',subject='',lecture=''){
+  return JSON.stringify([type,String(module||''),String(subject||''),String(lecture||'')]);
 }
-function selectedExamValues(name){
-  return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(x=>x.value);
+function parseExamPathKey(key){
+  try{return JSON.parse(key);}catch(e){return []}
 }
-function updateExamPickerSummary(id,label){
-  const name=id==='examModulePicker'?'examModule':id==='examSubjectPicker'?'examSubject':'examLecture';
-  const values=selectedExamValues(name);
-  const summary=document.getElementById(id+'Summary');
-  const countEl=document.querySelector('#'+id+'Toggle .multi-count');
-  if(summary)summary.textContent=values.length?`${values.length} selected`:`All ${label.toLowerCase()}s`;
-  if(countEl)countEl.textContent=values.length||'All';
+function examSelectionHasModule(module){
+  const rows=bank.filter(q=>String(q.module)===String(module));
+  return rows.length>0 && rows.every(q=>examSelectionHasLecture(q.module,q.subject,q.lecture));
 }
-function toggleExamMultiPicker(id){
-  document.querySelectorAll('.multi-picker-menu').forEach(m=>{if(m.id!==id+'Menu')m.classList.add('hidden');});
-  const menu=document.getElementById(id+'Menu');
-  const toggle=document.getElementById(id+'Toggle');
-  if(!menu)return;
-  const opening=menu.classList.contains('hidden');
-  menu.classList.toggle('hidden',!opening);
-  if(toggle)toggle.setAttribute('aria-expanded',opening?'true':'false');
+function examSelectionHasSubject(module,subject){
+  const rows=bank.filter(q=>String(q.module)===String(module)&&String(q.subject)===String(subject));
+  return rows.length>0 && rows.every(q=>examSelectionHasLecture(q.module,q.subject,q.lecture));
 }
-function renderExamPickerOptions(id,name,label,items,selected=[]){
-  const menu=document.getElementById(id+'Menu');
-  if(!menu)return;
-  const selectedSet=new Set((selected||[]).map(String));
-  menu.innerHTML=items.length ? items.map(v=>`<label><input type="checkbox" name="${name}" value="${attrJs(v)}" ${selectedSet.has(String(v))?'checked':''} onchange="onExamMultiChange('${name}')"><span>${esc(v)}</span></label>`).join('') : '<div class="multi-picker-empty">No options available.</div>';
-  updateExamPickerSummary(id,label);
+function examSelectionHasLecture(module,subject,lecture){ return examBuilderSelection.has(examPathKey('l',module,subject,lecture)); }
+function questionSelectedByBuilder(q){ return examSelectionHasLecture(q.module,q.subject,q.lecture); }
+function examTreeData(){
+  const map=new Map();
+  bank.forEach(q=>{
+    const m=String(q.module||'Uncategorized'), s=String(q.subject||'Uncategorized'), l=String(q.lecture||'General');
+    if(!map.has(m))map.set(m,new Map());
+    const sm=map.get(m);
+    if(!sm.has(s))sm.set(s,new Map());
+    const lm=sm.get(s);
+    lm.set(l,(lm.get(l)||0)+1);
+  });
+  return [...map.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([module,subjects])=>({
+    module, total:[...subjects.values()].reduce((n,lm)=>n+[...lm.values()].reduce((a,b)=>a+b,0),0),
+    subjects:[...subjects.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([subject,lectures])=>({
+      subject,total:[...lectures.values()].reduce((a,b)=>a+b,0),
+      lectures:[...lectures.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([lecture,count])=>({lecture,count}))
+    }))
+  }));
 }
-function onExamMultiChange(name){
-  if(name==='examModule') updateExamSubjects();
-  else if(name==='examSubject') updateExamLectures();
-  else updateExamPickerSummary('examLecturePicker','Lecture');
+function examNodeState(type,module,subject='',lecture=''){
+  if(type==='module'){
+    const descendants=bank.filter(q=>String(q.module)===String(module));
+    const any=descendants.some(questionSelectedByBuilder), all=descendants.length>0&&descendants.every(questionSelectedByBuilder);
+    return {checked:all,partial:any&&!all};
+  }
+  if(type==='subject'){
+    const descendants=bank.filter(q=>String(q.module)===String(module)&&String(q.subject)===String(subject));
+    const any=descendants.some(questionSelectedByBuilder), all=descendants.length>0&&descendants.every(questionSelectedByBuilder);
+    return {checked:all,partial:any&&!all};
+  }
+  return {checked:examSelectionHasLecture(module,subject,lecture),partial:false};
 }
-function updateExamSubjects(){
-  const selectedModules=selectedExamValues('examModule');
-  const previous=selectedExamValues('examSubject');
-  const available=getSubjectsForModules(selectedModules);
-  const kept=previous.filter(x=>available.includes(x));
-  renderExamPickerOptions('examSubjectPicker','examSubject','Subject',available,kept);
-  updateExamLectures();
+function examTreeMatchesSearch(node,query){
+  if(!query)return true;
+  const q=query.toLowerCase();
+  return node.module.toLowerCase().includes(q) || node.subjects.some(s=>s.subject.toLowerCase().includes(q)||s.lectures.some(l=>l.lecture.toLowerCase().includes(q)));
 }
-function updateExamLectures(){
-  const selectedModules=selectedExamValues('examModule');
-  const selectedSubjects=selectedExamValues('examSubject');
-  const previous=selectedExamValues('examLecture');
-  const available=getLecturesForSelections(selectedModules,selectedSubjects);
-  const kept=previous.filter(x=>available.includes(x));
-  renderExamPickerOptions('examLecturePicker','examLecture','Lecture',available,kept);
+function renderExamTree(){
+  const tree=document.getElementById('examTree');
+  if(!tree)return;
+  const query=String(examBuilderSearch||'').trim().toLowerCase();
+  const data=examTreeData().filter(m=>examTreeMatchesSearch(m,query));
+  const parts=[];
+  data.forEach(m=>{
+    const ms=examNodeState('module',m.module), open=!!query || examBuilderExpanded.has('m:'+m.module);
+    let subjectsHtml='';
+    m.subjects.forEach(s=>{
+      const ss=examNodeState('subject',m.module,s.subject), subOpen=!!query || examBuilderExpanded.has('s:'+m.module+'|||'+s.subject);
+      let lecturesHtml='';
+      s.lectures.forEach(l=>{
+        const ls=examNodeState('lecture',m.module,s.subject,l.lecture);
+        lecturesHtml += '<div class="exam-node-row">'+
+          '<button type="button" class="exam-node-toggle spacer" aria-hidden="true">▸</button>'+
+          '<input type="checkbox" data-exam-node="lecture" data-module="'+attrJs(m.module)+'" data-subject="'+attrJs(s.subject)+'" data-lecture="'+attrJs(l.lecture)+'" '+(ls.checked?'checked':'')+' onchange="toggleExamTreeNode(\'l\','+JSON.stringify(m.module)+','+JSON.stringify(s.subject)+','+JSON.stringify(l.lecture)+',this.checked)">'+
+          '<span class="exam-node-title">'+esc(l.lecture)+'</span><span class="exam-node-meta">'+l.count+' Q</span></div>';
+      });
+      subjectsHtml += '<div class="exam-node">'+
+        '<div class="exam-node-row">'+
+          '<button type="button" class="exam-node-toggle" onclick="toggleExamTreeExpand(\'s\','+JSON.stringify(m.module)+','+JSON.stringify(s.subject)+')" aria-label="Expand or collapse '+esc(s.subject)+'">'+(subOpen?'▾':'▸')+'</button>'+
+          '<input type="checkbox" data-exam-node="subject" data-module="'+attrJs(m.module)+'" data-subject="'+attrJs(s.subject)+'" '+(ss.checked?'checked':'')+' onchange="toggleExamTreeNode(\'s\','+JSON.stringify(m.module)+','+JSON.stringify(s.subject)+',\'\',this.checked)">'+
+          '<span class="exam-node-title">'+esc(s.subject)+'</span><span class="exam-node-meta">'+s.total+' Q</span>'+
+        '</div><div class="exam-node-children '+(subOpen?'':'hidden')+'">'+lecturesHtml+'</div></div>';
+    });
+    parts.push('<div class="exam-node">'+
+      '<div class="exam-node-row">'+
+        '<button type="button" class="exam-node-toggle" onclick="toggleExamTreeExpand(\'m\','+JSON.stringify(m.module)+')" aria-label="Expand or collapse '+esc(m.module)+'">'+(open?'▾':'▸')+'</button>'+
+        '<input type="checkbox" data-exam-node="module" data-module="'+attrJs(m.module)+'" '+(ms.checked?'checked':'')+' onchange="toggleExamTreeNode(\'m\','+JSON.stringify(m.module)+',\'\',\'\',this.checked)">'+
+        '<span class="exam-node-title">'+esc(m.module)+'</span><span class="exam-node-meta">'+m.total+' Q</span>'+
+      '</div><div class="exam-node-children '+(open?'':'hidden')+'">'+subjectsHtml+'</div></div>');
+  });
+  tree.innerHTML=parts.join('') || '<div class="exam-builder-hint">No module, subject, or lecture matches your search.</div>';
+  tree.querySelectorAll('input[data-exam-node]').forEach(input=>{
+    if(input.dataset.examNode==='module') input.indeterminate=examNodeState('module',input.dataset.module).partial;
+    if(input.dataset.examNode==='subject') input.indeterminate=examNodeState('subject',input.dataset.module,input.dataset.subject).partial;
+  });
 }
-function getSubjectsForModules(modules=[]){
-  const set=new Set(modules.map(String));
-  return [...new Set(bank.filter(q=>!set.size||set.has(String(q.module))).map(q=>q.subject))].sort((a,b)=>a.localeCompare(b));
+function addAllLecturesForModule(module){
+  bank.filter(q=>String(q.module)===String(module)).forEach(q=>examBuilderSelection.add(examPathKey('l',q.module,q.subject,q.lecture)));
 }
-function getLecturesForSelections(modules=[],subjects=[]){
-  const ms=new Set(modules.map(String)), ss=new Set(subjects.map(String));
-  return [...new Set(bank.filter(q=>(!ms.size||ms.has(String(q.module)))&&(!ss.size||ss.has(String(q.subject)))).map(q=>q.lecture))].sort((a,b)=>a.localeCompare(b));
+function addAllLecturesForSubject(module,subject){
+  bank.filter(q=>String(q.module)===String(module)&&String(q.subject)===String(subject)).forEach(q=>examBuilderSelection.add(examPathKey('l',q.module,q.subject,q.lecture)));
 }
-function closeExamPickersOnOutsideClick(e){
-  if(!e.target.closest('.multi-picker')) document.querySelectorAll('.multi-picker-menu').forEach(m=>m.classList.add('hidden'));
+function removeAllLecturesForModule(module){
+  bank.filter(q=>String(q.module)===String(module)).forEach(q=>examBuilderSelection.delete(examPathKey('l',q.module,q.subject,q.lecture)));
 }
-document.addEventListener('click',closeExamPickersOnOutsideClick);
+function removeAllLecturesForSubject(module,subject){
+  bank.filter(q=>String(q.module)===String(module)&&String(q.subject)===String(subject)).forEach(q=>examBuilderSelection.delete(examPathKey('l',q.module,q.subject,q.lecture)));
+}
+function toggleExamTreeExpand(type,module,subject=''){
+  const key=type==='m'?'m:'+module:'s:'+module+'|||'+subject;
+  if(examBuilderExpanded.has(key))examBuilderExpanded.delete(key); else examBuilderExpanded.add(key);
+  renderExamTree();
+}
+function toggleExamTreeNode(type,module,subject='',lecture='',selected){
+  if(type==='m'){
+    const current=examNodeState('module',module).checked;
+    const next=typeof selected==='boolean'?selected:!current;
+    if(next)addAllLecturesForModule(module); else removeAllLecturesForModule(module);
+  }else if(type==='s'){
+    const current=examNodeState('subject',module,subject).checked;
+    const next=typeof selected==='boolean'?selected:!current;
+    if(next)addAllLecturesForSubject(module,subject); else removeAllLecturesForSubject(module,subject);
+  }else{
+    const k=examPathKey('l',module,subject,lecture);
+    if(selected)examBuilderSelection.add(k); else examBuilderSelection.delete(k);
+  }
+  renderExamTree(); updateExamSelectionSummary();
+}
+function clearExamBuilder(){ examBuilderSelection.clear(); renderExamTree(); updateExamSelectionSummary(); }
+function selectAllExamBuilder(){ examBuilderSelection.clear(); bank.forEach(q=>examBuilderSelection.add(examPathKey('l',q.module,q.subject,q.lecture))); renderExamTree(); updateExamSelectionSummary(); }
+function updateExamSelectionSummary(){
+  const summary=document.getElementById('examSelectionSummary');
+  if(!summary)return;
+  const selectedQuestions=bank.filter(questionSelectedByBuilder);
+  const modules=new Set(selectedQuestions.map(q=>q.module)), subjects=new Set(selectedQuestions.map(q=>`${q.module}|||${q.subject}`)), lectures=new Set(selectedQuestions.map(q=>`${q.module}|||${q.subject}|||${q.lecture}`));
+  const countEl=document.getElementById('examSelectedCount'); if(countEl)countEl.textContent=`${modules.size} module${modules.size===1?'':'s'} · ${subjects.size} subject${subjects.size===1?'':'s'} · ${lectures.size} lecture${lectures.size===1?'':'s'} · ${selectedQuestions.length} questions`;
+  const groupedModules=new Set(), groupedSubjects=new Set();
+  [...examBuilderSelection].forEach(k=>{const p=parseExamPathKey(k); if(p[0]==='l'){groupedModules.add(p[1]); groupedSubjects.add(p[1]+'|||'+p[2]);}});
+  const chips=[...examBuilderSelection].slice(0,10).map(k=>{const p=parseExamPathKey(k); return `<span class="exam-selection-chip">${esc(p[1])} → ${esc(p[2])} → ${esc(p[3])}</span>`;}).join('');
+  const more=examBuilderSelection.size>10?`<span class="mini">+${examBuilderSelection.size-10} more selected lecture groups</span>`:'';
+  document.getElementById('examSelectionPaths').innerHTML=chips+more;
+}
+function selectedExamQuestions(){ return bank.filter(questionSelectedByBuilder); }
+function updateExamBuilderSearch(value){ examBuilderSearch=value||''; renderExamTree(); }
+
 
 function renderExamSetup(){
-  const modules=getModules();
+  const total=bank.length;
   const body=`
   <div class="card">
-    <div class="mini" style="margin-bottom:12px">You can select multiple modules, subjects, and lectures. Leave a list empty to include all of that category.</div>
-    <div class="filters">
-      ${examMultiPicker('examModulePicker','examModule','Module',modules)}
-      ${examMultiPicker('examSubjectPicker','examSubject','Subject',getSubjects())}
-      ${examMultiPicker('examLecturePicker','examLecture','Lecture',getLectures())}
+    <div class="category-head"><div><strong>Smart Exam Builder</strong><div class="mini" style="margin-top:4px">Choose exactly what you want: an entire module, a whole subject, specific lectures, or any mixture of them.</div></div><span class="pill">${total} Q available</span></div>
+    <div class="exam-builder">
+      <div class="exam-builder-toolbar">
+        <input class="exam-builder-search" value="${esc(examBuilderSearch)}" oninput="updateExamBuilderSearch(this.value)" placeholder="Search module, subject, or lecture…" aria-label="Search module, subject, or lecture">
+        <div class="exam-builder-actions"><button class="btn" type="button" onclick="selectAllExamBuilder()">Select all</button><button class="btn" type="button" onclick="clearExamBuilder()">Clear</button></div>
+      </div>
+      <div id="examTree" class="exam-tree"></div>
+    </div>
+    <div id="examSelectionSummary" class="exam-selection-summary"><div><strong>Selection</strong><div id="examSelectedCount" class="mini" style="margin-top:4px">No specific selection — all questions</div></div><div class="exam-selection-paths" id="examSelectionPaths"></div></div>
+    <div class="filters" style="margin-top:14px">
       <div class="field"><label>Number of questions</label><input id="examCount" type="number" min="1" value="${Math.min(20,bank.length||1)}"></div>
       <div class="field"><label>Time limit (minutes, 0 = unlimited)</label><input id="examMinutes" type="number" min="0" value="0"></div>
-      <div class="field"><label>Answer display</label><select id="answerMode">
-        <option value="immediate" ${settings.showAnswerImmediately?'selected':''}>Show answer immediately after selection</option>
-        <option value="finish" ${!settings.showAnswerImmediately?'selected':''}>Show answers after finishing</option>
-      </select></div>
+      <div class="field"><label>Answer display</label><select id="answerMode"><option value="immediate" ${settings.showAnswerImmediately?'selected':''}>Show answer immediately after selection</option><option value="finish" ${!settings.showAnswerImmediately?'selected':''}>Show answers after finishing</option></select></div>
     </div>
-    <div style="margin-top:14px" class="actions">
-      <button class="btn primary" onclick="startExam()">Start Exam</button>
-      <button class="btn" onclick="go('mistakes')">Practice Mistakes</button>
-    </div>
+    <div style="margin-top:14px" class="actions"><button class="btn primary btn-lg" onclick="startExam()">Start Exam</button><button class="btn" onclick="go('mistakes')">Practice Mistakes</button></div>
   </div>
-  <div class="card" style="margin-top:16px">
-    <strong>Exam behavior</strong>
-    <p class="mini">Questions are loaded from the current GitHub/Supabase bank. Select any combination of modules, subjects, and lectures. Questions are chosen from the matching pool, with already-correct questions excluded by the adaptive exam system.</p>
-  </div>`;
-  document.getElementById('app').innerHTML=layout('Start Exam','Choose one or more modules, subjects, and lectures.',body);
+  <div class="card" style="margin-top:16px"><strong>How selection works</strong><p class="mini" style="margin:8px 0 0">Select a module to include everything inside it. Select a subject to include all its lectures. Or select individual lectures. You can mix different branches in one exam, such as Cardiology → ECG + Hematology → Iron deficiency + Respiratory → Asthma.</p></div>`;
+  document.getElementById('app').innerHTML=layout('Start Exam','Build a precise exam from your module → subject → lecture hierarchy.',body);
+  renderExamTree(); updateExamSelectionSummary();
 }
 function startExam(customList=null, overrides=null, customLabel=null){
   if(!customList && !bank.length){toast('No questions are loaded. Refresh from GitHub first.','error');return;}
@@ -1114,7 +1210,7 @@ function startExam(customList=null, overrides=null, customLabel=null){
   let list=customList||[...bank];
   let answerMode=settings.showAnswerImmediately?'immediate':'finish';
   let label=customLabel||'Random review', moduleFilter='', subjectFilter='', lectureFilter='';
-  let moduleFilters=[], subjectFilters=[], lectureFilters=[];
+  let moduleFilters=[], subjectFilters=[], lectureFilters=[], selectionPaths=[];
   let minutesValue=0;
 
   if(customList){
@@ -1134,26 +1230,29 @@ function startExam(customList=null, overrides=null, customLabel=null){
       answerMode=overrides.answerMode||answerMode;
       minutesValue=Number(overrides.minutes)||0;
     } else {
-      moduleFilters=selectedExamValues('examModule');
-      subjectFilters=selectedExamValues('examSubject');
-      lectureFilters=selectedExamValues('examLecture');
-      m=moduleFilters[0]||'';
-      s=subjectFilters[0]||'';
-      l=lectureFilters[0]||'';
       n=Math.max(1,Number(document.getElementById('examCount').value)||1);
       answerMode=document.getElementById('answerMode').value;
       minutesValue=Number(document.getElementById('examMinutes').value)||0;
+      selectionPaths=[...examBuilderSelection];
+      const selected=selectedExamQuestions();
+      moduleFilters=[...new Set(selected.map(q=>String(q.module)))];
+      subjectFilters=[...new Set(selected.map(q=>String(q.subject)))];
+      lectureFilters=[...new Set(selected.map(q=>String(q.lecture)))];
     }
 
     moduleFilter=moduleFilters.join(', ');
     subjectFilter=subjectFilters.join(', ');
     lectureFilter=lectureFilters.join(', ');
 
-    list=list.filter(q=>
-      (!moduleFilters.length||moduleFilters.includes(String(q.module)))&&
-      (!subjectFilters.length||subjectFilters.includes(String(q.subject)))&&
-      (!lectureFilters.length||lectureFilters.includes(String(q.lecture)))
-    );
+    if(overrides){
+      list=list.filter(q=>
+        (!moduleFilters.length||moduleFilters.includes(String(q.module)))&&
+        (!subjectFilters.length||subjectFilters.includes(String(q.subject)))&&
+        (!lectureFilters.length||lectureFilters.includes(String(q.lecture)))
+      );
+    } else if(selectionPaths.length){
+      list=list.filter(questionSelectedByBuilder);
+    }
 
     if(!list.length){
       toast('No questions match those filters.','error');
@@ -1219,7 +1318,8 @@ function startExam(customList=null, overrides=null, customLabel=null){
     lectureFilter,
     moduleFilters,
     subjectFilters,
-    lectureFilters
+    lectureFilters,
+    selectionPaths
   };
 
   if(exam.minutes>0) startTimer(exam.minutes*60);
