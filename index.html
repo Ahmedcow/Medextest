@@ -326,6 +326,12 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 @media(max-width:850px){.phase2-grid{grid-template-columns:1fr}}
 
 .flashcard{padding:22px;border:1px solid var(--line);border-radius:18px;background:var(--panel2);cursor:pointer;min-height:280px;display:flex;flex-direction:column;justify-content:center}.flash-question{font-size:20px;font-weight:700;line-height:1.5;margin:18px 0}.flash-options>div{padding:7px 0}.flash-answer{margin-top:18px;padding:14px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}.flash-hint{margin-top:18px;color:var(--muted)}
+
+/* v36 — Study Tools / flashcard viewer rebuilt from reference UI */
+.study-fullscreen .topbar{display:none}.study-fullscreen .main{padding:0;max-width:none}.study-fullscreen #app{min-height:100vh}
+.study-page{max-width:1100px;margin:0 auto}.study-page-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:20px 22px;background:#fff;border:1px solid var(--line);border-radius:18px;margin-bottom:16px}.study-page-hero h2{font-family:var(--font-serif);font-size:27px;margin:4px 0}.study-page-hero p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}.study-kicker{font-size:10px;letter-spacing:.14em;font-weight:800;color:#03a9f5}.study-hero-badge,.study-local-pill{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:7px 10px;background:#e1f5fe;color:#0288d1;font-size:11px;font-weight:700;white-space:nowrap}.study-hero-badge b{font-size:10px}.study-builder-card,.study-progress-card,.study-panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px 20px;box-shadow:0 6px 20px rgba(16,24,38,.05);margin-bottom:16px}.study-builder-head,.study-progress-head,.study-panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:15px}.study-builder-head h3,.study-progress-head h3,.study-panel-head h3{margin:3px 0 0;font-family:var(--font-serif);font-size:20px}.study-builder-head p,.study-panel-head p{margin:5px 0 0;color:var(--muted);font-size:12px}.study-available{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:70px;padding:9px;border-radius:14px;background:#e1f5fe;color:#0288d1}.study-available b{font-size:21px}.study-available span{font-size:10px;font-weight:700}.study-filter-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}.study-filter-grid.compact{margin-top:10px}.study-filter-summary{display:grid;grid-template-columns:auto 1fr auto 1fr;align-items:center;gap:5px 8px;padding:10px 12px;border:1px dashed #b8dbe8;border-radius:12px;background:#f7fcfe}.study-filter-summary b{font-size:18px;color:#0288d1}.study-filter-summary span{font-size:11px;color:var(--muted)}.study-schedule-note{display:flex;align-items:center;gap:10px;margin-top:12px;padding:11px 12px;border-radius:12px;background:#f1f8fa;color:#465a65;font-size:11.5px}.study-schedule-note b{color:#0288d1;white-space:nowrap}.study-builder-actions{margin-top:14px}.study-progress-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}.study-progress-grid>div{padding:13px;border-radius:13px;background:#f6f8f8;border:1px solid #e3e8e8}.study-progress-grid b{display:block;font-size:23px}.study-progress-grid span{display:block;font-size:11px;color:var(--muted);margin-top:2px}.study-section-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.study-plan-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:13px;margin-top:9px}.study-plan-row .actions{grid-column:1/-1}.study-achievements-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.study-achievement{display:flex;flex-direction:column;gap:5px;padding:12px;border:1px solid var(--line);border-radius:13px}.study-achievement span{font-size:11px;color:var(--muted)}
+.study-mobile-shell{width:min(100%,590px);min-height:calc(100vh - 48px);margin:0 auto;background:#fff;border-radius:0;overflow:hidden;box-shadow:0 18px 45px rgba(0,0,0,.12);position:relative;display:flex;flex-direction:column}.study-mobile-topbar{height:66px;display:flex;align-items:center;padding:0 14px;background:#03a9f5;color:#fff;gap:8px}.study-mobile-spacer{flex:1}.study-top-icon{width:42px;height:42px;border:0;background:transparent;color:#fff;font-size:27px;display:grid;place-items:center;border-radius:8px;line-height:1}.study-top-icon:hover{background:rgba(255,255,255,.12)}.study-count-strip{height:38px;display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;background:#b3e5fc;color:#465a65;font-size:16px;padding:0 22px}.study-count-strip span:first-child{color:#263238}.study-count-strip span:nth-child(2){color:#d32f2e}.study-count-strip span:nth-child(3){color:#4caf50}.study-card-scroll{flex:1;overflow:auto;background:#fff;padding:0 16px 90px}.study-card-meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:9px 7px 7px;color:#78909c;font-size:10px;border-bottom:1px solid #e5e5e5}.study-card-meta span:last-child{margin-left:auto}.study-flashcard{display:block;width:100%;text-align:left;background:#fff;border:0;padding:20px 26px 28px;color:#111;min-height:500px;cursor:pointer}.study-question{font-family:Arial,Helvetica,sans-serif;font-size:27px;line-height:1.35;font-weight:400;margin:8px 0 24px}.study-flash-image{display:block;max-width:100%;max-height:260px;object-fit:contain;margin:0 auto 16px}.study-answer{font-family:Arial,Helvetica,sans-serif;font-size:20px;line-height:1.65;margin-top:4px}.study-answer-title{font-weight:700;font-size:17px;margin-bottom:7px}.study-answer ul{margin:0;padding-left:25px}.study-answer li{padding:1px 0}.study-explanation{font-size:14px;line-height:1.55;margin-top:16px;padding:11px 13px;background:#fafafa;border-left:3px solid #03a9f5}.study-tap-hint{margin-top:40px;text-align:center;color:#90a4ae;font-size:13px}.study-rating-dock{position:sticky;bottom:0;z-index:3;display:grid;grid-template-columns:repeat(4,1fr);height:75px;box-shadow:0 -2px 7px rgba(0,0,0,.08)}.study-rating{border:0;border-right:1px solid rgba(255,255,255,.16);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:Arial,Helvetica,sans-serif}.study-rating b{font-size:16px;font-weight:400}.study-rating span{font-size:16px;font-weight:700}.study-rating.again{background:#d32f2e}.study-rating.hard{background:#465a65}.study-rating.good{background:#4cb050}.study-rating.easy{background:#03a9f5}.study-rating:disabled{opacity:1;filter:grayscale(.25);cursor:not-allowed}.study-heart-dock{height:72px;display:flex;justify-content:center;align-items:center;gap:95px;background:#fff}.study-heart{border:0;background:transparent;width:42px;height:42px;display:grid;place-items:center;font-size:31px;line-height:1}.study-heart span{filter:saturate(.75);text-shadow:0 0 0 currentColor}.study-complete{max-width:720px;margin:30px auto;background:#fff;border:1px solid var(--line);border-radius:18px;padding:30px;text-align:center}.study-complete-icon{width:58px;height:58px;margin:0 auto 12px;border-radius:50%;background:#e8f5e9;color:#2e7d32;display:grid;place-items:center;font-size:30px;font-weight:800}.study-result-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:20px 0}.study-result-grid>div{padding:14px;border-radius:12px;background:#f7f7f7}.study-result-grid b{display:block;font-size:22px}.study-result-grid span{font-size:11px;color:var(--muted)}
+@media(max-width:760px){.study-page-hero{align-items:flex-start;flex-direction:column}.study-section-grid,.study-filter-grid,.study-filter-grid.compact{grid-template-columns:1fr}.study-mobile-shell{width:100%;min-height:calc(100vh - 32px);box-shadow:none}.study-flashcard{padding-left:20px;padding-right:20px}.study-question{font-size:25px}.study-heart-dock{gap:54px}.study-result-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -439,6 +445,7 @@ let aiBusy = false;
 let examAIBusy = false;
 let examAI = {open:false, questionId:null, messages:[]};
 let progress = loadJSON(CONFIG.progressKey, {});
+let flashcardState = loadJSON(CONFIG.flashcardStateKey, {});
 restoreFlashcardState();
 let settings = {...DEFAULT_SETTINGS, ...loadJSON(CONFIG.settingsKey, {})};
 let exam = null;
@@ -572,7 +579,6 @@ async function afterAuthChanged(){
   applyModuleVisibility();
   await loadSupabaseProgress();
   await loadReviewScheduleFromSupabase();
-  loadFlashcardSchedulesFromSupabase();
   await loadSupabaseHistory();
   await loadFavorites();
   await loadGlobalAnalytics();
@@ -644,31 +650,6 @@ async function syncReviewSchedulesToSupabase(questions){
     if(error)console.warn('Review schedule sync unavailable:',error.message);
   }catch(e){console.warn('Review schedule sync unavailable:',e.message);}
 }
-async function loadFlashcardSchedulesFromSupabase(){
-  if(!SUPABASE_ENABLED || !currentUser)return;
-  try{
-    const {data,error}=await supabaseClient.from('student_review_schedule').select('question_id,flashcard_interval_minutes,flashcard_reviews,flashcard_next_at,flashcard_last_rating').eq('user_id',currentUser.id);
-    if(error){console.warn('Flashcard schedule sync unavailable:',error.message);return;}
-    (data||[]).forEach(row=>{
-      const p=progress[row.question_id]||{attempts:0,correct:0,wrong:0,last:null};
-      p.flashcardIntervalMinutes=Number(row.flashcard_interval_minutes||0);
-      p.flashcardReviews=Number(row.flashcard_reviews||0);
-      p.flashcardNextAt=Date.parse(row.flashcard_next_at)||0;
-      p.flashcardLastRating=row.flashcard_last_rating||'';
-      progress[row.question_id]=p;
-    });
-    saveState();
-  }catch(e){console.warn('Flashcard schedule sync unavailable:',e.message);}
-}
-async function syncFlashcardSchedulesToSupabase(questions){
-  if(!SUPABASE_ENABLED || !currentUser || !questions?.length)return;
-  const rows=questions.map(q=>{const p=progress[key(q)]||{};return {user_id:currentUser.id,question_id:q.id,flashcard_interval_minutes:Math.max(0,Math.round(Number(p.flashcardIntervalMinutes||0))),flashcard_reviews:Math.max(0,Number(p.flashcardReviews||0)),flashcard_next_at:p.flashcardNextAt?new Date(Number(p.flashcardNextAt)).toISOString():null,flashcard_last_rating:p.flashcardLastRating||null,updated_at:new Date().toISOString()};});
-  try{
-    const {error}=await supabaseClient.from('student_review_schedule').upsert(rows,{onConflict:'user_id,question_id'});
-    if(error)console.warn('Flashcard schedule sync unavailable:',error.message);
-  }catch(e){console.warn('Flashcard schedule sync unavailable:',e.message);}
-}
-
 async function recordAttemptToSupabase(q, selectedIndex, isCorrect, examId){
   if(!SUPABASE_ENABLED || !currentUser)return;
   const {error}=await supabaseClient.from('question_attempts').insert({
@@ -965,16 +946,18 @@ function renderStudyWeekChart(){
 function saveState(){
   localStorage.setItem(CONFIG.progressKey, JSON.stringify(progress));
   localStorage.setItem(CONFIG.settingsKey, JSON.stringify(settings));
-  localStorage.setItem(CONFIG.flashcardStateKey, JSON.stringify(flashcardStateSnapshot()));
+  localStorage.setItem(CONFIG.flashcardStateKey, JSON.stringify(flashcardState));
 }
-function flashcardStateSnapshot(){
-  const out={};
-  Object.keys(progress).forEach(k=>{const p=progress[k]; if(p && (p.flashcardNextAt||p.flashcardIntervalMinutes||p.flashcardReviews||p.flashcardLastRating)){out[k]={flashcardNextAt:Number(p.flashcardNextAt||0),flashcardIntervalMinutes:Number(p.flashcardIntervalMinutes||0),flashcardReviews:Number(p.flashcardReviews||0),flashcardLastRating:p.flashcardLastRating||''};}});
-  return out;
+function saveFlashcardState(){
+  try{localStorage.setItem(CONFIG.flashcardStateKey, JSON.stringify(flashcardState));}catch(e){}
+}
+function flashcardProgress(q){
+  const k=key(q);
+  if(!flashcardState[k]) flashcardState[k]={flashcardNextAt:0,flashcardIntervalMinutes:0,flashcardReviews:0,flashcardLastRating:'',flashcardLastReviewedAt:0};
+  return flashcardState[k];
 }
 function restoreFlashcardState(){
-  const saved=loadJSON(CONFIG.flashcardStateKey,{});
-  Object.entries(saved||{}).forEach(([k,v])=>{ if(!progress[k])progress[k]={attempts:0,correct:0,wrong:0,last:null}; Object.assign(progress[k],v); });
+  flashcardState=loadJSON(CONFIG.flashcardStateKey,{});
 }
 
 function saveActiveExam(){
@@ -2096,19 +2079,19 @@ function flashcardItems(filters=flashcardFilter){
   if(filters.subject)list=list.filter(q=>String(q.subject)===String(filters.subject));
   if(filters.lecture)list=list.filter(q=>String(q.lecture)===String(filters.lecture));
   const now=Date.now();
-  if(filters.mode==='due') list=list.filter(q=>{const p=progress[key(q)]||{};return Number(p.flashcardReviews||0)>0&&Number(p.flashcardNextAt||0)>0&&Number(p.flashcardNextAt)<=now;});
-  if(filters.mode==='new') list=list.filter(q=>Number((progress[key(q)]||{}).flashcardReviews||0)===0);
+  if(filters.mode==='due') list=list.filter(q=>{const p=flashcardProgress(q);return Number(p.flashcardReviews||0)>0&&Number(p.flashcardNextAt||0)>0&&Number(p.flashcardNextAt)<=now;});
+  if(filters.mode==='new') list=list.filter(q=>Number(flashcardProgress(q).flashcardReviews||0)===0);
   return list;
 }
 function flashcardIntervalLabel(minutes){
   minutes=Math.max(0,Math.round(Number(minutes)||0));
-  if(minutes<60)return `<1h`;
-  if(minutes<1440)return `${Math.round(minutes/60)}h`;
+  if(minutes<60)return `<${Math.max(1,minutes)}m`;
+  if(minutes<1440)return `${Math.max(1,Math.round(minutes/60))}h`;
   const days=minutes/1440;
   return Number.isInteger(days)?`${days}d`:`${days.toFixed(1)}d`;
 }
 function flashcardDueLabel(q){
-  const t=Number((progress[key(q)]||{}).flashcardNextAt||0); if(!t)return 'New';
+  const t=Number(flashcardProgress(q).flashcardNextAt||0); if(!t)return 'New';
   const diff=t-Date.now();
   if(diff<=0)return 'Due now';
   if(diff<3600000)return `Due in ${Math.max(1,Math.round(diff/60000))}m`;
@@ -2116,8 +2099,7 @@ function flashcardDueLabel(q){
   return `Due ${new Date(t).toLocaleDateString()}`;
 }
 function flashcardRatingSchedule(q,rating){
-  const k=key(q); if(!progress[k])progress[k]={attempts:0,correct:0,wrong:0,last:null};
-  const p=progress[k]; const previous=Math.max(0,Number(p.flashcardIntervalMinutes||0));
+  const p=flashcardProgress(q); const previous=Math.max(0,Number(p.flashcardIntervalMinutes||0));
   let minutes=1;
   if(rating==='again') minutes=1;
   else if(rating==='hard') minutes=Math.max(6, previous ? Math.round(previous*1.5) : 6);
@@ -2128,7 +2110,7 @@ function flashcardRatingSchedule(q,rating){
   p.flashcardReviews=Number(p.flashcardReviews||0)+1;
   p.flashcardLastRating=rating;
   p.flashcardLastReviewedAt=Date.now();
-  saveState();
+  saveFlashcardState();
   return minutes;
 }
 function flashcardFilterOptions(){
@@ -2141,21 +2123,22 @@ function renderFlashcardSetup(){
   const {mods,subjects,lectures}=flashcardFilterOptions();
   const total=flashcardItems(flashcardFilter).length;
   const due=flashcardItems({...flashcardFilter,mode:'due'}).length;
-  const reviewed=bank.filter(q=>Number((progress[key(q)]||{}).flashcardReviews||0)>0).length;
+  const reviewed=bank.filter(q=>Number(flashcardProgress(q).flashcardReviews||0)>0).length;
   const select=(id,items,value,placeholder)=>`<select id="${id}" onchange="updateFlashcardFilter('${id}')"><option value="">${placeholder}</option>${items.map(x=>`<option value="${attrJs(x)}" ${String(x)===String(value)?'selected':''}>${esc(x)}</option>`).join('')}</select>`;
-  return `<div class="card">
-    <div class="category-head"><div><strong>Build your flashcard session</strong><div class="mini">Choose exactly what you want to review: Module → Subject → Lecture.</div></div><span class="pill">${total} available</span></div>
-    <div class="grid three" style="margin-top:12px">
+  return `<div class="study-builder-card">
+    <div class="study-builder-head"><div><span class="study-kicker">FLASHCARD SETUP</span><h3>Choose your review</h3><p>Select the exact module, subject and lecture you want to study.</p></div><div class="study-available"><b>${total}</b><span>cards</span></div></div>
+    <div class="study-filter-grid">
       <div class="field"><label>Module</label>${select('flashModule',mods,flashcardFilter.module,'All modules')}</div>
       <div class="field"><label>Subject</label>${select('flashSubject',subjects,flashcardFilter.subject,'All subjects')}</div>
       <div class="field"><label>Lecture</label>${select('flashLecture',lectures,flashcardFilter.lecture,'All lectures')}</div>
     </div>
-    <div class="grid three" style="margin-top:10px">
+    <div class="study-filter-grid compact">
       <div class="field"><label>Review mode</label><select id="flashMode" onchange="updateFlashcardFilter('flashMode')"><option value="all" ${flashcardFilter.mode==='all'?'selected':''}>All cards</option><option value="due" ${flashcardFilter.mode==='due'?'selected':''}>Due cards only</option><option value="new" ${flashcardFilter.mode==='new'?'selected':''}>New cards only</option></select></div>
-      <div class="field"><label>Cards per session</label><select id="flashCount" onchange="updateFlashcardFilter('flashCount')">${[5,10,20,50,100].map(n=>`<option value="${n}" ${Number(flashcardFilter.count)===n?'selected':''}>${n}</option>`).join('')}<option value="0" ${Number(flashcardFilter.count)===0?'selected':''}>All available</option></select></div>
-      <div class="field"><label>Selection</label><div class="mini" style="padding-top:10px">${due} due · ${reviewed} reviewed · ${bank.length} total bank</div></div>
+      <div class="field"><label>Cards per session</label><select id="flashCount" onchange="updateFlashcardFilter('flashCount')">${[5,10,20,50,100].map(n=>`<option value="${n}" ${Number(flashcardFilter.count)===n?'selected':''}>${n} cards</option>`).join('')}<option value="0" ${Number(flashcardFilter.count)===0?'selected':''}>All available</option></select></div>
+      <div class="study-filter-summary"><b>${due}</b><span>due now</span><b>${reviewed}</b><span>reviewed</span></div>
     </div>
-    <div class="actions" style="margin-top:14px"><button class="btn primary btn-lg" onclick="startFlashcardSession()" ${total?'':'disabled'}>Start Flashcards</button><button class="btn" onclick="resetFlashcardFilter()">Reset filters</button></div>
+    <div class="study-schedule-note"><b>Adaptive intervals</b><span>Again &lt;1m · Hard &lt;6m · Good &lt;10m · Easy 5d on a new card. Local-only progress.</span></div>
+    <div class="actions study-builder-actions"><button class="btn primary btn-lg" onclick="startFlashcardSession()" ${total?'':'disabled'}>Start Flashcards</button><button class="btn" onclick="resetFlashcardFilter()">Reset</button></div>
   </div>`;
 }
 function updateFlashcardFilter(source){
@@ -2172,38 +2155,78 @@ function startFlashcardSession(){
   let list=flashcardItems(flashcardFilter);
   if(!list.length){toast('No flashcards match these filters.','error');return;}
   const count=Number(flashcardFilter.count||0); if(count>0)list=shuffle([...list]).slice(0,Math.min(count,list.length)); else list=shuffle([...list]);
-  flashcardSession={list,index:0,revealed:false,ratings:{again:0,hard:0,good:0,easy:0},startedAt:Date.now()};
+  flashcardSession={list,index:0,revealed:false,ratings:{again:0,hard:0,good:0,easy:0},startedAt:Date.now(),lastAction:null};
   renderFlashcardSession();
+}
+function flashcardTopIcon(type,label,onclick){
+  const icons={menu:'☰',undo:'↶',flag:'⚑',more:'⋮'};
+  return `<button class="study-top-icon" title="${label}" aria-label="${label}" onclick="${onclick||''}">${icons[type]}</button>`;
+}
+function flashcardHeartButton(type,label,onclick){
+  const fills={peach:'#f6d7c6',pink:'#f3b7c8',cream:'#f5e5bd'};
+  return `<button class="study-heart ${type}" title="${label}" aria-label="${label}" onclick="${onclick}"><span style="color:${fills[type]||fills.peach}">♥</span></button>`;
 }
 function renderFlashcardSession(){
   const s=flashcardSession; if(!s||!s.list.length){renderStudyTools();return;}
   if(s.index>=s.list.length){
     const total=s.list.length, rated=Object.values(s.ratings).reduce((a,b)=>a+b,0);
-    const body=`<div class="card"><div class="category-head"><div><strong>Flashcard session complete</strong><div class="mini">${total} cards reviewed · ${rated} ratings recorded.</div></div><span class="pill">Completed</span></div><div class="grid four" style="margin-top:14px"><div class="flash-stat again"><b>${s.ratings.again}</b><span>Again</span></div><div class="flash-stat hard"><b>${s.ratings.hard}</b><span>Hard</span></div><div class="flash-stat good"><b>${s.ratings.good}</b><span>Good</span></div><div class="flash-stat easy"><b>${s.ratings.easy}</b><span>Easy</span></div></div><div class="actions" style="margin-top:16px"><button class="btn primary" onclick="startFlashcardSession()">Review again</button><button class="btn" onclick="flashcardSession=null;renderStudyTools()">Back to Study Tools</button></div></div>`;
-    document.getElementById('app').innerHTML=layout('Flashcards','Session complete.',body); return;
+    const body=`<div class="study-complete"><div class="study-complete-icon">✓</div><h2>Review complete</h2><p>${total} cards reviewed · ${rated} ratings recorded.</p><div class="study-result-grid"><div><b>${s.ratings.again}</b><span>Again</span></div><div><b>${s.ratings.hard}</b><span>Hard</span></div><div><b>${s.ratings.good}</b><span>Good</span></div><div><b>${s.ratings.easy}</b><span>Easy</span></div></div><div class="actions"><button class="btn primary" onclick="startFlashcardSession()">Review again</button><button class="btn" onclick="flashcardSession=null;renderStudyTools()">Back to Study Tools</button></div></div>`;
+    document.body.classList.add('study-fullscreen'); document.getElementById('app').innerHTML=body; return;
   }
-  const q=s.list[s.index], p=progress[key(q)]||{};
+  const q=s.list[s.index], p=flashcardProgress(q);
   const answer=esc(q.options[q.correctIndex]||'');
-  const image=q.imageUrl?`<img class="flash-image" src="${esc(q.imageUrl)}" alt="Question illustration">`:'';
-  const front=`<div class="flashcard-session-card"><div class="flash-session-meta"><span>${s.index+1} / ${s.list.length}</span><span>${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</span><span>${flashcardDueLabel(q)}</span></div>${image}<div class="flash-session-question">${esc(q.question)}</div><div class="flash-session-options">${q.options.map((o,i)=>`<div><b>${String.fromCharCode(65+i)}.</b> ${esc(o)}</div>`).join('')}</div>${s.revealed?`<div class="flash-answer"><b>Correct answer:</b> ${answer}${q.explanation?`<div class="mini" style="margin-top:8px">${esc(q.explanation)}</div>`:''}</div>`:`<div class="flash-hint">Think first, then reveal the answer.</div>`}</div>`;
-  const ratingDisabled=s.revealed?'':'disabled';
-  const prev=Number(p.flashcardIntervalMinutes||0);
-  const labels={again:'<1m',hard:prev?flashcardIntervalLabel(Math.max(6,Math.round(prev*1.5))):'6m',good:prev?flashcardIntervalLabel(Math.max(10,Math.round(prev*2.5))):'10m',easy:prev?flashcardIntervalLabel(Math.max(5*1440,Math.round(prev*3.5))):'5d'};
-  const body=`<div class="card flash-session-wrap"><div class="category-head"><div><strong>Flashcard Review</strong><div class="mini">Tap reveal, then rate how well you remembered the card.</div></div><span class="pill">${s.list.length-s.index-1} remaining</span></div><div style="margin-top:12px">${front}</div><div class="flash-rating-grid"><button class="flash-rating again" ${ratingDisabled} onclick="rateFlashcard('again')"><b>${labels.again}</b><span>Again</span><small>Forgot / wrong</small></button><button class="flash-rating hard" ${ratingDisabled} onclick="rateFlashcard('hard')"><b>${labels.hard}</b><span>Hard</span><small>Remembered with effort</small></button><button class="flash-rating good" ${ratingDisabled} onclick="rateFlashcard('good')"><b>${labels.good}</b><span>Good</span><small>Correct recall</small></button><button class="flash-rating easy" ${ratingDisabled} onclick="rateFlashcard('easy')"><b>${labels.easy}</b><span>Easy</span><small>Very easy</small></button></div><div class="actions" style="margin-top:12px"><button class="btn" onclick="${s.revealed?'rateFlashcard(\'again\')':'revealFlashcard()'}">${s.revealed?'Again':'Reveal answer'}</button><button class="btn" onclick="flashcardSession=null;renderStudyTools()">Exit review</button></div></div>`;
-  document.getElementById('app').innerHTML=layout('Flashcards','Adaptive review based on your rating.',body);
+  const image=q.imageUrl?`<img class="study-flash-image" src="${esc(q.imageUrl)}" alt="Question illustration">`:'';
+  const answerBlock=s.revealed?`<div class="study-answer"><div class="study-answer-title">Answer</div><ul>${q.options.map((o,i)=>i===Number(q.correctIndex)?`<li><b>${esc(o)}</b></li>`:'').join('')}</ul>${q.explanation?`<div class="study-explanation">${esc(q.explanation)}</div>`:''}</div>`:`<div class="study-tap-hint">Tap the card to reveal the answer</div>`;
+  const labels={again:'<1m',hard:p.flashcardIntervalMinutes?flashcardIntervalLabel(Math.max(6,Math.round(p.flashcardIntervalMinutes*1.5))):'<6m',good:p.flashcardIntervalMinutes?flashcardIntervalLabel(Math.max(10,Math.round(p.flashcardIntervalMinutes*2.5))):'<10m',easy:p.flashcardIntervalMinutes?flashcardIntervalLabel(Math.max(5*1440,Math.round(p.flashcardIntervalMinutes*3.5))):'5d'};
+  const stats=s.ratings;
+  const card=`<button class="study-flashcard ${s.revealed?'revealed':''}" onclick="${s.revealed?'':'revealFlashcard()'}" aria-label="${s.revealed?'Flashcard answer shown':'Reveal flashcard answer'}">
+    <div class="study-question">${esc(q.question)}</div>${image}${answerBlock}
+  </button>`;
+  const body=`<div class="study-mobile-shell">
+    <div class="study-mobile-topbar">${flashcardTopIcon('menu','Open menu','document.getElementById(\'sidebarOpen\')?.click()')}<div class="study-mobile-spacer"></div>${flashcardTopIcon('undo','Previous card',"flashcardUndo()")} ${flashcardTopIcon('flag','Flag / favourite',"toggleStudyFlashFavorite()")} ${flashcardTopIcon('more','More options',"studyFlashMore()")}</div>
+    <div class="study-count-strip"><span>${s.list.length}</span><span>${stats.again}</span><span>${stats.good+stats.easy}</span></div>
+    <div class="study-card-scroll"><div class="study-card-meta"><span>${esc(q.module||'')}</span><span>${esc(q.subject||'')}</span><span>${esc(q.lecture||'')}</span><span>${flashcardDueLabel(q)}</span></div>${card}</div>
+    <div class="study-rating-dock">
+      <button class="study-rating again" ${s.revealed?'':'disabled'} onclick="rateFlashcard('again')"><b>${labels.again}</b><span>Again</span></button>
+      <button class="study-rating hard" ${s.revealed?'':'disabled'} onclick="rateFlashcard('hard')"><b>${labels.hard}</b><span>Hard</span></button>
+      <button class="study-rating good" ${s.revealed?'':'disabled'} onclick="rateFlashcard('good')"><b>${labels.good}</b><span>Good</span></button>
+      <button class="study-rating easy" ${s.revealed?'':'disabled'} onclick="rateFlashcard('easy')"><b>${labels.easy}</b><span>Easy</span></button>
+    </div>
+    <div class="study-heart-dock">${flashcardHeartButton('peach','Favourite question',`toggleStudyFlashFavorite()`)}${flashcardHeartButton('pink','Mark as difficult',`markStudyFlashDifficult()`)}${flashcardHeartButton('cream','Open explanation',`revealFlashcard()` )}</div>
+  </div>`;
+  document.body.classList.add('study-fullscreen'); document.getElementById('app').innerHTML=body;
 }
 function revealFlashcard(){if(flashcardSession){flashcardSession.revealed=true;renderFlashcardSession();}}
+function flashcardUndo(){
+  const s=flashcardSession;if(!s||s.index<=0)return;
+  s.index--;s.revealed=true;renderFlashcardSession();
+}
+function toggleStudyFlashFavorite(){
+  const q=flashcardSession?.list?.[flashcardSession.index]; if(!q)return;
+  const id=String(q.id);
+  if(favorites.has(id)) favorites.delete(id); else favorites.add(id);
+  saveFavoritesLocal();
+  toast(favorites.has(id)?'Added to favourites.':'Removed from favourites.','ok');
+}
+function markStudyFlashDifficult(){
+  const q=flashcardSession?.list?.[flashcardSession.index];if(!q)return;
+  flashcardRatingSchedule(q,'hard');flashcardSession.lastAction='hard';toast('Marked as Hard. It will return sooner.','ok');
+  renderFlashcardSession();
+}
+function studyFlashMore(){
+  const q=flashcardSession?.list?.[flashcardSession.index];if(!q)return;
+  alert(`Module: ${q.module||'—'}\nSubject: ${q.subject||'—'}\nLecture: ${q.lecture||'—'}\n\nReview state: ${flashcardDueLabel(q)}`);
+}
 async function rateFlashcard(rating){
   const s=flashcardSession; if(!s||!s.revealed)return;
-  const q=s.list[s.index]; flashcardRatingSchedule(q,rating); s.ratings[rating]=(s.ratings[rating]||0)+1; s.index++; s.revealed=false;
-  await syncFlashcardSchedulesToSupabase([q]);
+  const q=s.list[s.index]; flashcardRatingSchedule(q,rating); s.ratings[rating]=(s.ratings[rating]||0)+1; s.index++; s.revealed=false; s.lastAction=rating;
   renderFlashcardSession();
 }
 function flashcardSummaryHTML(){
-  const all=bank.filter(q=>q.question&&Array.isArray(q.options)&&q.options.length); const due=all.filter(q=>{const p=progress[key(q)]||{};return Number(p.flashcardReviews||0)>0&&Number(p.flashcardNextAt||0)<=Date.now();}).length; const reviewed=all.filter(q=>Number((progress[key(q)]||{}).flashcardReviews||0)>0).length;
-  return `<div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Flashcard progress</strong><div class="mini">Your adaptive review schedule across the question bank.</div></div></div><div class="grid three" style="margin-top:12px"><div class="phase2-mini-card"><div class="phase2-stat">${due}</div><div class="phase2-label">Due now</div></div><div class="phase2-mini-card"><div class="phase2-stat">${reviewed}</div><div class="phase2-label">Reviewed cards</div></div><div class="phase2-mini-card"><div class="phase2-stat">${all.length-reviewed}</div><div class="phase2-label">New cards</div></div></div></div>`;
+  const all=bank.filter(q=>q.question&&Array.isArray(q.options)&&q.options.length); const due=all.filter(q=>{const p=flashcardProgress(q);return Number(p.flashcardReviews||0)>0&&Number(p.flashcardNextAt||0)<=Date.now();}).length; const reviewed=all.filter(q=>Number(flashcardProgress(q).flashcardReviews||0)>0).length;
+  return `<div class="study-progress-card"><div class="study-progress-head"><div><span class="study-kicker">YOUR LOCAL PROGRESS</span><h3>Flashcard progress</h3></div><span class="study-local-pill">Local only</span></div><div class="study-progress-grid"><div><b>${due}</b><span>Due now</span></div><div><b>${reviewed}</b><span>Reviewed</span></div><div><b>${all.length-reviewed}</b><span>New</span></div></div></div>`;
 }
-function renderFlashcards(){renderStudyTools(true);}
+function renderFlashcards(){renderStudyTools();}
 function lectureQuickReviewHTML(module,subject,lecture){
   const qs=bank.filter(q=>q.module===module&&q.subject===subject&&q.lecture===lecture).slice(0,12);
   if(!qs.length)return '<div class="empty">No questions found for this lecture.</div>';
@@ -2238,17 +2261,19 @@ function achievements(){
   ];
 }
 function renderStudyTools(){
+  document.body.classList.remove('study-fullscreen');
   const plans=studyPlans();
-  const planHtml=plans.length?plans.map(p=>{const end=new Date(p.createdAt+Math.max(0,p.days-1)*86400000);const countdown=p.examDate?Math.max(0,Math.ceil((new Date(p.examDate+'T23:59:59').getTime()-Date.now())/86400000)):null;return `<div class="category-card" style="margin-top:10px"><div class="category-head"><div><b>${esc(p.name)}</b><div class="mini">${p.days} days · ${p.target} questions/day · ends ${end.toLocaleDateString()}</div></div><span class="pill">${countdown===null?'No exam date':countdown+' days'}</span></div><div class="actions" style="margin-top:10px"><button class="btn" onclick="setExamCountdown('${attrJs(p.id)}')">${countdown===null?'Set exam date':'Change exam date'}</button><button class="btn" onclick="deleteStudyPlan('${attrJs(p.id)}')">Delete</button></div></div>`}).join(''):'<div class="empty">No study plans yet.</div>';
-  const ach=achievements().map(a=>`<div class="category-card"><strong>${a[1]?'🏆':'○'} ${esc(a[0])}</strong><div class="mini" style="margin-top:5px">${a[1]?'Unlocked':'Keep studying to unlock this achievement.'}</div></div>`).join('');
-  const flashSetup=renderFlashcardSetup();
-  const body=`<div class="study-tools-hero"><div><div class="eyebrow">STUDY TOOLS</div><h2 style="margin:4px 0 6px">Build a smarter daily review</h2><div class="mini">Focus on a module, subject, or exact lecture, then let the flashcards schedule themselves from your recall.</div></div><div class="study-tools-hero-actions"><button class="btn primary" onclick="startSpacedReview()">Review due questions</button><button class="btn" onclick="startMockExam()">Mock Exam</button></div></div>
-  ${flashSetup}
-  ${flashcardSummaryHTML()}
-  <div class="grid two" style="margin-top:16px"><div class="card"><div class="category-head"><div><strong>Study Plans & Exam Countdown</strong><div class="mini">Set a target, daily workload, and exam date.</div></div><button class="btn primary" onclick="createStudyPlan()">+ New Plan</button></div><div style="margin-top:12px">${planHtml}</div></div>
-  <div class="card"><div class="category-head"><div><strong>Mock Exam Mode</strong><div class="mini">Timed mixed exam using your question bank.</div></div><button class="btn primary" onclick="startMockExam()">Start Mock Exam</button></div><div class="mini" style="margin-top:12px">Use this when you want a realistic full-session test rather than focused recall.</div></div></div>
-  <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Achievements</strong><div class="mini">Milestones from your real study activity.</div></div></div><div class="grid two" style="margin-top:12px">${ach}</div></div>`;
-  document.getElementById('app').innerHTML=layout('Study Tools','Flashcards, adaptive review, study planning, mock exams, countdowns, and achievements.',body);
+  const planHtml=plans.length?plans.map(p=>{const end=new Date(p.createdAt+Math.max(0,p.days-1)*86400000);const countdown=p.examDate?Math.max(0,Math.ceil((new Date(p.examDate+'T23:59:59').getTime()-Date.now())/86400000)):null;return `<div class="study-plan-row"><div><b>${esc(p.name)}</b><div class="mini">${p.days} days · ${p.target} questions/day · ends ${end.toLocaleDateString()}</div></div><span class="study-local-pill">${countdown===null?'No exam date':countdown+' days'}</span><div class="actions"><button class="btn" onclick="setExamCountdown('${attrJs(p.id)}')">${countdown===null?'Set exam date':'Change exam date'}</button><button class="btn" onclick="deleteStudyPlan('${attrJs(p.id)}')">Delete</button></div></div>`}).join(''):'<div class="empty">No study plans yet.</div>';
+  const ach=achievements().map(a=>`<div class="study-achievement"><strong>${a[1]?'🏆':'○'} ${esc(a[0])}</strong><span>${a[1]?'Unlocked':'Keep studying to unlock this achievement.'}</span></div>`).join('');
+  const body=`<div class="study-page">
+    <section class="study-page-hero"><div><span class="study-kicker">STUDY TOOLS</span><h2>Flashcards & focused review</h2><p>Choose a module, subject and exact lecture. Your recall schedule stays on this device and works offline.</p></div><div class="study-hero-badge"><b>LOCAL</b><span>No Supabase flashcard sync</span></div></section>
+    ${renderFlashcardSetup()}
+    ${flashcardSummaryHTML()}
+    <section class="study-section-grid"><div class="study-panel"><div class="study-panel-head"><div><span class="study-kicker">PLANNING</span><h3>Study Plans & Exam Countdown</h3></div><button class="btn primary" onclick="createStudyPlan()">+ New Plan</button></div><div style="margin-top:12px">${planHtml}</div></div>
+    <section class="study-panel"><div class="study-panel-head"><div><span class="study-kicker">PRACTICE</span><h3>Mock Exam Mode</h3><p>Timed mixed exam using your question bank.</p></div><button class="btn primary" onclick="startMockExam()">Start Mock Exam</button></div></section></section>
+    <section class="study-panel"><div class="study-panel-head"><div><span class="study-kicker">MILESTONES</span><h3>Achievements</h3></div></div><div class="study-achievements-grid" style="margin-top:12px">${ach}</div></section>
+  </div>`;
+  document.getElementById('app').innerHTML=layout('Study Tools','Focused flashcard review, planning, mock exams and local progress.',body);
 }
 function startMockExam(){
   if(!bank.length){toast('No questions are available.','error');return;}
