@@ -23,15 +23,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-.answer-display-choice{display:grid;gap:10px;margin-top:8px}
-/* v46: Start Exam desktop/tablet polish */
-.answer-display-choice{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.answer-display-option{min-width:0;min-height:74px}
-@media(min-width:1101px){.start-exam-settings{grid-template-columns:minmax(190px,1fr) minmax(190px,1fr) minmax(520px,2.4fr)}.start-exam-answer .answer-display-choice{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:1100px) and (min-width:701px){.start-exam-settings{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.start-exam-answer{grid-column:1/-1}.start-exam-answer .answer-display-choice{grid-template-columns:repeat(2,minmax(0,1fr))}.start-exam-actions{justify-content:flex-start}}
-@media(max-width:700px){.answer-display-choice{grid-template-columns:1fr}.answer-display-option{min-height:0}}
-.answer-display-option{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);cursor:pointer}.answer-display-option:has(input:checked){border-color:var(--primary);background:var(--primary-soft)}.answer-display-option input{margin-top:3px}.answer-display-option span{display:grid;gap:3px}.answer-display-option small{color:var(--muted);font-size:12px;line-height:1.4}
-
 :root{
   --bg:#eef2f0;--card:#ffffff;--text:#101826;--muted:#5b6b72;--line:#dbe3e1;
   --primary:#0c7c8c;--primary2:#095f6c;--primary-rgb:12,124,140;--primary-soft:#e1f0f0;
@@ -125,6 +116,11 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .grid{display:grid;gap:16px}
 .stats{grid-template-columns:repeat(4,minmax(0,1fr))}
 .filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.answer-mode-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:8px}
+.answer-mode-option{display:flex;align-items:flex-start;gap:10px;padding:13px 14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);cursor:pointer;min-height:72px}
+.answer-mode-option:has(input:checked){border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft)}
+.answer-mode-option input{margin-top:3px;accent-color:var(--primary)}
+@media(max-width:700px){.answer-mode-list{grid-template-columns:1fr}}
 .two{grid-template-columns:1fr 1fr}
 .three{grid-template-columns:repeat(3,1fr)}
 .field label{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px}
@@ -209,15 +205,6 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 
 /* ---------- Quiz ---------- */
 .quiz{max-width:980px;margin:auto}
-
-.start-exam-settings{display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,1fr) minmax(360px,2fr);gap:16px;align-items:start}
-.start-exam-answer{min-width:0}
-.start-exam-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
-.immediate-answer-feedback{margin-top:14px;padding:14px 16px;border:1px solid var(--ok);border-left:4px solid var(--ok);border-radius:var(--radius-sm);background:var(--ok-soft);color:var(--text);line-height:1.55}
-.immediate-answer-feedback.wrong{border-color:var(--danger);border-left-color:var(--danger);background:var(--danger-soft)}
-.immediate-answer-feedback .answer-title{font-weight:800}
-@media(max-width:1100px) and (min-width:701px){.start-exam-settings{grid-template-columns:1fr 1fr}.start-exam-answer{grid-column:1 / -1}.start-exam-actions{justify-content:flex-start}.quiz{max-width:900px}.question{font-size:20px}.question-nav{gap:6px}.qnav-btn{width:36px;height:36px}}
-@media(max-width:700px){.start-exam-settings{grid-template-columns:1fr}.start-exam-answer{grid-column:auto}.start-exam-actions{justify-content:stretch}.start-exam-actions .btn{flex:1 1 180px}.quiz{width:100%}.quiz .card{padding:14px}.question{font-size:20px;line-height:1.45;display:block!important}.question>span{display:block;min-width:0}.question>div{margin-top:10px;justify-content:flex-end}.question-nav{padding:10px;gap:6px}.qnav-btn{width:34px;height:34px}.nav-legend{gap:8px;flex-wrap:wrap}.option{padding:13px 12px}.question-illustration{max-height:360px}}
 .qhead{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
 .timer{font-family:var(--font-mono);font-weight:600;color:var(--primary);font-size:17px}
 .question{font-family:var(--font-serif);font-size:21px;line-height:1.5;font-weight:600;margin:18px 0}
@@ -315,7 +302,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .dashboard-progress-icon{width:46px;height:46px;display:grid;place-items:center;border:1px solid var(--border);border-radius:14px;background:var(--panel2);color:var(--primary);flex:0 0 auto}
 .dashboard-progress-icon svg{width:25px;height:25px}
 .shortcut-arrow{font-size:28px;color:var(--muted);padding:0 6px}
-.dashboard-spaced-review{margin-bottom:24px}.spaced-review-stats{gap:14px}.spaced-review-actions{padding-top:2px}.field-static{min-height:42px;display:flex;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--primary-soft);color:var(--muted);font-size:13px}.study-chart-wrap{margin-top:14px;overflow-x:auto;padding-bottom:4px}
+.dashboard-spaced-review{margin-bottom:24px}.spaced-review-stats{gap:14px}.spaced-review-actions{padding-top:2px}.study-chart-wrap{margin-top:14px;overflow-x:auto;padding-bottom:4px}
 .study-chart{display:block;width:100%;min-width:640px;height:auto}
 .study-grid{stroke:var(--border);stroke-width:1;opacity:.7}
 .study-axis,.study-day{fill:var(--muted);font-size:11px;font-family:var(--font-sans)}
@@ -466,7 +453,7 @@ const CONFIG = {
 };
 
 const DEFAULT_SETTINGS = {
-  showAnswerImmediately: false,
+  showAnswerImmediately: true,
   autoSubmit: true,
   // Question and option randomization are always enabled.
   shuffleQuestions: true,
@@ -1584,12 +1571,15 @@ function renderExamSetup(){
     </div>
   </div>
   <div class="card" style="margin-top:16px">
-    <div class="start-exam-settings">
+    <div class="filters">
       <div class="field"><label>Number of questions</label><input id="examCount" type="number" min="1" value="${Math.min(20,bank.length||1)}"></div>
       <div class="field"><label>Time limit (minutes, 0 = unlimited)</label><input id="examMinutes" type="number" min="0" value="0"></div>
-      <div class="field start-exam-answer"><label>Answer display</label><div class="answer-display-choice" role="radiogroup" aria-label="Answer display mode"><label class="answer-display-option"><input type="radio" name="answerDisplayMode" value="immediate"><span><b>Show answer immediately</b><small>Reveal the correct answer, your wrong choice, and the explanation immediately after selecting an option.</small></span></label><label class="answer-display-option"><input type="radio" name="answerDisplayMode" value="finish" checked><span><b>Show answer after submitting</b><small>Keep the correct answer and explanation hidden until the exam is submitted.</small></span></label></div></div>
+      <div class="field" style="grid-column:1/-1"><label>Answer display</label><div class="answer-mode-list" role="radiogroup" aria-label="Answer display mode">
+      <label class="answer-mode-option"><input type="radio" name="answerMode" value="immediate" ${settings.showAnswerImmediately?'checked':''}><span><strong>Show answer immediately</strong><div class="mini" style="margin-top:3px">Reveal the correct answer and explanation as soon as you select an answer.</div></span></label>
+      <label class="answer-mode-option"><input type="radio" name="answerMode" value="finish" ${!settings.showAnswerImmediately?'checked':''}><span><strong>Show answer after submitting</strong><div class="mini" style="margin-top:3px">Keep answers hidden while taking the exam. Reveal the answer and explanation after you submit.</div></span></label>
+    </div></div>
     </div>
-    <div style="margin-top:16px" class="start-exam-actions"><button class="btn primary btn-lg" onclick="startExam()">Start Exam</button><button class="btn" onclick="go('mistakes')">Practice Mistakes</button></div>
+    <div style="margin-top:14px" class="actions"><button class="btn primary btn-lg" onclick="startExam()">Start Exam</button><button class="btn" onclick="go('mistakes')">Practice Mistakes</button></div>
   </div>`;
   document.getElementById('app').innerHTML=layout('Start Exam','Choose the classic builder or the advanced mixed Module → Subject → Lecture builder.',body);
   updateSimpleExamSubjects();
@@ -1600,9 +1590,7 @@ function startExam(customList=null, overrides=null, customLabel=null){
   if(customList && !customList.length){toast('No questions to practice.','error');return;}
 
   let list=customList||[...bank];
-  // MedEx exam mode: answers are revealed only after the exam is submitted.
-  // Never reveal correctness while the student is still answering.
-  let answerMode='finish';
+  let answerMode=settings.showAnswerImmediately?'immediate':'finish';
   let label=customLabel||'Random review', moduleFilter='', subjectFilter='', lectureFilter='';
   let moduleFilters=[], subjectFilters=[], lectureFilters=[], selectionPaths=[];
   let minutesValue=0;
@@ -1621,11 +1609,11 @@ function startExam(customList=null, overrides=null, customLabel=null){
       s=subjectFilters[0]||'';
       l=lectureFilters[0]||'';
       n=Math.max(1,Number(overrides.count)||20);
-      answerMode=overrides.answerMode==='immediate'?'immediate':'finish';
+      answerMode=overrides.answerMode||answerMode;
       minutesValue=Number(overrides.minutes)||0;
     } else {
       n=Math.max(1,Number(document.getElementById('examCount').value)||1);
-      answerMode=document.querySelector('input[name=\"answerDisplayMode\"]:checked')?.value==='immediate'?'immediate':'finish';
+      answerMode=document.getElementById('answerMode').value;
       minutesValue=Number(document.getElementById('examMinutes').value)||0;
       if(examBuilderMode==='simple'){
         const sm=document.getElementById('simpleModule')?.value||'';
@@ -1766,14 +1754,23 @@ function renderQuiz(){
     examAI.messages=[];
   }
   const opts=q.options.map((o,i)=>{
-    const selectedClass=selected===i?'selected ':'';
-    const feedback=exam.answerMode==='immediate' && selected!==undefined ? (i===q.correctIndex?'correct':(i===selected?'wrong':'')) : '';
+    // Once an answer is selected, always reveal the correct option in green.
+    // If the selected answer is wrong, keep that selected option red.
+    let feedback='';
+    if(selected!==undefined && exam.answerMode==='immediate'){
+      if(i===q.correctIndex) feedback='correct';
+      else if(i===selected) feedback='wrong';
+    }
+    const selectedClass=selected===i && feedback!=='correct'?'selected ':'';
     return `<button class="option ${selectedClass}${feedback}" onclick="chooseAnswer(${i})" aria-pressed="${selected===i}">${String.fromCharCode(65+i)}. ${esc(o)}</button>`;
   }).join('');
   const nav=exam.list.map((item,i)=>{
     const answered=exam.answers[item.id]!==undefined;
-    const state=answered?'answered':'';
-    return `<button class="qnav-btn ${i===exam.index?'current ':''}${state}" onclick="jumpToQuestion(${i})" title="Question ${i+1}${answered?' — Answered':''}">${i+1}</button>`;
+    const reveal=exam.answerMode==='immediate';
+    const wrong=reveal && answered && exam.answers[item.id]!==item.correctIndex;
+    const state=wrong?'wrong':answered?'answered':'';
+    const title=reveal ? `Question ${i+1}${wrong?' — Wrong answer':answered?' — Correct answer':''}` : `Question ${i+1}${answered?' — Answered':''}`;
+    return `<button class="qnav-btn ${i===exam.index?'current ':''}${state}" onclick="jumpToQuestion(${i})" title="${title}">${i+1}</button>`;
   }).join('');
   const remaining=exam.minutes?Math.max(0,exam.minutes*60-Math.floor((Date.now()-exam.started)/1000)):0;
   const answeredCount=exam.list.filter(item=>exam.answers[item.id]!==undefined).length;
@@ -1788,15 +1785,15 @@ function renderQuiz(){
       ${nav}
       <div class="nav-legend" style="width:100%">
         <span><i class="nav-dot"></i>Not answered</span>
-        <span><i class="nav-dot answered"></i>Answered</span>
+        <span><i class="nav-dot answered"></i>Correct</span><span><i class="nav-dot wrong"></i>Wrong</span>
         <span><i class="nav-dot current"></i>Current</span>
       </div>
     </div>
     <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><div style="display:flex;gap:7px;flex:0 0 auto"><button type="button" class="btn" onclick="openQuestionReport()" title="Report this question" aria-label="Report this question">⚑</button><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div></div>
     ${q.imageUrl ? `<img class="question-illustration" src="${esc(q.imageUrl)}" alt="Question illustration" loading="eager">` : ''}
     <div class="options">${opts}</div>
-    ${exam.answerMode==='immediate' && selected!==undefined ? `<div id="immediateAnswerFeedback" class="immediate-answer-feedback ${selected===q.correctIndex?'':'wrong'}"><div class="answer-title">${selected===q.correctIndex?'✓ Correct':'✕ Incorrect'}</div><div style="margin-top:4px"><b>Correct answer:</b> ${esc(q.options[q.correctIndex])}</div>${selected!==q.correctIndex?`<div style="margin-top:3px"><b>Your answer:</b> ${esc(q.options[selected])}</div>`:''}${q.explanation?`<div style="margin-top:8px"><b>Explanation:</b> ${esc(q.explanation)}</div>`:'<div class="mini" style="margin-top:8px">No explanation is available for this question.</div>'}</div>`:''}
     ${reportPanelOpen ? questionReportHTML(q) : ''}
+    ${exam.answerMode==='immediate' && selected!==undefined ? `<div class="review ${selected===q.correctIndex?'good':'bad'}"><b>${selected===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}</div>` : ''}
     ${examAI.open?examAIHTML(q,answeredNow):`<div class="exam-ai-wrap"><div class="exam-ai-trigger"><div><strong>Need an explanation?</strong><div class="mini">Ask AI about this question before or after answering.</div></div><button class="btn primary" onclick="openExamAI()">✦ Ask AI</button></div></div>`}
     <div class="quiz-footer"><button class="btn" onclick="prevQ()" ${exam.index===0?'disabled':''}>Previous</button>
     <button class="btn primary" onclick="${exam.index===exam.list.length-1?'submitExam(false)':'nextQ()'}">${exam.index===exam.list.length-1?'Submit Exam':'Next'}</button></div>
@@ -1928,43 +1925,48 @@ function jumpToQuestion(i){
   renderQuiz();
 }
 function updateAnswerFeedback(q,selected){
+  // Update only the option/feedback DOM nodes. Do NOT replace #app here:
+  // replacing the quiz markup forces the illustration <img> to download again.
+  const reveal=exam.answerMode==='immediate';
   document.querySelectorAll('.quiz .option').forEach((btn,i)=>{
     btn.classList.remove('selected','correct','wrong');
     btn.setAttribute('aria-pressed', selected===i ? 'true' : 'false');
-    if(selected===i) btn.classList.add('selected');
-    if(exam.answerMode==='immediate' && selected!==undefined){
-      if(i===q.correctIndex) btn.classList.add('correct');
-      else if(i===selected) btn.classList.add('wrong');
+    if(selected!==undefined){
+      if(reveal && i===q.correctIndex) btn.classList.add('correct');
+      else if(reveal && i===selected) btn.classList.add('wrong','selected');
+      else if(!reveal && i===selected) btn.classList.add('selected');
     }
   });
   document.querySelectorAll('.qnav-btn').forEach((btn,i)=>{
     const item=exam.list[i], a=exam.answers[item.id];
     btn.classList.remove('answered','wrong');
-    if(a!==undefined) btn.classList.add('answered');
+    if(a!==undefined){
+      if(reveal && a!==item.correctIndex) btn.classList.add('wrong');
+      else btn.classList.add('answered');
+    }
   });
   const count=exam.list.filter(item=>exam.answers[item.id]!==undefined).length;
   const countEl=document.querySelector('.question-nav > div:first-child .mini');
   if(countEl) countEl.textContent=`${count}/${exam.list.length} answered`;
-  const feedback=document.getElementById('immediateAnswerFeedback');
-  if(exam.answerMode==='immediate' && selected!==undefined){
-    if(feedback){
-      feedback.className=`immediate-answer-feedback ${selected===q.correctIndex?'':'wrong'}`;
-      feedback.innerHTML=`<div class="answer-title">${selected===q.correctIndex?'✓ Correct':'✕ Incorrect'}</div><div style="margin-top:4px"><b>Correct answer:</b> ${esc(q.options[q.correctIndex])}</div>${selected!==q.correctIndex?`<div style="margin-top:3px"><b>Your answer:</b> ${esc(q.options[selected])}</div>`:''}${q.explanation?`<div style="margin-top:8px"><b>Explanation:</b> ${esc(q.explanation)}</div>`:'<div class="mini" style="margin-top:8px">No explanation is available for this question.</div>'}`;
+  const review=document.querySelector('.quiz .review');
+  if(review && exam.answerMode==='immediate' && selected!==undefined){
+    review.className=`review ${selected===q.correctIndex?'good':'bad'}`;
+    review.innerHTML=`<b>${selected===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}`;
+  }else if(exam.answerMode==='immediate' && selected!==undefined){
+    const options=document.querySelector('.quiz .options');
+    if(options){
+      options.insertAdjacentHTML('afterend',`<div class="review ${selected===q.correctIndex?'good':'bad'}"><b>${selected===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}</div>`);
     }
-  }else if(feedback){ feedback.remove(); }
+  }
 }
-
 function chooseAnswer(i){
   if(!exam||exam.submitted)return;
   const q=exam.list[exam.index];
+  if(exam.answerMode==='immediate' && exam.answers[q.id]!==undefined)return;
 
   exam.answers[q.id]=i;
   saveActiveExam();
-  if(exam.answerMode==='immediate'){
-    renderQuiz();
-  }else{
-    updateAnswerFeedback(q,i);
-  }
+  updateAnswerFeedback(q,i);
 }
 function nextQ(){if(exam.index<exam.list.length-1){reportPanelOpen=false;exam.index++;saveActiveExam();renderQuiz();}}
 function prevQ(){if(exam.index>0){reportPanelOpen=false;exam.index--;saveActiveExam();renderQuiz();}}
@@ -2001,6 +2003,7 @@ async function submitExam(auto){
     answered:exam.list.length-unanswered,
     correct,
     unanswered,
+    answerMode:exam.answerMode||'finish',
     accuracy:pct(correct,exam.list.length-unanswered),
     durationSec,
     list:exam.list,
@@ -2109,7 +2112,8 @@ function renderResults(){
   const body=`${meta}
   <div class="grid stats" style="margin-top:10px"><div class="card stat"><div class="label">Score</div><div class="value">${r.correct}/${r.total}</div></div><div class="card stat"><div class="label">Accuracy</div><div class="value">${r.accuracy}%</div></div><div class="card stat"><div class="label">Answered</div><div class="value">${r.answered}</div></div><div class="card stat"><div class="label">Unanswered</div><div class="value">${r.unanswered}</div></div></div>
   <h2 class="section-title">Full review</h2><div>${rows}</div><div class="actions" style="margin-top:14px"><button class="btn primary" onclick="go('exam')">New Exam</button><button class="btn" onclick="go('history')">Exam History</button><button class="btn" onclick="go('progress')">View Progress</button></div>`;
-  document.getElementById('app').innerHTML=layout('Exam Results',r.auto?'Time expired — exam submitted automatically.':'Exam completed.',body);
+  const modeNote=r.answerMode==='immediate'?'Answers were shown during the exam.':'Answers and explanations are shown here after submission.';
+  document.getElementById('app').innerHTML=layout('Exam Results',`${r.auto?'Time expired — exam submitted automatically.':'Exam completed.'} ${modeNote}`,body);
 }
 
 
@@ -2365,109 +2369,6 @@ function achievements(){
     ['First 10 questions',total>=10],['50 questions',total>=50],['100 correct answers',correct>=100],['7-day streak',streak>=7],['7 study days',days>=7],['Spaced review started',due>0]
   ];
 }
-let lectureNotesState=loadJSON('med64_lecture_notes_questions_v2',{notes:'',module:'',subject:'',lecture:'',count:5,questions:[],fileId:'',fileName:'',fileType:''});
-let lectureNotesBusy=false;
-const LECTURE_FILE_DB='medex_lecture_files_v1';
-function openLectureFileDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(LECTURE_FILE_DB,1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('files'))req.result.createObjectStore('files',{keyPath:'id'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
-async function saveLectureFile(file){const db=await openLectureFileDB();const id='lf_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put({id,name:file.name,type:file.type||'application/octet-stream',size:file.size,createdAt:Date.now(),blob:file});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();return id;}
-async function getLectureFile(id){if(!id)return null;const db=await openLectureFileDB();const row=await new Promise((resolve,reject)=>{const tx=db.transaction('files','readonly');const req=tx.objectStore('files').get(id);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});db.close();return row;}
-async function deleteLectureFile(id){if(!id)return;const db=await openLectureFileDB();await new Promise((resolve,reject)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();}
-function fileToDataURL(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result));r.onerror=()=>reject(r.error||new Error('Could not read file.'));r.readAsDataURL(file);});}
-function dataURLBase64(dataUrl){return String(dataUrl).split(',')[1]||'';}
-function decodeBase64Utf8(b64){const bin=atob(b64),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new TextDecoder('utf-8').decode(bytes);}
-function lectureFileAccept(file){const t=(file.type||'').toLowerCase(), n=file.name.toLowerCase();return t==='application/pdf'||t.startsWith('image/')||t.startsWith('text/')||/\.(txt|md|csv|json|pdf|png|jpe?g|webp)$/i.test(n);}
-async function handleLectureFileUpload(input){
-  const file=input?.files?.[0]; if(!file)return;
-  if(!lectureFileAccept(file)){toast('Supported files: PDF, TXT, MD, CSV, JSON, PNG, JPG/JPEG and WEBP.','error');input.value='';return;}
-  if(file.size>20*1024*1024){toast('Please keep the uploaded lecture file under 20 MB.','error');input.value='';return;}
-  try{const id=await saveLectureFile(file);if(lectureNotesState.fileId) await deleteLectureFile(lectureNotesState.fileId).catch(()=>{});lectureNotesState.fileId=id;lectureNotesState.fileName=file.name;lectureNotesState.fileType=file.type||'';saveLectureNotesState();toast('Lecture file saved locally.','ok');renderStudyTools();}catch(e){toast('Could not save the file locally: '+e.message,'error');}
-  input.value='';
-}
-async function removeLectureFile(){const id=lectureNotesState.fileId;try{await deleteLectureFile(id);}catch(e){}lectureNotesState.fileId='';lectureNotesState.fileName='';lectureNotesState.fileType='';saveLectureNotesState();renderStudyTools();}
-function lectureNotesQuestionsHTML(){
-  const st=lectureNotesState||{};
-  const fileInfo=st.fileName?`<div class="mini" style="margin-top:8px">📎 <b>${esc(st.fileName)}</b> · stored locally on this device <button class="btn" style="margin-left:6px;padding:4px 8px" onclick="removeLectureFile()">Remove file</button></div>`:'';
-  const qPreview=Array.isArray(st.questions)&&st.questions.length ? `<div style="margin-top:14px"><div class="category-head"><strong>Generated questions</strong><span class="pill">${st.questions.length}</span></div><div style="margin-top:10px;display:grid;gap:10px">${st.questions.map((q,i)=>`<div class="category-card"><div class="category-head"><b>${i+1}. ${esc(q.question)}</b><span class="pill">Correct: ${String.fromCharCode(65+Number(q.correctIndex||0))}</span></div><div style="margin-top:7px">${q.options.map((o,j)=>`<div class="review-choice ${j===Number(q.correctIndex)?'correct':''}"><b>${String.fromCharCode(65+j)}.</b> ${esc(o)}</div>`).join('')}</div>${q.explanation?`<div class="mini" style="margin-top:7px">${esc(q.explanation)}</div>`:''}</div>`).join('')}</div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startLectureNotesQuestions()">Practice these questions</button><button class="btn" onclick="lectureNotesState.questions=[];saveLectureNotesState();renderStudyTools()">Clear questions</button></div></div>` : '';
-  return `<section class="study-tools-card lecture-notes-card"><div class="study-card-heading"><div><span class="study-eyebrow">AI STUDY TOOL</span><h3>📚 Lecture Notes → Questions</h3><p>Paste notes or upload a lecture file. Uploaded files and generated questions stay locally on this device.</p></div></div><div class="filters" style="margin-top:14px"><div class="field"><label>Module <span class="mini">required</span></label><input id="lnModule" value="${esc(st.module||'')}" placeholder="e.g. Pharmacology"></div><div class="field"><label>Subject <span class="mini">required</span></label><input id="lnSubject" value="${esc(st.subject||'')}" placeholder="e.g. Autonomic drugs"></div><div class="field"><label>Lecture <span class="mini">required</span></label><input id="lnLecture" value="${esc(st.lecture||'')}" placeholder="e.g. Adrenergic receptors"></div><div class="field"><label>Questions</label><select id="lnCount">${[5,10].map(n=>`<option value="${n}" ${Number(st.count||5)===n?'selected':''}>${n}</option>`).join('')}</select></div></div><div class="field" style="margin-top:12px"><label>Upload lecture file</label><input id="lectureFileInput" type="file" accept=".pdf,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.webp,application/pdf,text/plain,image/*" onchange="handleLectureFileUpload(this)"><div class="mini" style="margin-top:6px">Gemini AI can read the uploaded PDF/image directly. Text files are read as text. Maximum 20 MB.</div>${fileInfo}</div><textarea id="lectureNotesInput" style="margin-top:12px;min-height:190px;width:100%;resize:vertical" placeholder="Or paste your lecture notes here…">${esc(st.notes||'')}</textarea><div class="actions" style="margin-top:10px"><button class="btn primary" id="lectureNotesGenerateBtn" onclick="generateLectureNotesQuestions()">${lectureNotesBusy?'<span class="spinner"></span> Generating…':'Generate questions with Gemini'}</button><button class="btn" onclick="saveLectureNotesDraft()">Save notes</button><button class="btn" onclick="clearLectureNotes()">Clear</button></div>${qPreview}</section>`;
-}
-function saveLectureNotesState(){localStorage.setItem('med64_lecture_notes_questions_v2',JSON.stringify(lectureNotesState));}
-function saveLectureNotesDraft(){lectureNotesState.notes=document.getElementById('lectureNotesInput')?.value||'';lectureNotesState.module=document.getElementById('lnModule')?.value.trim()||'';lectureNotesState.subject=document.getElementById('lnSubject')?.value.trim()||'';lectureNotesState.lecture=document.getElementById('lnLecture')?.value.trim()||'';lectureNotesState.count=Number(document.getElementById('lnCount')?.value)||5;saveLectureNotesState();toast('Lecture notes saved locally.','ok');}
-async function clearLectureNotes(){if(lectureNotesState.fileId)await deleteLectureFile(lectureNotesState.fileId).catch(()=>{});lectureNotesState={notes:'',module:'',subject:'',lecture:'',count:5,questions:[],fileId:'',fileName:'',fileType:''};saveLectureNotesState();renderStudyTools();}
-async function generateLectureNotesQuestions(){
-  if(lectureNotesBusy)return;
-  saveLectureNotesDraft();
-  const notes=(lectureNotesState.notes||'').trim();
-  const module=String(lectureNotesState.module||'').trim();
-  const subject=String(lectureNotesState.subject||'').trim();
-  const lecture=String(lectureNotesState.lecture||'').trim();
-  if(!module||!subject||!lecture){toast('Please enter the Module, Subject, and Lecture names before generating.','error');return;}
-  if(!notes && !lectureNotesState.fileId){toast('Paste lecture notes or upload a lecture file first.','error');return;}
-  lectureNotesBusy=true; renderStudyTools();
-  try{
-    const count=Math.max(5,Math.min(10,Number(lectureNotesState.count)||5));
-    const prompt=`You are generating medical MCQs from a student's supplied lecture source.
-
-Module: ${module}
-Subject: ${subject}
-Lecture: ${lecture}
-
-MANDATORY SOURCE-GROUNDING RULES:
-1. Read and inspect the ENTIRE supplied source before generating questions. For PDFs inspect every page; for images inspect all visible text, labels, tables and diagrams; for text use the complete text.
-2. Use ONLY information explicitly supported by the supplied source. Do not use outside medical knowledge to fill missing information.
-3. Every question, option, correct answer and explanation must be traceable to the supplied source.
-4. Never create a question about a fact that is absent from the source.
-5. Make each question test a distinct fact, relationship, mechanism, clinical point, table, figure or example actually present in the source.
-6. Avoid generic textbook questions unless the exact concept is present in the source.
-7. For every question, silently locate a short exact or near-exact evidence phrase in the source that supports the answer and return it as sourceEvidence.
-8. If the source does not support enough questions, return fewer questions rather than inventing facts.
-
-Return ONLY JSON in this shape:
-[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"...","sourceEvidence":"short evidence from source"}]
-Each question must have exactly 4 options and one correctIndex (zero-based). Do not add facts, citations or explanations that are not supported by the source.`;
-    let contents;
-    if(lectureNotesState.fileId){
-      const row=await getLectureFile(lectureNotesState.fileId); if(!row)throw new Error('Saved lecture file could not be found on this device.');
-      const dataUrl=await fileToDataURL(row.blob); const mime=row.type||'application/octet-stream';
-      if(mime.startsWith('text/')||/\.(txt|md|csv|json)$/i.test(row.name)){
-        const decoded=decodeBase64Utf8(dataURLBase64(dataUrl));
-        contents=[{role:'user',parts:[{text:`${prompt}\n\nSOURCE FILE: ${row.name}\n\n${decoded}`}]}];
-      }else{
-        contents=[{role:'user',parts:[{text:prompt},{inlineData:{mimeType:mime,data:dataURLBase64(dataUrl)}}]}];
-      }
-    }else{
-      contents=[{role:'user',parts:[{text:`${prompt}\n\nSOURCE: pasted lecture notes\n\n${notes}`}]}];
-    }
-    const model=(AI_PROVIDER_MODELS.gemini&&AI_PROVIDER_MODELS.gemini[0]?.id)||'gemini-3.8-flash';
-    const reply=await callAI(contents,{maxOutputTokens:Math.min(12000,Math.max(6500,count*900)),responseMimeType:'application/json'},{provider:'gemini',model,accessCode:aiSettings.accessCode||''});
-    const raw=parseAIQuestionJSON(reply);
-    const grounded=raw.filter(q=>String(q.sourceEvidence||'').trim()).slice(0,count);
-    if(!grounded.length)throw new Error('Gemini did not provide source evidence. Please retry with a clearer lecture file.');
-    const generatedModule=`${module} AI generated`;
-    const sourceFileName=lectureNotesState.fileName||'Pasted lecture notes';
-    const normalized=grounded.map((q,i)=>normalizeQuestion({
-      id:`notes_${Date.now()}_${i}_${Math.random().toString(36).slice(2,8)}`,
-      module:generatedModule,subject,lecture,difficulty:q.difficulty||'Medium',
-      reference:`Lecture Notes → Questions · ${sourceFileName}`,
-      source:`Lecture file: ${sourceFileName}`,
-      question:q.question,options:q.options,correctIndex:q.correctIndex,explanation:q.explanation
-    },'Lecture Notes → Questions')).filter(q=>q.question&&q.options.length===4&&Number.isInteger(q.correctIndex)&&q.correctIndex>=0&&q.correctIndex<4);
-    if(!normalized.length)throw new Error('Gemini returned no valid source-grounded 4-option questions. Please retry.');
-    lectureNotesState.questions=normalized;
-    saveLectureNotesState();
-    // Add the same generated questions to the existing local AI Questions page/bank.
-    const existingIds=new Set(aiQuestions.map(q=>q.id));
-    normalized.forEach(q=>{if(!existingIds.has(q.id))aiQuestions.push(q);});
-    localStorage.setItem(CONFIG.aiQuestionsKey,JSON.stringify(aiQuestions));
-    toast(`${normalized.length} source-grounded questions generated with Gemini and added to AI Questions.`,'ok');
-  }catch(e){toast('Could not generate questions: '+e.message,'error');}
-  finally{lectureNotesBusy=false;renderStudyTools();}
-}
-function startLectureNotesQuestions(){
-  const list=Array.isArray(lectureNotesState.questions)?lectureNotesState.questions:[];
-  if(!list.length){toast('Generate questions first.','error');return;}
-  startExam(list,{answerMode:'finish',minutes:0},'Lecture Notes → Questions');
-}
-
 function renderStudyTools(){
   const plans=studyPlans();
   const planHtml=plans.length?plans.map(p=>{const end=new Date(p.createdAt+Math.max(0,p.days-1)*86400000);const countdown=p.examDate?Math.max(0,Math.ceil((new Date(p.examDate+'T23:59:59').getTime()-Date.now())/86400000)):null;return `<div class="study-plan-row"><div><b>${esc(p.name)}</b><div class="mini">${p.days} days · ${p.target} questions/day · ends ${end.toLocaleDateString()}</div></div><span class="study-local-pill">${countdown===null?'No exam date':countdown+' days'}</span><div class="actions"><button class="btn" onclick="setExamCountdown('${attrJs(p.id)}')">${countdown===null?'Set exam date':'Change exam date'}</button><button class="btn" onclick="deleteStudyPlan('${attrJs(p.id)}')">Delete</button></div></div>`}).join(''):'<div class="empty">No study plans yet.</div>';
@@ -2476,7 +2377,6 @@ function renderStudyTools(){
     <section class="study-tools-hero"><div><span class="study-eyebrow">STUDY TOOLS</span><h2>Focused review, built into MedEx</h2><p>Build flashcards from any module, subject or lecture, then review them with Anki-style active recall, learning steps, lapses and spaced intervals.</p></div><div class="study-hero-actions"><button class="btn primary" onclick="startSpacedReview()">Review due questions</button></div></section>
     ${renderFlashcardSetup()}
     ${flashcardSummaryHTML()}
-    ${lectureNotesQuestionsHTML()}
     <div class="study-tools-columns">
       <section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">PLANNING</span><h3>Study Plans & Exam Countdown</h3><p>Set a target, daily workload and optional exam date.</p></div><button class="btn primary" onclick="createStudyPlan()">+ New Plan</button></div><div style="margin-top:12px">${planHtml}</div></section>
     </div>
@@ -3121,7 +3021,7 @@ function renderFavorites(){
 
 function renderSettings(){
   const body=`<div class="card"><h3 style="margin-top:0">Exam settings</h3>
-  <div class="notice ok">Exam answers are revealed only after you submit the exam. This prevents the correct answer from being shown while you are still answering.</div><br>
+  <label><input type="checkbox" id="sImmediate" ${settings.showAnswerImmediately?'checked':''}> Use “Show answer immediately” as the default exam mode</label><br><br>
   <label><input type="checkbox" id="sAuto" ${settings.autoSubmit?'checked':''}> Auto-submit when timer reaches zero</label>
   <div class="field" style="margin-top:14px;max-width:360px"><label>Daily question goal</label><input id="sDailyGoal" type="number" min="1" max="200" value="${getDailyGoal()}"><div class="mini" style="margin-top:5px">Used for your daily progress goal.</div></div>
   <div class="card" style="margin-top:16px;padding:14px">
@@ -3150,7 +3050,7 @@ function renderSettings(){
   document.getElementById('app').innerHTML=layout('Settings','Personal browser settings and backups.',body);
 }
 function saveSettings(){
-  settings.showAnswerImmediately=false;
+  settings.showAnswerImmediately=document.getElementById('sImmediate').checked;
   settings.autoSubmit=document.getElementById('sAuto').checked;
   settings.dailyGoal=Math.min(200,Math.max(1,Math.round(Number(document.getElementById('sDailyGoal')?.value)||20)));
   saveState();toast('Settings saved.','ok');
@@ -3816,7 +3716,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=46',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.1',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
