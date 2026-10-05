@@ -23,6 +23,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
+.answer-display-choice{display:grid;gap:10px;margin-top:8px}.answer-display-option{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);cursor:pointer}.answer-display-option:has(input:checked){border-color:var(--primary);background:var(--primary-soft)}.answer-display-option input{margin-top:3px}.answer-display-option span{display:grid;gap:3px}.answer-display-option small{color:var(--muted);font-size:12px;line-height:1.4}
+
 :root{
   --bg:#eef2f0;--card:#ffffff;--text:#101826;--muted:#5b6b72;--line:#dbe3e1;
   --primary:#0c7c8c;--primary2:#095f6c;--primary-rgb:12,124,140;--primary-soft:#e1f0f0;
@@ -1569,7 +1571,7 @@ function renderExamSetup(){
     <div class="filters">
       <div class="field"><label>Number of questions</label><input id="examCount" type="number" min="1" value="${Math.min(20,bank.length||1)}"></div>
       <div class="field"><label>Time limit (minutes, 0 = unlimited)</label><input id="examMinutes" type="number" min="0" value="0"></div>
-      <div class="field"><label>Answer display</label><select id="answerDisplayMode"><option value="finish">Show answer after submitting</option><option value="immediate">Show answer immediately</option></select><div class="mini" style="margin-top:6px">Choose whether correctness is revealed when you answer or only after submitting.</div></div>
+      <div class="field"><label>Answer display</label><div class="answer-display-choice" role="radiogroup" aria-label="Answer display mode"><label class="answer-display-option"><input type="radio" name="answerDisplayMode" value="immediate"><span><b>Show answer immediately</b><small>Reveal correct and wrong answers as soon as you choose.</small></span></label><label class="answer-display-option"><input type="radio" name="answerDisplayMode" value="finish" checked><span><b>Show answer after submitting</b><small>Keep answers hidden until the exam is submitted.</small></span></label></div></div>
     </div>
     <div style="margin-top:14px" class="actions"><button class="btn primary btn-lg" onclick="startExam()">Start Exam</button><button class="btn" onclick="go('mistakes')">Practice Mistakes</button></div>
   </div>`;
@@ -1607,7 +1609,7 @@ function startExam(customList=null, overrides=null, customLabel=null){
       minutesValue=Number(overrides.minutes)||0;
     } else {
       n=Math.max(1,Number(document.getElementById('examCount').value)||1);
-      answerMode=document.getElementById('answerDisplayMode')?.value==='immediate'?'immediate':'finish';
+      answerMode=document.querySelector('input[name=\"answerDisplayMode\"]:checked')?.value==='immediate'?'immediate':'finish';
       minutesValue=Number(document.getElementById('examMinutes').value)||0;
       if(examBuilderMode==='simple'){
         const sm=document.getElementById('simpleModule')?.value||'';
@@ -3749,7 +3751,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=39',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=44',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
