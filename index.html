@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v39-anki-local-fixes">
+<meta name="medex-build" content="v41.5-exam-drawing-tools">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -244,6 +244,20 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .review.good{border-left:4px solid var(--ok)}
 .review.bad{border-left:4px solid var(--danger)}
 .quiz-footer{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
+
+/* ---------- Exam drawing & notes tools ---------- */
+.exam-annotation-tools{margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg);overflow:hidden}
+.exam-annotation-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--line)}
+.exam-annotation-toolbar .btn{padding:7px 10px;font-size:12px}
+.exam-annotation-toolbar .btn.tool-active{background:var(--primary-soft);border-color:var(--primary);color:var(--primary2)}
+.exam-annotation-title{font-weight:700;font-size:12px;margin-right:4px}
+.exam-annotation-stage{position:relative;margin:12px;border:1px dashed var(--line);border-radius:var(--radius-sm);padding:12px;background:var(--card)}
+.exam-annotation-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:8;touch-action:none;pointer-events:none}
+.exam-annotation-canvas.drawing-enabled{pointer-events:auto;cursor:crosshair}
+.exam-annotation-note{width:100%;min-height:78px;max-height:180px;resize:vertical;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--card);color:var(--text);padding:10px 12px;font-family:var(--font-sans);font-size:13px;line-height:1.5}
+.exam-annotation-note-wrap{padding:0 12px 12px}
+.exam-annotation-hint{font-size:11px;color:var(--muted);margin-left:auto}
+@media(max-width:700px){.exam-annotation-toolbar{gap:6px}.exam-annotation-toolbar .btn{padding:7px 9px}.exam-annotation-hint{width:100%;margin-left:0}}
 
 .exam-ai-wrap{margin-top:14px}
 .exam-ai-trigger{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg)}
@@ -1782,6 +1796,119 @@ function startTimer(sec){
 }
 function formatTime(s){s=Math.max(0,Math.floor(s));return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 
+let examDrawingTool='pen';
+let examDrawingColor='#101826';
+let examDrawingSize=3;
+let examDrawingEnabled=false;
+let examDrawingResizeObserver=null;
+
+function annotationData(q){
+  if(!exam||!q)return null;
+  exam.annotations=exam.annotations||{};
+  const id=String(q.id);
+  if(!exam.annotations[id]) exam.annotations[id]={strokes:[],note:''};
+  return exam.annotations[id];
+}
+function annotationPointsForCanvas(points,canvas){
+  const rect=canvas.getBoundingClientRect();
+  return points.map(p=>[p[0]*rect.width,p[1]*rect.height]);
+}
+function drawExamAnnotations(){
+  const canvas=document.getElementById('examAnnotationCanvas');
+  if(!canvas||!exam)return;
+  const stage=canvas.parentElement;
+  const rect=stage.getBoundingClientRect();
+  const dpr=Math.max(1,window.devicePixelRatio||1);
+  const w=Math.max(1,Math.round(rect.width)), h=Math.max(1,Math.round(rect.height));
+  if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){
+    canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr);
+    canvas.style.width=w+'px'; canvas.style.height=h+'px';
+  }
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  const data=annotationData(exam.list[exam.index]);
+  if(!data)return;
+  for(const stroke of data.strokes||[]){
+    const pts=annotationPointsForCanvas(stroke.points||[],canvas);
+    if(!pts.length)continue;
+    ctx.save();
+    ctx.globalAlpha=stroke.tool==='highlighter'?.32:1;
+    ctx.globalCompositeOperation=stroke.tool==='eraser'?'destination-out':'source-over';
+    ctx.strokeStyle=stroke.tool==='highlighter'?(stroke.color||'#f2c94c'):(stroke.color||'#101826');
+    ctx.lineWidth=Number(stroke.size||3)*(stroke.tool==='highlighter'?5:1);
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0],pts[0][1]);
+    if(pts.length===1)ctx.lineTo(pts[0][0]+.01,pts[0][1]+.01);
+    else for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0],pts[i][1]);
+    ctx.stroke(); ctx.restore();
+  }
+}
+function initExamDrawing(){
+  const canvas=document.getElementById('examAnnotationCanvas');
+  const note=document.getElementById('examAnnotationNote');
+  if(!canvas||!exam)return;
+  const data=annotationData(exam.list[exam.index]);
+  if(note){
+    note.value=data?.note||'';
+    note.oninput=()=>{ if(data){data.note=note.value; saveActiveExam();} };
+  }
+  drawExamAnnotations();
+  if(examDrawingResizeObserver)examDrawingResizeObserver.disconnect();
+  if(window.ResizeObserver){
+    examDrawingResizeObserver=new ResizeObserver(()=>drawExamAnnotations());
+    examDrawingResizeObserver.observe(canvas.parentElement);
+  }
+  canvas.onpointerdown=(e)=>{
+    if(!examDrawingEnabled)return;
+    e.preventDefault();
+    canvas.setPointerCapture?.(e.pointerId);
+    const rect=canvas.getBoundingClientRect();
+    const data=annotationData(exam.list[exam.index]);
+    const point=[Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))];
+    data.strokes.push({tool:examDrawingTool,color:examDrawingTool==='highlighter'?'#f2c94c':examDrawingColor,size:examDrawingTool==='eraser'?Math.max(12,examDrawingSize*5):examDrawingSize,points:[point]});
+    canvas._activeStroke=data.strokes[data.strokes.length-1];
+    drawExamAnnotations();
+  };
+  canvas.onpointermove=(e)=>{
+    const stroke=canvas._activeStroke;
+    if(!stroke||!examDrawingEnabled)return;
+    e.preventDefault();
+    const rect=canvas.getBoundingClientRect();
+    stroke.points.push([Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))]);
+    drawExamAnnotations();
+  };
+  const finish=()=>{if(canvas._activeStroke){canvas._activeStroke=null;saveActiveExam();}};
+  canvas.onpointerup=finish; canvas.onpointercancel=finish; canvas.onpointerleave=(e)=>{if(e.buttons===0)finish();};
+}
+function setExamDrawingTool(tool){
+  if(!exam)return;
+  examDrawingTool=tool;
+  examDrawingEnabled=true;
+  const canvas=document.getElementById('examAnnotationCanvas');
+  if(canvas)canvas.classList.add('drawing-enabled');
+  document.querySelectorAll('.exam-annotation-toolbar .tool-btn').forEach(b=>b.classList.toggle('tool-active',b.dataset.tool===tool));
+}
+function toggleExamDrawing(){
+  examDrawingEnabled=!examDrawingEnabled;
+  const canvas=document.getElementById('examAnnotationCanvas');
+  if(canvas)canvas.classList.toggle('drawing-enabled',examDrawingEnabled);
+  const btn=document.getElementById('examDrawingToggle');
+  if(btn)btn.classList.toggle('tool-active',examDrawingEnabled);
+}
+function undoExamDrawing(){
+  if(!exam)return; const data=annotationData(exam.list[exam.index]);
+  if(data.strokes.length){data.strokes.pop();saveActiveExam();drawExamAnnotations();}
+}
+function clearExamDrawing(){
+  if(!exam)return;
+  const data=annotationData(exam.list[exam.index]);
+  if(!data.strokes.length)return;
+  if(confirm('Clear all drawings and highlights on this question?')){data.strokes=[];saveActiveExam();drawExamAnnotations();}
+}
+function setExamDrawingSize(v){examDrawingSize=Number(v)||3;}
+
 function renderQuiz(){
   if(!exam)return go('exam');
   const q=exam.list[exam.index], selected=exam.answers[q.id];
@@ -1825,9 +1952,26 @@ function renderQuiz(){
         <span><i class="nav-dot current"></i>Current</span>
       </div>
     </div>
-    <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><div style="display:flex;gap:7px;flex:0 0 auto"><button type="button" class="btn" onclick="openQuestionReport()" title="Report this question" aria-label="Report this question">⚑</button><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div></div>
-    ${q.imageUrl ? `<img class="question-illustration" src="${esc(q.imageUrl)}" alt="Question illustration" loading="eager">` : ''}
-    <div class="options">${opts}</div>
+    <div class="exam-annotation-tools">
+      <div class="exam-annotation-toolbar">
+        <span class="exam-annotation-title">✎ Notes & Highlight</span>
+        <button type="button" id="examDrawingToggle" class="btn ${examDrawingEnabled?'tool-active':''}" onclick="toggleExamDrawing()">${examDrawingEnabled?'Drawing On':'Draw'}</button>
+        <button type="button" class="btn tool-btn ${examDrawingTool==='pen'?'tool-active':''}" data-tool="pen" onclick="setExamDrawingTool('pen')">Pen</button>
+        <button type="button" class="btn tool-btn ${examDrawingTool==='highlighter'?'tool-active':''}" data-tool="highlighter" onclick="setExamDrawingTool('highlighter')">Highlight</button>
+        <button type="button" class="btn tool-btn ${examDrawingTool==='eraser'?'tool-active':''}" data-tool="eraser" onclick="setExamDrawingTool('eraser')">Eraser</button>
+        <label class="mini" style="display:flex;align-items:center;gap:5px">Size <input type="range" min="1" max="8" value="${examDrawingSize}" oninput="setExamDrawingSize(this.value)" style="width:70px"></label>
+        <button type="button" class="btn" onclick="undoExamDrawing()">Undo</button>
+        <button type="button" class="btn" onclick="clearExamDrawing()">Clear</button>
+        <span class="exam-annotation-hint">Draw/highlight over the question. Notes stay only during this exam.</span>
+      </div>
+      <div class="exam-annotation-note-wrap"><textarea id="examAnnotationNote" class="exam-annotation-note" placeholder="Take a private note for this question…"></textarea></div>
+    </div>
+    <div class="exam-annotation-stage">
+      <canvas id="examAnnotationCanvas" class="exam-annotation-canvas ${examDrawingEnabled?'drawing-enabled':''}" aria-label="Exam drawing canvas"></canvas>
+      <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><div style="display:flex;gap:7px;flex:0 0 auto"><button type="button" class="btn" onclick="openQuestionReport()" title="Report this question" aria-label="Report this question">⚑</button><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div></div>
+      ${q.imageUrl ? `<img class="question-illustration" src="${esc(q.imageUrl)}" alt="Question illustration" loading="eager">` : ''}
+      <div class="options">${opts}</div>
+    </div>
     ${reportPanelOpen ? questionReportHTML(q) : ''}
     ${exam.answerMode==='immediate' && selected!==undefined ? `<div class="review ${selected===q.correctIndex?'good':'bad'}"><b>${selected===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}</div>` : ''}
     ${examAI.open?examAIHTML(q,answeredNow):`<div class="exam-ai-wrap"><div class="exam-ai-trigger"><div><strong>Need an explanation?</strong><div class="mini">Ask AI about this question before or after answering.</div></div><button class="btn primary" onclick="openExamAI()">✦ Ask AI</button></div></div>`}
@@ -1835,6 +1979,7 @@ function renderQuiz(){
     <button class="btn primary" onclick="${exam.index===exam.list.length-1?'submitExam(false)':'nextQ()'}">${exam.index===exam.list.length-1?'Submit Exam':'Next'}</button></div>
   </div></div>`;
   document.getElementById('app').innerHTML=layout('Exam','Use the numbered buttons to move between questions. You can open Ask AI at any time for a question-specific explanation.',body);
+  setTimeout(initExamDrawing,0);
 }
 
 function openQuestionReport(){
@@ -2060,6 +2205,8 @@ async function submitExam(auto){
     await syncLocalProgressToSupabase();
     await loadGlobalAnalytics();
   }
+  // Drawings, highlights and notes are exam-only and are intentionally discarded on submission.
+  if(exam){ exam.annotations={}; }
   exam=null;
   clearActiveExam();
   localStorage.setItem(CONFIG.lastResultKey,JSON.stringify(result));
@@ -3752,7 +3899,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.4',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.5',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
