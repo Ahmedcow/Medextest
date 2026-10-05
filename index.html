@@ -1579,18 +1579,48 @@ function renderExamSetup(){
       <label class="answer-mode-option"><input type="radio" name="answerMode" value="finish" ${!settings.showAnswerImmediately?'checked':''}><span><strong>Show answer after submitting</strong><div class="mini" style="margin-top:3px">Keep answers hidden while taking the exam. Reveal the answer and explanation after you submit.</div></span></label>
     </div></div>
     </div>
-    <div style="margin-top:14px" class="actions"><button class="btn primary btn-lg" onclick="startExam()">Start Exam</button><button class="btn" onclick="go('mistakes')">Practice Mistakes</button></div>
+    <div style="margin-top:14px" class="actions"><button type="button" class="btn primary btn-lg" id="startExamBtn" onclick="startExamFromSetup()">Start Exam</button><button type="button" class="btn" onclick="go('mistakes')">Practice Mistakes</button></div>
   </div>`;
   document.getElementById('app').innerHTML=layout('Start Exam','Choose the classic builder or the advanced mixed Module → Subject → Lecture builder.',body);
   updateSimpleExamSubjects();
   setExamBuilderMode(examBuilderMode);
 }
-function startExam(customList=null, overrides=null, customLabel=null){
+function startExamFromSetup(){
+  const btn=document.getElementById('startExamBtn');
+  if(btn){btn.disabled=true;btn.textContent='Starting…';}
+  try{
+    if(!Array.isArray(bank)||!bank.length){
+      toast('No questions are loaded yet. Please wait for the question bank to finish loading, then try again.','error');
+      return;
+    }
+    const countEl=document.getElementById('examCount');
+    const minutesEl=document.getElementById('examMinutes');
+    if(!countEl||!minutesEl){
+      toast('Start Exam setup is not ready. Please open Start Exam again.','error');
+      return;
+    }
+    const mode=document.querySelector('input[name="answerMode"]:checked')?.value;
+    if(mode!=='immediate' && mode!=='finish'){
+      toast('Please select an answer display option.','error');
+      return;
+    }
+    // Pass the selected mode explicitly so Start Exam never falls back to an
+    // older saved setting when the user chooses the other option on this page.
+    startExam(null,null,null,mode);
+  }catch(e){
+    console.error('Start Exam failed:',e);
+    toast('Could not start the exam. Please try again.','error');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Start Exam';}
+  }
+}
+
+function startExam(customList=null, overrides=null, customLabel=null, setupAnswerMode=null){
   if(!customList && !bank.length){toast('No questions are loaded. Refresh from GitHub first.','error');return;}
   if(customList && !customList.length){toast('No questions to practice.','error');return;}
 
   let list=customList||[...bank];
-  let answerMode=settings.showAnswerImmediately?'immediate':'finish';
+  let answerMode=(setupAnswerMode==='finish'||setupAnswerMode==='immediate') ? setupAnswerMode : (settings.showAnswerImmediately?'immediate':'finish');
   let label=customLabel||'Random review', moduleFilter='', subjectFilter='', lectureFilter='';
   let moduleFilters=[], subjectFilters=[], lectureFilters=[], selectionPaths=[];
   let minutesValue=0;
@@ -1613,7 +1643,7 @@ function startExam(customList=null, overrides=null, customLabel=null){
       minutesValue=Number(overrides.minutes)||0;
     } else {
       n=Math.max(1,Number(document.getElementById('examCount').value)||1);
-      answerMode=document.getElementById('answerMode').value;
+      answerMode=(document.querySelector('input[name="answerMode"]:checked')?.value==='finish')?'finish':'immediate';
       minutesValue=Number(document.getElementById('examMinutes').value)||0;
       if(examBuilderMode==='simple'){
         const sm=document.getElementById('simpleModule')?.value||'';
@@ -1663,6 +1693,12 @@ function startExam(customList=null, overrides=null, customLabel=null){
       - Questions answered correctly are removed from future exams.
       - Reset Progress clears this memory and makes all questions eligible again.
     */
+    list=list.filter(q=>q && q.id && Array.isArray(q.options) && q.options.length>=2 && Number.isInteger(Number(q.correctIndex)) && Number(q.correctIndex)>=0 && Number(q.correctIndex)<q.options.length);
+    if(!list.length){
+      toast('No valid questions are available for this exam selection.','error');
+      return;
+    }
+
     const eligible=list.filter(q=>{
       const p=progress[key(q)];
       return !p || p.last!=='correct';
@@ -3716,7 +3752,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.1',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.4',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
