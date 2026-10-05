@@ -23,7 +23,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-.answer-display-choice{display:grid;gap:10px;margin-top:8px}.answer-display-option{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);cursor:pointer}.answer-display-option:has(input:checked){border-color:var(--primary);background:var(--primary-soft)}.answer-display-option input{margin-top:3px}.answer-display-option span{display:grid;gap:3px}.answer-display-option small{color:var(--muted);font-size:12px;line-height:1.4}
+.answer-display-choice{display:grid;gap:10px;margin-top:8px}
+/* v46: Start Exam desktop/tablet polish */
+.answer-display-choice{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.answer-display-option{min-width:0;min-height:74px}
+@media(min-width:1101px){.start-exam-settings{grid-template-columns:minmax(190px,1fr) minmax(190px,1fr) minmax(520px,2.4fr)}.start-exam-answer .answer-display-choice{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:1100px) and (min-width:701px){.start-exam-settings{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.start-exam-answer{grid-column:1/-1}.start-exam-answer .answer-display-choice{grid-template-columns:repeat(2,minmax(0,1fr))}.start-exam-actions{justify-content:flex-start}}
+@media(max-width:700px){.answer-display-choice{grid-template-columns:1fr}.answer-display-option{min-height:0}}
+.answer-display-option{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);cursor:pointer}.answer-display-option:has(input:checked){border-color:var(--primary);background:var(--primary-soft)}.answer-display-option input{margin-top:3px}.answer-display-option span{display:grid;gap:3px}.answer-display-option small{color:var(--muted);font-size:12px;line-height:1.4}
 
 :root{
   --bg:#eef2f0;--card:#ffffff;--text:#101826;--muted:#5b6b72;--line:#dbe3e1;
@@ -202,6 +209,15 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 
 /* ---------- Quiz ---------- */
 .quiz{max-width:980px;margin:auto}
+
+.start-exam-settings{display:grid;grid-template-columns:minmax(180px,1fr) minmax(180px,1fr) minmax(360px,2fr);gap:16px;align-items:start}
+.start-exam-answer{min-width:0}
+.start-exam-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.immediate-answer-feedback{margin-top:14px;padding:14px 16px;border:1px solid var(--ok);border-left:4px solid var(--ok);border-radius:var(--radius-sm);background:var(--ok-soft);color:var(--text);line-height:1.55}
+.immediate-answer-feedback.wrong{border-color:var(--danger);border-left-color:var(--danger);background:var(--danger-soft)}
+.immediate-answer-feedback .answer-title{font-weight:800}
+@media(max-width:1100px) and (min-width:701px){.start-exam-settings{grid-template-columns:1fr 1fr}.start-exam-answer{grid-column:1 / -1}.start-exam-actions{justify-content:flex-start}.quiz{max-width:900px}.question{font-size:20px}.question-nav{gap:6px}.qnav-btn{width:36px;height:36px}}
+@media(max-width:700px){.start-exam-settings{grid-template-columns:1fr}.start-exam-answer{grid-column:auto}.start-exam-actions{justify-content:stretch}.start-exam-actions .btn{flex:1 1 180px}.quiz{width:100%}.quiz .card{padding:14px}.question{font-size:20px;line-height:1.45;display:block!important}.question>span{display:block;min-width:0}.question>div{margin-top:10px;justify-content:flex-end}.question-nav{padding:10px;gap:6px}.qnav-btn{width:34px;height:34px}.nav-legend{gap:8px;flex-wrap:wrap}.option{padding:13px 12px}.question-illustration{max-height:360px}}
 .qhead{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
 .timer{font-family:var(--font-mono);font-weight:600;color:var(--primary);font-size:17px}
 .question{font-family:var(--font-serif);font-size:21px;line-height:1.5;font-weight:600;margin:18px 0}
@@ -1568,12 +1584,12 @@ function renderExamSetup(){
     </div>
   </div>
   <div class="card" style="margin-top:16px">
-    <div class="filters">
+    <div class="start-exam-settings">
       <div class="field"><label>Number of questions</label><input id="examCount" type="number" min="1" value="${Math.min(20,bank.length||1)}"></div>
       <div class="field"><label>Time limit (minutes, 0 = unlimited)</label><input id="examMinutes" type="number" min="0" value="0"></div>
-      <div class="field"><label>Answer display</label><div class="answer-display-choice" role="radiogroup" aria-label="Answer display mode"><label class="answer-display-option"><input type="radio" name="answerDisplayMode" value="immediate"><span><b>Show answer immediately</b><small>Reveal correct and wrong answers as soon as you choose.</small></span></label><label class="answer-display-option"><input type="radio" name="answerDisplayMode" value="finish" checked><span><b>Show answer after submitting</b><small>Keep answers hidden until the exam is submitted.</small></span></label></div></div>
+      <div class="field start-exam-answer"><label>Answer display</label><div class="answer-display-choice" role="radiogroup" aria-label="Answer display mode"><label class="answer-display-option"><input type="radio" name="answerDisplayMode" value="immediate"><span><b>Show answer immediately</b><small>Reveal the correct answer, your wrong choice, and the explanation immediately after selecting an option.</small></span></label><label class="answer-display-option"><input type="radio" name="answerDisplayMode" value="finish" checked><span><b>Show answer after submitting</b><small>Keep the correct answer and explanation hidden until the exam is submitted.</small></span></label></div></div>
     </div>
-    <div style="margin-top:14px" class="actions"><button class="btn primary btn-lg" onclick="startExam()">Start Exam</button><button class="btn" onclick="go('mistakes')">Practice Mistakes</button></div>
+    <div style="margin-top:16px" class="start-exam-actions"><button class="btn primary btn-lg" onclick="startExam()">Start Exam</button><button class="btn" onclick="go('mistakes')">Practice Mistakes</button></div>
   </div>`;
   document.getElementById('app').innerHTML=layout('Start Exam','Choose the classic builder or the advanced mixed Module → Subject → Lecture builder.',body);
   updateSimpleExamSubjects();
@@ -1779,6 +1795,7 @@ function renderQuiz(){
     <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><div style="display:flex;gap:7px;flex:0 0 auto"><button type="button" class="btn" onclick="openQuestionReport()" title="Report this question" aria-label="Report this question">⚑</button><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div></div>
     ${q.imageUrl ? `<img class="question-illustration" src="${esc(q.imageUrl)}" alt="Question illustration" loading="eager">` : ''}
     <div class="options">${opts}</div>
+    ${exam.answerMode==='immediate' && selected!==undefined ? `<div id="immediateAnswerFeedback" class="immediate-answer-feedback ${selected===q.correctIndex?'':'wrong'}"><div class="answer-title">${selected===q.correctIndex?'✓ Correct':'✕ Incorrect'}</div><div style="margin-top:4px"><b>Correct answer:</b> ${esc(q.options[q.correctIndex])}</div>${selected!==q.correctIndex?`<div style="margin-top:3px"><b>Your answer:</b> ${esc(q.options[selected])}</div>`:''}${q.explanation?`<div style="margin-top:8px"><b>Explanation:</b> ${esc(q.explanation)}</div>`:'<div class="mini" style="margin-top:8px">No explanation is available for this question.</div>'}</div>`:''}
     ${reportPanelOpen ? questionReportHTML(q) : ''}
     ${examAI.open?examAIHTML(q,answeredNow):`<div class="exam-ai-wrap"><div class="exam-ai-trigger"><div><strong>Need an explanation?</strong><div class="mini">Ask AI about this question before or after answering.</div></div><button class="btn primary" onclick="openExamAI()">✦ Ask AI</button></div></div>`}
     <div class="quiz-footer"><button class="btn" onclick="prevQ()" ${exam.index===0?'disabled':''}>Previous</button>
@@ -1928,16 +1945,26 @@ function updateAnswerFeedback(q,selected){
   const count=exam.list.filter(item=>exam.answers[item.id]!==undefined).length;
   const countEl=document.querySelector('.question-nav > div:first-child .mini');
   if(countEl) countEl.textContent=`${count}/${exam.list.length} answered`;
-  const review=document.querySelector('.quiz .review');
-  if(review) review.remove();
+  const feedback=document.getElementById('immediateAnswerFeedback');
+  if(exam.answerMode==='immediate' && selected!==undefined){
+    if(feedback){
+      feedback.className=`immediate-answer-feedback ${selected===q.correctIndex?'':'wrong'}`;
+      feedback.innerHTML=`<div class="answer-title">${selected===q.correctIndex?'✓ Correct':'✕ Incorrect'}</div><div style="margin-top:4px"><b>Correct answer:</b> ${esc(q.options[q.correctIndex])}</div>${selected!==q.correctIndex?`<div style="margin-top:3px"><b>Your answer:</b> ${esc(q.options[selected])}</div>`:''}${q.explanation?`<div style="margin-top:8px"><b>Explanation:</b> ${esc(q.explanation)}</div>`:'<div class="mini" style="margin-top:8px">No explanation is available for this question.</div>'}`;
+    }
+  }else if(feedback){ feedback.remove(); }
 }
+
 function chooseAnswer(i){
   if(!exam||exam.submitted)return;
   const q=exam.list[exam.index];
 
   exam.answers[q.id]=i;
   saveActiveExam();
-  updateAnswerFeedback(q,i);
+  if(exam.answerMode==='immediate'){
+    renderQuiz();
+  }else{
+    updateAnswerFeedback(q,i);
+  }
 }
 function nextQ(){if(exam.index<exam.list.length-1){reportPanelOpen=false;exam.index++;saveActiveExam();renderQuiz();}}
 function prevQ(){if(exam.index>0){reportPanelOpen=false;exam.index--;saveActiveExam();renderQuiz();}}
@@ -2361,7 +2388,7 @@ function lectureNotesQuestionsHTML(){
   const st=lectureNotesState||{};
   const fileInfo=st.fileName?`<div class="mini" style="margin-top:8px">📎 <b>${esc(st.fileName)}</b> · stored locally on this device <button class="btn" style="margin-left:6px;padding:4px 8px" onclick="removeLectureFile()">Remove file</button></div>`:'';
   const qPreview=Array.isArray(st.questions)&&st.questions.length ? `<div style="margin-top:14px"><div class="category-head"><strong>Generated questions</strong><span class="pill">${st.questions.length}</span></div><div style="margin-top:10px;display:grid;gap:10px">${st.questions.map((q,i)=>`<div class="category-card"><div class="category-head"><b>${i+1}. ${esc(q.question)}</b><span class="pill">Correct: ${String.fromCharCode(65+Number(q.correctIndex||0))}</span></div><div style="margin-top:7px">${q.options.map((o,j)=>`<div class="review-choice ${j===Number(q.correctIndex)?'correct':''}"><b>${String.fromCharCode(65+j)}.</b> ${esc(o)}</div>`).join('')}</div>${q.explanation?`<div class="mini" style="margin-top:7px">${esc(q.explanation)}</div>`:''}</div>`).join('')}</div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startLectureNotesQuestions()">Practice these questions</button><button class="btn" onclick="lectureNotesState.questions=[];saveLectureNotesState();renderStudyTools()">Clear questions</button></div></div>` : '';
-  return `<section class="study-tools-card lecture-notes-card"><div class="study-card-heading"><div><span class="study-eyebrow">AI STUDY TOOL</span><h3>📚 Lecture Notes → Questions</h3><p>Paste notes or upload a lecture file. Uploaded files and generated questions stay locally on this device.</p></div></div><div class="filters" style="margin-top:14px"><div class="field"><label>Module <span class="mini">optional</span></label><input id="lnModule" value="${esc(st.module||'')}" placeholder="e.g. Pharmacology"></div><div class="field"><label>Subject <span class="mini">optional</span></label><input id="lnSubject" value="${esc(st.subject||'')}" placeholder="e.g. Autonomic drugs"></div><div class="field"><label>Lecture <span class="mini">optional</span></label><input id="lnLecture" value="${esc(st.lecture||'')}" placeholder="e.g. Adrenergic receptors"></div><div class="field"><label>Questions</label><select id="lnCount">${[5,10].map(n=>`<option value="${n}" ${Number(st.count||5)===n?'selected':''}>${n}</option>`).join('')}</select></div></div><div class="field" style="margin-top:12px"><label>Upload lecture file</label><input id="lectureFileInput" type="file" accept=".pdf,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.webp,application/pdf,text/plain,image/*" onchange="handleLectureFileUpload(this)"><div class="mini" style="margin-top:6px">Gemini AI can read the uploaded PDF/image directly. Text files are read as text. Maximum 20 MB.</div>${fileInfo}</div><textarea id="lectureNotesInput" style="margin-top:12px;min-height:190px;width:100%;resize:vertical" placeholder="Or paste your lecture notes here…">${esc(st.notes||'')}</textarea><div class="actions" style="margin-top:10px"><button class="btn primary" id="lectureNotesGenerateBtn" onclick="generateLectureNotesQuestions()">${lectureNotesBusy?'<span class="spinner"></span> Generating…':'Generate questions with Gemini'}</button><button class="btn" onclick="saveLectureNotesDraft()">Save notes</button><button class="btn" onclick="clearLectureNotes()">Clear</button></div>${qPreview}</section>`;
+  return `<section class="study-tools-card lecture-notes-card"><div class="study-card-heading"><div><span class="study-eyebrow">AI STUDY TOOL</span><h3>📚 Lecture Notes → Questions</h3><p>Paste notes or upload a lecture file. Uploaded files and generated questions stay locally on this device.</p></div></div><div class="filters" style="margin-top:14px"><div class="field"><label>Module <span class="mini">required</span></label><input id="lnModule" value="${esc(st.module||'')}" placeholder="e.g. Pharmacology"></div><div class="field"><label>Subject <span class="mini">required</span></label><input id="lnSubject" value="${esc(st.subject||'')}" placeholder="e.g. Autonomic drugs"></div><div class="field"><label>Lecture <span class="mini">required</span></label><input id="lnLecture" value="${esc(st.lecture||'')}" placeholder="e.g. Adrenergic receptors"></div><div class="field"><label>Questions</label><select id="lnCount">${[5,10].map(n=>`<option value="${n}" ${Number(st.count||5)===n?'selected':''}>${n}</option>`).join('')}</select></div></div><div class="field" style="margin-top:12px"><label>Upload lecture file</label><input id="lectureFileInput" type="file" accept=".pdf,.txt,.md,.csv,.json,.png,.jpg,.jpeg,.webp,application/pdf,text/plain,image/*" onchange="handleLectureFileUpload(this)"><div class="mini" style="margin-top:6px">Gemini AI can read the uploaded PDF/image directly. Text files are read as text. Maximum 20 MB.</div>${fileInfo}</div><textarea id="lectureNotesInput" style="margin-top:12px;min-height:190px;width:100%;resize:vertical" placeholder="Or paste your lecture notes here…">${esc(st.notes||'')}</textarea><div class="actions" style="margin-top:10px"><button class="btn primary" id="lectureNotesGenerateBtn" onclick="generateLectureNotesQuestions()">${lectureNotesBusy?'<span class="spinner"></span> Generating…':'Generate questions with Gemini'}</button><button class="btn" onclick="saveLectureNotesDraft()">Save notes</button><button class="btn" onclick="clearLectureNotes()">Clear</button></div>${qPreview}</section>`;
 }
 function saveLectureNotesState(){localStorage.setItem('med64_lecture_notes_questions_v2',JSON.stringify(lectureNotesState));}
 function saveLectureNotesDraft(){lectureNotesState.notes=document.getElementById('lectureNotesInput')?.value||'';lectureNotesState.module=document.getElementById('lnModule')?.value.trim()||'';lectureNotesState.subject=document.getElementById('lnSubject')?.value.trim()||'';lectureNotesState.lecture=document.getElementById('lnLecture')?.value.trim()||'';lectureNotesState.count=Number(document.getElementById('lnCount')?.value)||5;saveLectureNotesState();toast('Lecture notes saved locally.','ok');}
@@ -2370,30 +2397,68 @@ async function generateLectureNotesQuestions(){
   if(lectureNotesBusy)return;
   saveLectureNotesDraft();
   const notes=(lectureNotesState.notes||'').trim();
+  const module=String(lectureNotesState.module||'').trim();
+  const subject=String(lectureNotesState.subject||'').trim();
+  const lecture=String(lectureNotesState.lecture||'').trim();
+  if(!module||!subject||!lecture){toast('Please enter the Module, Subject, and Lecture names before generating.','error');return;}
   if(!notes && !lectureNotesState.fileId){toast('Paste lecture notes or upload a lecture file first.','error');return;}
   lectureNotesBusy=true; renderStudyTools();
   try{
     const count=Math.max(5,Math.min(10,Number(lectureNotesState.count)||5));
-    const context=[lectureNotesState.module,lectureNotesState.subject,lectureNotesState.lecture].filter(Boolean).join(' · ');
-    const prompt=`Create ${count} original medical multiple-choice questions using ONLY the supplied lecture material as the factual source. Do not add facts that are not supported by the material. Each question must have exactly 4 options and exactly one correctIndex (zero-based). Return ONLY valid JSON in this exact shape: [{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"..."}]. Keep questions clinically/academically useful and avoid duplicates.${context?`\nTopic: ${context}`:''}`;
+    const prompt=`You are generating medical MCQs from a student's supplied lecture source.
+
+Module: ${module}
+Subject: ${subject}
+Lecture: ${lecture}
+
+MANDATORY SOURCE-GROUNDING RULES:
+1. Read and inspect the ENTIRE supplied source before generating questions. For PDFs inspect every page; for images inspect all visible text, labels, tables and diagrams; for text use the complete text.
+2. Use ONLY information explicitly supported by the supplied source. Do not use outside medical knowledge to fill missing information.
+3. Every question, option, correct answer and explanation must be traceable to the supplied source.
+4. Never create a question about a fact that is absent from the source.
+5. Make each question test a distinct fact, relationship, mechanism, clinical point, table, figure or example actually present in the source.
+6. Avoid generic textbook questions unless the exact concept is present in the source.
+7. For every question, silently locate a short exact or near-exact evidence phrase in the source that supports the answer and return it as sourceEvidence.
+8. If the source does not support enough questions, return fewer questions rather than inventing facts.
+
+Return ONLY JSON in this shape:
+[{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"...","sourceEvidence":"short evidence from source"}]
+Each question must have exactly 4 options and one correctIndex (zero-based). Do not add facts, citations or explanations that are not supported by the source.`;
     let contents;
     if(lectureNotesState.fileId){
       const row=await getLectureFile(lectureNotesState.fileId); if(!row)throw new Error('Saved lecture file could not be found on this device.');
       const dataUrl=await fileToDataURL(row.blob); const mime=row.type||'application/octet-stream';
       if(mime.startsWith('text/')||/\.(txt|md|csv|json)$/i.test(row.name)){
-        const text=dataURLBase64(dataUrl); const decoded=decodeBase64Utf8(text); contents=[{role:'user',parts:[{text:`${prompt}\n\nLECTURE FILE (${row.name}):\n${decoded}`}]}];
+        const decoded=decodeBase64Utf8(dataURLBase64(dataUrl));
+        contents=[{role:'user',parts:[{text:`${prompt}\n\nSOURCE FILE: ${row.name}\n\n${decoded}`}]}];
       }else{
         contents=[{role:'user',parts:[{text:prompt},{inlineData:{mimeType:mime,data:dataURLBase64(dataUrl)}}]}];
       }
     }else{
-      contents=[{role:'user',parts:[{text:`${prompt}\n\nLECTURE NOTES:\n${notes}`}]}];
+      contents=[{role:'user',parts:[{text:`${prompt}\n\nSOURCE: pasted lecture notes\n\n${notes}`}]}];
     }
     const model=(AI_PROVIDER_MODELS.gemini&&AI_PROVIDER_MODELS.gemini[0]?.id)||'gemini-3.8-flash';
-    const reply=await callAI(contents,{maxOutputTokens:6000,responseMimeType:'application/json'},{provider:'gemini',model,accessCode:aiSettings.accessCode||''});
-    const raw=parseAIQuestionJSON(reply).slice(0,count);
-    const normalized=raw.map((q,i)=>({id:`notes_${Date.now()}_${i}_${Math.random().toString(36).slice(2,6)}`,module:lectureNotesState.module||'Lecture Notes',subject:lectureNotesState.subject||'Generated Questions',lecture:lectureNotesState.lecture||lectureNotesState.fileName||'Notes',question:String(q.question||'').trim(),options:Array.isArray(q.options)?q.options.slice(0,4).map(String):[],correctIndex:Number(q.correctIndex),explanation:String(q.explanation||'').trim(),imageUrl:''})).filter(q=>q.question&&q.options.length===4&&Number.isInteger(q.correctIndex)&&q.correctIndex>=0&&q.correctIndex<4);
-    if(!normalized.length)throw new Error('Gemini returned no valid 4-option questions. Please retry.');
-    lectureNotesState.questions=normalized; saveLectureNotesState(); toast(`${normalized.length} questions generated with Gemini and saved locally.`,'ok');
+    const reply=await callAI(contents,{maxOutputTokens:Math.min(12000,Math.max(6500,count*900)),responseMimeType:'application/json'},{provider:'gemini',model,accessCode:aiSettings.accessCode||''});
+    const raw=parseAIQuestionJSON(reply);
+    const grounded=raw.filter(q=>String(q.sourceEvidence||'').trim()).slice(0,count);
+    if(!grounded.length)throw new Error('Gemini did not provide source evidence. Please retry with a clearer lecture file.');
+    const generatedModule=`${module} AI generated`;
+    const sourceFileName=lectureNotesState.fileName||'Pasted lecture notes';
+    const normalized=grounded.map((q,i)=>normalizeQuestion({
+      id:`notes_${Date.now()}_${i}_${Math.random().toString(36).slice(2,8)}`,
+      module:generatedModule,subject,lecture,difficulty:q.difficulty||'Medium',
+      reference:`Lecture Notes → Questions · ${sourceFileName}`,
+      source:`Lecture file: ${sourceFileName}`,
+      question:q.question,options:q.options,correctIndex:q.correctIndex,explanation:q.explanation
+    },'Lecture Notes → Questions')).filter(q=>q.question&&q.options.length===4&&Number.isInteger(q.correctIndex)&&q.correctIndex>=0&&q.correctIndex<4);
+    if(!normalized.length)throw new Error('Gemini returned no valid source-grounded 4-option questions. Please retry.');
+    lectureNotesState.questions=normalized;
+    saveLectureNotesState();
+    // Add the same generated questions to the existing local AI Questions page/bank.
+    const existingIds=new Set(aiQuestions.map(q=>q.id));
+    normalized.forEach(q=>{if(!existingIds.has(q.id))aiQuestions.push(q);});
+    localStorage.setItem(CONFIG.aiQuestionsKey,JSON.stringify(aiQuestions));
+    toast(`${normalized.length} source-grounded questions generated with Gemini and added to AI Questions.`,'ok');
   }catch(e){toast('Could not generate questions: '+e.message,'error');}
   finally{lectureNotesBusy=false;renderStudyTools();}
 }
@@ -3751,7 +3816,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=44',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=46',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
