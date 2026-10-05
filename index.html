@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.7-exam-floating-drawing-tools">
+<meta name="medex-build" content="v41.8-mobile-exam-layout">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -271,6 +271,26 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .exam-annotation-canvas.drawing-enabled{pointer-events:auto;cursor:crosshair}
 .exam-annotation-note-label{display:block;font-weight:700;font-size:12px;margin-bottom:7px;color:var(--text)}
 @media(max-width:700px){.exam-annotation-tools{right:8px;padding:6px;width:48px;border-radius:18px}.exam-annotation-tools.is-open{width:52px}.exam-annotation-toolbar .btn{width:36px;height:36px;min-width:36px}.exam-annotation-note-wrap{right:66px;bottom:14px;width:min(290px,calc(100vw - 82px))}}
+
+/* V41.8: compact exam controls for phone screens */
+@media(max-width:700px){
+  .quiz .card{padding:14px}
+  .quiz .qhead{gap:7px;margin-bottom:10px}
+  .quiz .qhead .mini{font-size:10.5px;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .quiz .question-nav{padding:10px;margin:10px 0 14px}
+  .quiz .question-nav strong{font-size:15px}
+  .quiz .question-nav .mini{font-size:10.5px}
+  .quiz .question{font-size:18px;line-height:1.42;margin:14px 0}
+  .quiz .question > div{gap:5px!important}
+  .quiz .question > div > .btn{width:34px;height:34px;min-width:34px;padding:0;font-size:15px;line-height:1}
+  .quiz .option{padding:12px;font-size:14px}
+}
+@media(max-width:390px){
+  .quiz .card{padding:12px}
+  .quiz .question{font-size:17px;line-height:1.4}
+  .quiz .question > div > .btn{width:32px;height:32px;min-width:32px;font-size:14px}
+  .quiz .option{padding:11px;font-size:13.5px}
+}
 
 .exam-ai-wrap{margin-top:14px}
 .exam-ai-trigger{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg)}
@@ -3932,7 +3952,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.7',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.8',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
