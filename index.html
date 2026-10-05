@@ -297,16 +297,16 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .dashboard-progress-icon{width:46px;height:46px;display:grid;place-items:center;border:1px solid var(--border);border-radius:14px;background:var(--panel2);color:var(--primary);flex:0 0 auto}
 .dashboard-progress-icon svg{width:25px;height:25px}
 .shortcut-arrow{font-size:28px;color:var(--muted);padding:0 6px}
-.study-chart-wrap{margin-top:14px;overflow-x:auto}
+.dashboard-spaced-review{margin-bottom:24px}.spaced-review-stats{gap:14px}.spaced-review-actions{padding-top:2px}.field-static{min-height:42px;display:flex;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--primary-soft);color:var(--muted);font-size:13px}.study-chart-wrap{margin-top:14px;overflow-x:auto;padding-bottom:4px}
 .study-chart{display:block;width:100%;min-width:640px;height:auto}
 .study-grid{stroke:var(--border);stroke-width:1;opacity:.7}
 .study-axis,.study-day{fill:var(--muted);font-size:11px;font-family:var(--font-sans)}
-.study-total{fill:var(--text);font-size:11px;font-weight:700;font-family:var(--font-sans)}
+.study-total{fill:var(--text);font-size:11px;font-weight:700;font-family:var(--font-sans)}.study-total-line{stroke:var(--primary);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;opacity:.9}.study-total-dot{fill:var(--card);stroke:var(--primary);stroke-width:2}
 .study-bar{opacity:.95}
 .study-bar.bar-0{fill:var(--primary)}
 .study-bar.bar-1{fill:#45c98a}
 .study-bar.bar-2{fill:#ef6b73}
-.study-legend{display:flex;justify-content:center;gap:22px;flex-wrap:wrap;margin-top:6px;color:var(--muted);font-size:12px}
+.study-legend{display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin-top:10px;color:var(--muted);font-size:12px}
 .study-legend span{display:inline-flex;align-items:center;gap:6px}
 .study-legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
 .legend-total{background:var(--primary)}
@@ -448,7 +448,7 @@ const CONFIG = {
 };
 
 const DEFAULT_SETTINGS = {
-  showAnswerImmediately: true,
+  showAnswerImmediately: false,
   autoSubmit: true,
   // Question and option randomization are always enabled.
   shuffleQuestions: true,
@@ -915,7 +915,7 @@ function startSpacedReview(){
 function spacedReviewSummaryHTML(){
   const due=dueSpacedQuestions(), next=nextSpacedReviewDate();
   const cycle=bank.filter(q=>progress[key(q)]&&Number(progress[key(q)].attempts||0)>0).length;
-  return `<div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Spaced repetition</strong><div class="mini">Review questions again at the right interval based on your previous answers.</div></div><span class="pill">${due.length} due</span></div><div class="phase2-grid" style="margin-top:12px"><div class="phase2-mini-card"><div class="phase2-stat">${due.length}</div><div class="phase2-label">Questions due now</div></div><div class="phase2-mini-card"><div class="phase2-stat">${cycle}</div><div class="phase2-label">Questions in review cycle</div></div><div class="phase2-mini-card"><div class="phase2-stat">${next?new Date(next).toLocaleDateString():'—'}</div><div class="phase2-label">Next scheduled review</div></div></div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startSpacedReview()" ${due.length?'':'disabled'}>Start Spaced Review</button></div></div>`;
+  return `<div class="card dashboard-spaced-review" style="margin-top:16px;margin-bottom:24px"><div class="category-head"><div><strong>Spaced repetition</strong><div class="mini">Review questions again at the right interval based on your previous answers.</div></div><span class="pill">${due.length} due</span></div><div class="phase2-grid spaced-review-stats" style="margin-top:14px"><div class="phase2-mini-card"><div class="phase2-stat">${due.length}</div><div class="phase2-label">Questions due now</div></div><div class="phase2-mini-card"><div class="phase2-stat">${cycle}</div><div class="phase2-label">Questions in review cycle</div></div><div class="phase2-mini-card"><div class="phase2-stat">${next?new Date(next).toLocaleDateString():'—'}</div><div class="phase2-label">Next scheduled review</div></div></div><div class="actions spaced-review-actions" style="margin-top:16px"><button class="btn primary" onclick="startSpacedReview()" ${due.length?'':'disabled'}>Start Spaced Review</button></div></div>`;
 }
 function lecturePerformanceData(){
   const map=new Map();
@@ -953,25 +953,32 @@ function dailyGoalStreakHTML(){
 }
 function renderStudyWeekChart(){
   const data=weekStudyData();
-  const max=Math.max(1,...data.map(d=>Math.max(d.total,d.correct,d.wrong)));
-  const chartH=190, baseY=230, plotTop=28, plotH=190;
-  const barW=26, groupW=82, startX=42;
-  const bars=data.map((d,i)=>{
-    const x=startX+i*groupW;
-    const vals=[d.total,d.correct,d.wrong];
-    const rects=vals.map((v,j)=>{
-      const h=Math.max(v?4:0,Math.round((v/max)*plotH));
-      const y=baseY-h;
-      return `<rect class="study-bar bar-${j}" x="${x+j*30}" y="${y}" width="${barW}" height="${h}" rx="5"><title>${d.label}: ${v}</title></rect>`;
-    }).join('');
-    return `${rects}<text class="study-day" x="${x+38}" y="252" text-anchor="middle">${d.label}</text><text class="study-total" x="${x+38}" y="${Math.max(20,baseY-Math.max(0,Math.round((d.total/max)*plotH))-8)}" text-anchor="middle">${d.total}</text>`;
+  // True + False already equals Total. Use stacked answer bars and a Total line
+  // so the same questions are not visually counted three separate times.
+  const max=Math.max(1,...data.map(d=>Number(d.total||0)));
+  const baseY=230, plotH=190, groupW=82, startX=42, barW=34;
+  const points=[];
+  const groups=data.map((d,i)=>{
+    const x=startX+i*groupW+24;
+    const total=Number(d.total||0);
+    const correct=Math.min(total,Number(d.correct||0));
+    const wrong=Math.max(0,Math.min(total-correct,Number(d.wrong||0)));
+    const correctH=Math.round((correct/max)*plotH);
+    const wrongH=Math.round((wrong/max)*plotH);
+    const totalH=Math.round((total/max)*plotH);
+    const correctY=baseY-correctH;
+    const wrongY=correctY-wrongH;
+    const labelY=Math.max(18,baseY-totalH-10);
+    points.push(`${x+barW/2},${labelY+4}`);
+    return `${correct?`<rect class="study-bar bar-1" x="${x}" y="${correctY}" width="${barW}" height="${correctH}" rx="5"><title>${d.label}: ${correct} true</title></rect>`:''}${wrong?`<rect class="study-bar bar-2" x="${x}" y="${wrongY}" width="${barW}" height="${wrongH}" rx="5"><title>${d.label}: ${wrong} false</title></rect>`:''}<text class="study-total" x="${x+barW/2}" y="${labelY}" text-anchor="middle">${total}</text><text class="study-day" x="${x+barW/2}" y="252" text-anchor="middle">${d.label}</text>`;
   }).join('');
   const grid=[0,.25,.5,.75,1].map(t=>{
     const y=baseY-Math.round(plotH*t);
     const val=Math.round(max*t);
     return `<line class="study-grid" x1="32" y1="${y}" x2="622" y2="${y}"/><text class="study-axis" x="25" y="${y+4}" text-anchor="end">${val}</text>`;
   }).join('');
-  return `<div class="study-chart-wrap"><svg class="study-chart" viewBox="0 0 640 270" role="img" aria-label="Daily solved questions for Sunday through Saturday">${grid}${bars}</svg><div class="study-legend"><span><i class="legend-total"></i>Total solved</span><span><i class="legend-correct"></i>True</span><span><i class="legend-wrong"></i>False</span></div></div>`;
+  const line=points.length>1?`<polyline class="study-total-line" points="${points.join(' ')}" fill="none"/>${points.map(p=>{const [cx,cy]=p.split(',');return `<circle class="study-total-dot" cx="${cx}" cy="${cy}" r="3.5"/>`;}).join('')}`:'';
+  return `<div class="study-chart-wrap"><svg class="study-chart" viewBox="0 0 640 270" role="img" aria-label="Daily solved questions from Sunday through Saturday, with true and false stacked and total shown as a line">${grid}${groups}${line}</svg><div class="study-legend"><span><i class="legend-total"></i>Total solved</span><span><i class="legend-correct"></i>True</span><span><i class="legend-wrong"></i>False</span></div></div>`;
 }
 function saveFlashcardState(){
   try{ localStorage.setItem(CONFIG.flashcardStateKey, JSON.stringify(flashcardState)); }
@@ -1328,7 +1335,7 @@ function renderDashboard(){
   <h2 class="section-title">GitHub question bank</h2>
   <div class="card">
     <div id="syncStatus">Source: <b>questions/index.json</b>${lastSync?` · Last successful sync: ${lastSync.toLocaleString()}`:''}</div>
-    <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="loadFromGitHub()">Refresh from GitHub</button><button class="btn" onclick="go('import')">Upload / Update Questions</button><button class="btn primary btn-lg" onclick="go('exam')">Start an Exam</button></div>
+    <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="loadFromGitHub()">Refresh from GitHub</button><button class="btn" onclick="go('import')">Upload / Update Questions</button><button class="btn primary btn-lg" onclick="go('exam')">Start an Exam</button></div>
   </div>`;
   document.getElementById('app').innerHTML=layout('Dashboard','Your personal progress is stored in this browser.',body,dashboardThemeToggleHTML());
 }
@@ -1562,7 +1569,7 @@ function renderExamSetup(){
     <div class="filters">
       <div class="field"><label>Number of questions</label><input id="examCount" type="number" min="1" value="${Math.min(20,bank.length||1)}"></div>
       <div class="field"><label>Time limit (minutes, 0 = unlimited)</label><input id="examMinutes" type="number" min="0" value="0"></div>
-      <div class="field"><label>Answer display</label><select id="answerMode"><option value="immediate" ${settings.showAnswerImmediately?'selected':''}>Show answer immediately after selection</option><option value="finish" ${!settings.showAnswerImmediately?'selected':''}>Show answers after finishing</option></select></div>
+      <div class="field"><label>Answer display</label><div class="field-static">Answers are shown after you submit the exam.</div></div>
     </div>
     <div style="margin-top:14px" class="actions"><button class="btn primary btn-lg" onclick="startExam()">Start Exam</button><button class="btn" onclick="go('mistakes')">Practice Mistakes</button></div>
   </div>`;
@@ -1575,7 +1582,9 @@ function startExam(customList=null, overrides=null, customLabel=null){
   if(customList && !customList.length){toast('No questions to practice.','error');return;}
 
   let list=customList||[...bank];
-  let answerMode=settings.showAnswerImmediately?'immediate':'finish';
+  // MedEx exam mode: answers are revealed only after the exam is submitted.
+  // Never reveal correctness while the student is still answering.
+  let answerMode='finish';
   let label=customLabel||'Random review', moduleFilter='', subjectFilter='', lectureFilter='';
   let moduleFilters=[], subjectFilters=[], lectureFilters=[], selectionPaths=[];
   let minutesValue=0;
@@ -1594,11 +1603,11 @@ function startExam(customList=null, overrides=null, customLabel=null){
       s=subjectFilters[0]||'';
       l=lectureFilters[0]||'';
       n=Math.max(1,Number(overrides.count)||20);
-      answerMode=overrides.answerMode||answerMode;
+      answerMode='finish';
       minutesValue=Number(overrides.minutes)||0;
     } else {
       n=Math.max(1,Number(document.getElementById('examCount').value)||1);
-      answerMode=document.getElementById('answerMode').value;
+      answerMode='finish';
       minutesValue=Number(document.getElementById('examMinutes').value)||0;
       if(examBuilderMode==='simple'){
         const sm=document.getElementById('simpleModule')?.value||'';
@@ -1739,21 +1748,15 @@ function renderQuiz(){
     examAI.messages=[];
   }
   const opts=q.options.map((o,i)=>{
-    // Once an answer is selected, always reveal the correct option in green.
-    // If the selected answer is wrong, keep that selected option red.
-    let feedback='';
-    if(selected!==undefined){
-      if(i===q.correctIndex) feedback='correct';
-      else if(i===selected) feedback='wrong';
-    }
-    const selectedClass=selected===i && feedback!=='correct'?'selected ':'';
-    return `<button class="option ${selectedClass}${feedback}" onclick="chooseAnswer(${i})" aria-pressed="${selected===i}">${String.fromCharCode(65+i)}. ${esc(o)}</button>`;
+    // During the exam, selecting an answer only marks the student's choice.
+    // Correct/incorrect feedback is intentionally hidden until submission.
+    const selectedClass=selected===i?'selected ':'';
+    return `<button class="option ${selectedClass}" onclick="chooseAnswer(${i})" aria-pressed="${selected===i}">${String.fromCharCode(65+i)}. ${esc(o)}</button>`;
   }).join('');
   const nav=exam.list.map((item,i)=>{
     const answered=exam.answers[item.id]!==undefined;
-    const wrong=answered && exam.answers[item.id]!==item.correctIndex;
-    const state=wrong?'wrong':answered?'answered':'';
-    return `<button class="qnav-btn ${i===exam.index?'current ':''}${state}" onclick="jumpToQuestion(${i})" title="Question ${i+1}${wrong?' — Wrong answer':answered?' — Correct answer':''}">${i+1}</button>`;
+    const state=answered?'answered':'';
+    return `<button class="qnav-btn ${i===exam.index?'current ':''}${state}" onclick="jumpToQuestion(${i})" title="Question ${i+1}${answered?' — Answered':''}">${i+1}</button>`;
   }).join('');
   const remaining=exam.minutes?Math.max(0,exam.minutes*60-Math.floor((Date.now()-exam.started)/1000)):0;
   const answeredCount=exam.list.filter(item=>exam.answers[item.id]!==undefined).length;
@@ -1768,7 +1771,7 @@ function renderQuiz(){
       ${nav}
       <div class="nav-legend" style="width:100%">
         <span><i class="nav-dot"></i>Not answered</span>
-        <span><i class="nav-dot answered"></i>Correct</span><span><i class="nav-dot wrong"></i>Wrong</span>
+        <span><i class="nav-dot answered"></i>Answered</span>
         <span><i class="nav-dot current"></i>Current</span>
       </div>
     </div>
@@ -1776,7 +1779,6 @@ function renderQuiz(){
     ${q.imageUrl ? `<img class="question-illustration" src="${esc(q.imageUrl)}" alt="Question illustration" loading="eager">` : ''}
     <div class="options">${opts}</div>
     ${reportPanelOpen ? questionReportHTML(q) : ''}
-    ${exam.answerMode==='immediate' && selected!==undefined ? `<div class="review ${selected===q.correctIndex?'good':'bad'}"><b>${selected===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}</div>` : ''}
     ${examAI.open?examAIHTML(q,answeredNow):`<div class="exam-ai-wrap"><div class="exam-ai-trigger"><div><strong>Need an explanation?</strong><div class="mini">Ask AI about this question before or after answering.</div></div><button class="btn primary" onclick="openExamAI()">✦ Ask AI</button></div></div>`}
     <div class="quiz-footer"><button class="btn" onclick="prevQ()" ${exam.index===0?'disabled':''}>Previous</button>
     <button class="btn primary" onclick="${exam.index===exam.list.length-1?'submitExam(false)':'nextQ()'}">${exam.index===exam.list.length-1?'Submit Exam':'Next'}</button></div>
@@ -1908,42 +1910,26 @@ function jumpToQuestion(i){
   renderQuiz();
 }
 function updateAnswerFeedback(q,selected){
-  // Update only the option/feedback DOM nodes. Do NOT replace #app here:
-  // replacing the quiz markup forces the illustration <img> to download again.
+  // Selection feedback only: do not reveal the correct answer before submission.
   document.querySelectorAll('.quiz .option').forEach((btn,i)=>{
     btn.classList.remove('selected','correct','wrong');
     btn.setAttribute('aria-pressed', selected===i ? 'true' : 'false');
-    if(selected!==undefined){
-      if(i===q.correctIndex) btn.classList.add('correct');
-      else if(i===selected) btn.classList.add('wrong','selected');
-    }
+    if(selected===i) btn.classList.add('selected');
   });
   document.querySelectorAll('.qnav-btn').forEach((btn,i)=>{
     const item=exam.list[i], a=exam.answers[item.id];
     btn.classList.remove('answered','wrong');
-    if(a!==undefined){
-      if(a!==item.correctIndex) btn.classList.add('wrong');
-      else btn.classList.add('answered');
-    }
+    if(a!==undefined) btn.classList.add('answered');
   });
   const count=exam.list.filter(item=>exam.answers[item.id]!==undefined).length;
   const countEl=document.querySelector('.question-nav > div:first-child .mini');
   if(countEl) countEl.textContent=`${count}/${exam.list.length} answered`;
   const review=document.querySelector('.quiz .review');
-  if(review && exam.answerMode==='immediate' && selected!==undefined){
-    review.className=`review ${selected===q.correctIndex?'good':'bad'}`;
-    review.innerHTML=`<b>${selected===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}`;
-  }else if(exam.answerMode==='immediate' && selected!==undefined){
-    const options=document.querySelector('.quiz .options');
-    if(options){
-      options.insertAdjacentHTML('afterend',`<div class="review ${selected===q.correctIndex?'good':'bad'}"><b>${selected===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}</div>`);
-    }
-  }
+  if(review) review.remove();
 }
 function chooseAnswer(i){
   if(!exam||exam.submitted)return;
   const q=exam.list[exam.index];
-  if(exam.answerMode==='immediate' && exam.answers[q.id]!==undefined)return;
 
   exam.answers[q.id]=i;
   saveActiveExam();
@@ -2348,6 +2334,84 @@ function achievements(){
     ['First 10 questions',total>=10],['50 questions',total>=50],['100 correct answers',correct>=100],['7-day streak',streak>=7],['7 study days',days>=7],['Spaced review started',due>0]
   ];
 }
+function studyConsistencyStats(){
+  const activity=getStudyActivity();
+  const keys=Object.keys(activity).filter(k=>activity[k] && Number(activity[k].solved||activity[k].attempts||0)>0).sort();
+  const activeDays=days=>{
+    const now=new Date();
+    let count=0;
+    for(let i=0;i<days;i++){
+      const d=new Date(now); d.setDate(now.getDate()-i);
+      const r=activity[localDayKey(d)];
+      if(r && Number(r.solved||r.attempts||0)>0) count++;
+    }
+    return count;
+  };
+  let best=0,current=0;
+  if(keys.length){
+    let run=0,prev=null;
+    for(const k of keys){
+      const d=new Date(k+'T00:00:00');
+      if(prev){const diff=Math.round((d-prev)/86400000); run=diff===1?run+1:1;} else run=1;
+      best=Math.max(best,run); prev=d;
+    }
+    current=studyStreak();
+  }
+  const active7=activeDays(7), active30=activeDays(30);
+  return {current,best,active7,active30,consistency30:Math.round(active30/30*100)};
+}
+function streakConsistencyHTML(){
+  const s=studyConsistencyStats();
+  const today=getStudyActivity()[localDayKey()]||{};
+  const solved=Number(today.solved||today.attempts||0), goal=getDailyGoal();
+  const goalPct=Math.min(100,Math.round(solved/goal*100));
+  const recent=recentStudyDays(7).map(d=>`<div class="streak-day ${d.solved?'done':''}" title="${d.key}: ${d.solved} solved"><b>${d.label}</b><br><span>${d.solved}</span></div>`).join('');
+  return `<section class="study-tools-card streak-consistency-card"><div class="study-card-heading"><div><span class="study-eyebrow">CONSISTENCY</span><h3>🔥 Streak + Study Consistency</h3><p>Local study activity only. No extra Supabase table or sync is used.</p></div><span class="study-local-pill">${s.current} day streak</span></div><div class="study-progress-grid" style="margin-top:14px"><div><b>${s.current}</b><span>Current streak</span></div><div><b>${s.best}</b><span>Best streak</span></div><div><b>${s.active7}/7</b><span>Active days · 7d</span></div><div><b>${s.consistency30}%</b><span>Consistency · 30d</span></div></div><div class="mini" style="margin-top:14px"><b>Today's goal</b> · ${solved}/${goal}</div><div class="goal-track" style="margin-top:8px"><i style="width:${goalPct}%"></i></div><div class="streak-days" style="margin-top:12px">${recent}</div></section>`;
+}
+let lectureNotesState=loadJSON('med64_lecture_notes_questions_v1',{notes:'',module:'',subject:'',lecture:'',count:5,questions:[]});
+let lectureNotesBusy=false;
+function lectureNotesQuestionsHTML(){
+  const st=lectureNotesState||{};
+  const qPreview=Array.isArray(st.questions)&&st.questions.length ? `<div style="margin-top:14px"><div class="category-head"><strong>Generated questions</strong><span class="pill">${st.questions.length}</span></div><div style="margin-top:10px;display:grid;gap:10px">${st.questions.map((q,i)=>`<div class="category-card"><div class="category-head"><b>${i+1}. ${esc(q.question)}</b><span class="pill">Correct: ${String.fromCharCode(65+Number(q.correctIndex||0))}</span></div><div style="margin-top:7px">${q.options.map((o,j)=>`<div class="review-choice ${j===Number(q.correctIndex)?'correct':''}"><b>${String.fromCharCode(65+j)}.</b> ${esc(o)}</div>`).join('')}</div>${q.explanation?`<div class="mini" style="margin-top:7px">${esc(q.explanation)}</div>`:''}</div>`).join('')}</div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startLectureNotesQuestions()">Practice these questions</button><button class="btn" onclick="lectureNotesState.questions=[];saveLectureNotesState();renderStudyTools()">Clear questions</button></div></div>` : '';
+  return `<section class="study-tools-card lecture-notes-card"><div class="study-card-heading"><div><span class="study-eyebrow">AI STUDY TOOL</span><h3>📚 Lecture Notes → Questions</h3><p>Paste lecture notes and turn them into MCQs for active practice. Notes and generated questions stay in this browser.</p></div></div><div class="filters" style="margin-top:14px"><div class="field"><label>Module <span class="mini">optional</span></label><input id="lnModule" value="${esc(st.module||'')}" placeholder="e.g. Pharmacology"></div><div class="field"><label>Subject <span class="mini">optional</span></label><input id="lnSubject" value="${esc(st.subject||'')}" placeholder="e.g. Autonomic drugs"></div><div class="field"><label>Lecture <span class="mini">optional</span></label><input id="lnLecture" value="${esc(st.lecture||'')}" placeholder="e.g. Adrenergic receptors"></div><div class="field"><label>Questions</label><select id="lnCount">${[5,10].map(n=>`<option value="${n}" ${Number(st.count||5)===n?'selected':''}>${n}</option>`).join('')}</select></div></div><textarea id="lectureNotesInput" style="margin-top:12px;min-height:190px;width:100%;resize:vertical" placeholder="Paste your lecture notes here…">${esc(st.notes||'')}</textarea><div class="actions" style="margin-top:10px"><button class="btn primary" id="lectureNotesGenerateBtn" onclick="generateLectureNotesQuestions()">${lectureNotesBusy?'<span class="spinner"></span> Generating…':'Generate questions'}</button><button class="btn" onclick="saveLectureNotesDraft()">Save notes</button><button class="btn" onclick="clearLectureNotes()">Clear</button></div>${qPreview}</section>`;
+}
+function saveLectureNotesState(){localStorage.setItem('med64_lecture_notes_questions_v1',JSON.stringify(lectureNotesState));}
+function saveLectureNotesDraft(){
+  lectureNotesState.notes=document.getElementById('lectureNotesInput')?.value||'';
+  lectureNotesState.module=document.getElementById('lnModule')?.value.trim()||'';
+  lectureNotesState.subject=document.getElementById('lnSubject')?.value.trim()||'';
+  lectureNotesState.lecture=document.getElementById('lnLecture')?.value.trim()||'';
+  lectureNotesState.count=Number(document.getElementById('lnCount')?.value)||5;
+  saveLectureNotesState(); toast('Lecture notes saved locally.','ok');
+}
+function clearLectureNotes(){lectureNotesState={notes:'',module:'',subject:'',lecture:'',count:5,questions:[]};saveLectureNotesState();renderStudyTools();}
+async function generateLectureNotesQuestions(){
+  if(lectureNotesBusy)return;
+  saveLectureNotesState();
+  const notes=lectureNotesState.notes.trim();
+  if(notes.length<40){toast('Paste at least a short lecture note before generating questions.','error');return;}
+  lectureNotesBusy=true; renderStudyTools();
+  try{
+    const count=Math.max(5,Math.min(10,Number(lectureNotesState.count)||5));
+    const context=[lectureNotesState.module,lectureNotesState.subject,lectureNotesState.lecture].filter(Boolean).join(' · ');
+    const prompt=`Create ${count} original medical multiple-choice questions using ONLY the lecture notes below as the factual source. Do not add facts that are not supported by the notes. Each question must have exactly 4 options and exactly one correctIndex (zero-based). Return ONLY valid JSON in this exact shape: [{"question":"...","options":["...","...","...","..."],"correctIndex":0,"explanation":"..."}]. Keep questions clinically/academically useful and avoid duplicate questions.${context?`\nTopic: ${context}`:''}\n\nLECTURE NOTES:\n${notes}`;
+    const previousProvider=aiSettings.provider, previousModel=aiSettings.model;
+    aiSettings.provider='groq'; aiSettings.model='openai/gpt-oss-120b';
+    const reply=await callAI([{role:'user',parts:[{text:prompt}]}],{maxOutputTokens:5000,responseMimeType:'text/plain'});
+    aiSettings.provider=previousProvider; aiSettings.model=previousModel;
+    const raw=parseAIQuestionJSON(reply).slice(0,count);
+    const normalized=raw.map((q,i)=>({id:`notes_${Date.now()}_${i}_${Math.random().toString(36).slice(2,6)}`,module:lectureNotesState.module||'Lecture Notes',subject:lectureNotesState.subject||'Generated Questions',lecture:lectureNotesState.lecture||'Notes',question:String(q.question||'').trim(),options:Array.isArray(q.options)?q.options.slice(0,4).map(String):[],correctIndex:Number(q.correctIndex),explanation:String(q.explanation||'').trim(),imageUrl:''})).filter(q=>q.question&&q.options.length===4&&Number.isInteger(q.correctIndex)&&q.correctIndex>=0&&q.correctIndex<4);
+    if(!normalized.length)throw new Error('The AI returned no valid 4-option questions. Please retry.');
+    lectureNotesState.questions=normalized; saveLectureNotesState(); toast(`${normalized.length} questions generated from your notes.`,'ok');
+  }catch(e){toast('Could not generate questions: '+e.message,'error');}
+  finally{lectureNotesBusy=false;renderStudyTools();}
+}
+function startLectureNotesQuestions(){
+  const list=Array.isArray(lectureNotesState.questions)?lectureNotesState.questions:[];
+  if(!list.length){toast('Generate questions first.','error');return;}
+  startExam(list,{answerMode:'finish',minutes:0},'Lecture Notes → Questions');
+}
+
 function renderStudyTools(){
   const plans=studyPlans();
   const planHtml=plans.length?plans.map(p=>{const end=new Date(p.createdAt+Math.max(0,p.days-1)*86400000);const countdown=p.examDate?Math.max(0,Math.ceil((new Date(p.examDate+'T23:59:59').getTime()-Date.now())/86400000)):null;return `<div class="study-plan-row"><div><b>${esc(p.name)}</b><div class="mini">${p.days} days · ${p.target} questions/day · ends ${end.toLocaleDateString()}</div></div><span class="study-local-pill">${countdown===null?'No exam date':countdown+' days'}</span><div class="actions"><button class="btn" onclick="setExamCountdown('${attrJs(p.id)}')">${countdown===null?'Set exam date':'Change exam date'}</button><button class="btn" onclick="deleteStudyPlan('${attrJs(p.id)}')">Delete</button></div></div>`}).join(''):'<div class="empty">No study plans yet.</div>';
@@ -2356,6 +2420,8 @@ function renderStudyTools(){
     <section class="study-tools-hero"><div><span class="study-eyebrow">STUDY TOOLS</span><h2>Focused review, built into MedEx</h2><p>Build flashcards from any module, subject or lecture, then review them with Anki-style active recall, learning steps, lapses and spaced intervals.</p></div><div class="study-hero-actions"><button class="btn primary" onclick="startSpacedReview()">Review due questions</button></div></section>
     ${renderFlashcardSetup()}
     ${flashcardSummaryHTML()}
+    ${lectureNotesQuestionsHTML()}
+    ${streakConsistencyHTML()}
     <div class="study-tools-columns">
       <section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">PLANNING</span><h3>Study Plans & Exam Countdown</h3><p>Set a target, daily workload and optional exam date.</p></div><button class="btn primary" onclick="createStudyPlan()">+ New Plan</button></div><div style="margin-top:12px">${planHtml}</div></section>
     </div>
@@ -2442,7 +2508,7 @@ function renderMistakes(){
   const weakHtml=weakTopics.length?weakTopics.map((t,i)=>`<div class="category-card" style="margin-top:10px"><div class="category-head"><div><b>#${i+1} ${esc(t.lecture)}</b><div class="mini">${esc(t.module)} · ${esc(t.subject)} · ${t.questions} question${t.questions===1?'':'s'}</div></div><span class="pill">${t.errorRate}% weak</span></div><div class="mini" style="margin-top:8px">${t.wrong} wrong · ${t.correct} correct · ${t.attempts} attempts</div><div class="bar" style="margin-top:8px"><i style="width:${Math.min(100,t.errorRate)}%"></i></div></div>`).join(''):'<div class="empty">No weak topics yet. Answer some questions incorrectly to build your weakness analytics.</div>';
   const questionHtml=wrong.length?wrong.map(q=>`<div class="category-card"><div class="category-head"><b>${esc(q.question)}</b><span class="pill">${progress[key(q)].wrong} wrong</span></div><div class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)} · Correct: ${esc(q.options[q.correctIndex])}</div></div>`).join(''):'<div class="empty">No mistakes yet. Great work.</div>';
   const body=`<div class="card"><div class="category-head"><div><strong>Weak topics</strong><div class="mini">Topics are ranked from most weak to least weak using wrong answers ÷ attempts.</div></div><span class="pill">${weakTopics.length} topics</span></div>${weakHtml}</div>
-  <div class="card" style="margin-top:16px"><div class="category-head"><strong>${wrong.length} questions in your mistakes bank</strong><span class="mini">Wrong answers are retained locally.</span></div><div style="margin-top:14px">${questionHtml}</div>${wrong.length?`<div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startExam(bank.filter(q=>progress[key(q)]&&progress[key(q)].wrong>0))">Practice Mistakes</button></div>`:''}</div>`;
+  <div class="card" style="margin-top:16px"><div class="category-head"><strong>${wrong.length} questions in your mistakes bank</strong><span class="mini">Wrong answers are retained locally.</span></div><div style="margin-top:14px">${questionHtml}</div>${wrong.length?`<div class="actions" style="margin-top:16px"><button class="btn primary" onclick="startExam(bank.filter(q=>progress[key(q)]&&progress[key(q)].wrong>0))">Practice Mistakes</button></div>`:''}</div>`;
   document.getElementById('app').innerHTML=layout('Mistakes','Review incorrect questions and see your weakest topics ranked first.',body);
 }
 
@@ -2474,7 +2540,7 @@ function filterBank(resetPage=true){
 }
 
 function renderImport(){
-  if(!currentUser){ document.getElementById('app').innerHTML=layout('Admin','Question management is restricted to administrators.',`<div class="card"><div class="notice error">Please sign in to an administrator account from the Account page.</div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="go('account')">Go to Account</button></div></div>`); return; }
+  if(!currentUser){ document.getElementById('app').innerHTML=layout('Admin','Question management is restricted to administrators.',`<div class="card"><div class="notice error">Please sign in to an administrator account from the Account page.</div><div class="actions" style="margin-top:16px"><button class="btn primary" onclick="go('account')">Go to Account</button></div></div>`); return; }
   if(!isAdmin){ document.getElementById('app').innerHTML=layout('Admin','Restricted area',`<div class="card"><div class="notice error">Your account does not have administrator permissions.</div><div class="mini" style="margin-top:8px">Only accounts listed in the Supabase admin_users table can manage the question bank.</div></div>`); return; }
   const body=`<div class="grid two">
     <div class="card">
@@ -2544,7 +2610,7 @@ function renderImport(){
       <div class="field"><label>Notification title</label><input id="adminNoticeTitle" placeholder="e.g. Important announcement"></div>
       <div class="field"><label>Message</label><textarea id="adminNoticeMessage" placeholder="Write the message for students…" style="min-height:90px;font-family:var(--font-sans);font-size:14px"></textarea></div>
     </div>
-    <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="publishDashboardNotification()">Publish notification</button><button class="btn" onclick="loadAdminNotifications()">Refresh notifications</button></div>
+    <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="publishDashboardNotification()">Publish notification</button><button class="btn" onclick="loadAdminNotifications()">Refresh notifications</button></div>
     <div id="adminNotifications" style="margin-top:14px"></div>
   </div>
 
@@ -2984,7 +3050,7 @@ async function renderAdminAnalytics(){
     <div class="card stat"><div class="label">Signed-in submissions</div><div class="value">${Number(analyticsSummary.signedIn||0)}</div><div class="mini">Linked to Supabase accounts</div></div>
     <div class="card stat"><div class="label">Non-signed-in submissions</div><div class="value">${Number(analyticsSummary.anonymous||0)}</div><div class="mini">Anonymous visitor submissions</div></div>
   </div>
-  <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Question bank quality</strong><div class="mini">Difficulty distribution and aggregate performance signals.</div></div><button class="btn" onclick="renderAdminAnalytics()">Refresh</button></div><div class="phase2-grid" style="margin-top:12px">${difficultyCards||'<div class="empty">No questions loaded.</div>'}</div></div>
+  <div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Question bank quality</strong><div class="mini">Difficulty distribution and aggregate performance signals.</div></div><button class="btn" onclick="renderAdminAnalytics()">Refresh</button></div><div class="phase2-grid" style="margin-top:14px">${difficultyCards||'<div class="empty">No questions loaded.</div>'}</div></div>
   <div class="card" style="margin-top:16px"><div class="category-head"><strong>Hardest questions</strong><span class="mini">Lowest aggregate accuracy · minimum 3 attempts</span></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Question</th><th>Attempts</th><th>Correct</th><th>Accuracy</th></tr></thead><tbody>${hardest}</tbody></table></div></div>
   <div class="card" style="margin-top:16px"><div class="category-head"><strong>Reported questions</strong><span class="mini">Question-quality signals from student reports</span></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Question ID</th><th>Reports</th><th>Open</th><th>Resolved</th></tr></thead><tbody>${reported}</tbody></table></div></div>
   <div class="card" style="margin-top:16px"><div class="category-head"><strong>Submission coverage</strong><button class="btn" onclick="renderAdminAnalytics()">Refresh</button></div><p class="mini" style="margin:8px 0 0">This page is restricted to administrators. Anonymous exams are counted when Supabase is connected and the analytics migration has been applied. Aggregate question-quality data uses the Phase 2 Supabase function.</p></div>`;
@@ -3000,7 +3066,7 @@ function renderFavorites(){
 
 function renderSettings(){
   const body=`<div class="card"><h3 style="margin-top:0">Exam settings</h3>
-  <label><input type="checkbox" id="sImmediate" ${settings.showAnswerImmediately?'checked':''}> Use “Show answer immediately” as the default exam mode</label><br><br>
+  <div class="notice ok">Exam answers are revealed only after you submit the exam. This prevents the correct answer from being shown while you are still answering.</div><br>
   <label><input type="checkbox" id="sAuto" ${settings.autoSubmit?'checked':''}> Auto-submit when timer reaches zero</label>
   <div class="field" style="margin-top:14px;max-width:360px"><label>Daily question goal</label><input id="sDailyGoal" type="number" min="1" max="200" value="${getDailyGoal()}"><div class="mini" style="margin-top:5px">Used for your daily progress goal.</div></div>
   <div class="card" style="margin-top:16px;padding:14px">
@@ -3029,7 +3095,7 @@ function renderSettings(){
   document.getElementById('app').innerHTML=layout('Settings','Personal browser settings and backups.',body);
 }
 function saveSettings(){
-  settings.showAnswerImmediately=document.getElementById('sImmediate').checked;
+  settings.showAnswerImmediately=false;
   settings.autoSubmit=document.getElementById('sAuto').checked;
   settings.dailyGoal=Math.min(200,Math.max(1,Math.round(Number(document.getElementById('sDailyGoal')?.value)||20)));
   saveState();toast('Settings saved.','ok');
@@ -3471,7 +3537,7 @@ Rules:
     if(resultBox) resultBox.innerHTML=`<div class="card" style="margin-top:14px"><div class="notice ok">Generated ${stamped.length} question${stamped.length===1?'':'s'} from ${sourceType==='website'?'your website question bank':'AI medical knowledge'}.</div>
     <div class="mini" style="margin-top:8px">${esc(module+' AI generated')} · ${esc(subject)} · ${esc(lecture)} · ${esc(aiProviderLabel(aiSettings.provider))}</div>
     <div style="margin-top:12px">${stamped.map(q=>aiQuestionPreviewCard(q)).join('')}</div>
-    <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="go('aiquestions')">Review in AI Questions</button></div></div>`;
+    <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="go('aiquestions')">Review in AI Questions</button></div></div>`;
     toast(`Generated ${stamped.length} questions with ${aiProviderLabel(aiSettings.provider)}.`,'ok');
   }catch(e){
     if(resultBox) resultBox.innerHTML=`<div class="card" style="margin-top:14px"><div class="notice error">Generation failed: ${esc(e.message)}</div></div>`;
@@ -3546,10 +3612,10 @@ function renderAIQuestions(){
     </div>
     <div class="field" style="margin-top:10px"><label>Question source</label><select id="genSourceType" onchange="updateAIGeneratorSourceUI()"><option value="knowledge">AI medical knowledge</option><option value="website">Questions in this website</option></select></div>
     <div id="genSourceInfo" class="notice" style="margin-top:12px">The AI will create original higher-order questions using medical knowledge for the selected lecture.</div>
-    <div class="actions" style="margin-top:12px"><button class="btn primary" id="genBtn" onclick="generateAIQuestions()">Generate questions</button></div><div id="genResult"></div>
+    <div class="actions" style="margin-top:16px"><button class="btn primary" id="genBtn" onclick="generateAIQuestions()">Generate questions</button></div><div id="genResult"></div>
   </div>`;
   const body=`${generator}<div class="card" style="margin-top:16px"><div class="category-head"><strong>${aiQuestions.length} AI-generated question${aiQuestions.length===1?'':'s'}</strong><span class="mini">Admin-only question bank.</span></div>
-  ${aiQuestions.length?`<div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startExam(aiQuestions,null,'AI questions practice')">Practice these questions</button><button class="btn ok" onclick="addAllAIQuestionsToBank()">Add all to Question Bank</button><button class="btn primary" onclick="uploadAIQuestionsToSupabase()">Upload to Supabase</button><button class="btn" onclick="exportAIQuestions()">Export as JSON</button><button class="btn danger" onclick="clearAllAIQuestions()">Delete all</button></div>`:''}</div>
+  ${aiQuestions.length?`<div class="actions" style="margin-top:16px"><button class="btn primary" onclick="startExam(aiQuestions,null,'AI questions practice')">Practice these questions</button><button class="btn ok" onclick="addAllAIQuestionsToBank()">Add all to Question Bank</button><button class="btn primary" onclick="uploadAIQuestionsToSupabase()">Upload to Supabase</button><button class="btn" onclick="exportAIQuestions()">Export as JSON</button><button class="btn danger" onclick="clearAllAIQuestions()">Delete all</button></div>`:''}</div>
   <div style="margin-top:16px">${aiQuestions.length?aiQuestions.slice().reverse().map(q=>renderAIQuestionRow(q)).join(''):'<div class="card empty">No AI questions yet. Use the generator above.</div>'}</div>`;
   document.getElementById('app').innerHTML=layout('AI Questions','Admin-only generator and AI question bank.',body);
 }
