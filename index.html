@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.5-exam-drawing-tools">
+<meta name="medex-build" content="v41.6-exam-floating-drawing-tools">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -245,19 +245,27 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .review.bad{border-left:4px solid var(--danger)}
 .quiz-footer{display:flex;justify-content:space-between;gap:10px;margin-top:18px}
 
-/* ---------- Exam drawing & notes tools ---------- */
-.exam-annotation-tools{margin-top:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg);overflow:hidden}
-.exam-annotation-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--line)}
-.exam-annotation-toolbar .btn{padding:7px 10px;font-size:12px}
-.exam-annotation-toolbar .btn.tool-active{background:var(--primary-soft);border-color:var(--primary);color:var(--primary2)}
-.exam-annotation-title{font-weight:700;font-size:12px;margin-right:4px}
+/* ---------- Exam floating drawing & notes tools ---------- */
+.exam-annotation-tools{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:120;display:flex;flex-direction:column;align-items:stretch;gap:7px;padding:8px;border:1px solid var(--line);border-radius:20px;background:color-mix(in srgb,var(--card) 94%,transparent);box-shadow:0 14px 34px rgba(0,0,0,.22);backdrop-filter:blur(12px);width:52px;transition:width .18s ease,box-shadow .18s ease}
+.exam-annotation-tools.is-open{width:58px;box-shadow:0 18px 42px rgba(0,0,0,.28)}
+.exam-annotation-toolbar{display:flex;flex-direction:column;align-items:center;gap:7px}
+.exam-annotation-toolbar .btn{width:38px;height:38px;min-width:38px;padding:0;font-size:16px;display:grid;place-items:center;border-radius:50%;background:var(--bg);border:1px solid var(--line);color:var(--text)}
+.exam-annotation-toolbar .btn:hover{border-color:var(--primary);color:var(--primary)}
+.exam-annotation-toolbar .btn.tool-active{background:var(--primary-soft);border-color:var(--primary);color:var(--primary2);box-shadow:0 0 0 2px color-mix(in srgb,var(--primary) 14%,transparent)}
+.exam-annotation-title,.exam-annotation-hint{display:none}
+.exam-drawing-launcher{background:var(--primary)!important;color:#fff!important;border-color:var(--primary)!important;font-size:17px!important}
+.exam-drawing-launcher.tool-active{background:var(--primary2)!important;color:#fff!important}
+.exam-drawing-extra{display:none;flex-direction:column;align-items:center;gap:7px}
+.exam-annotation-tools.is-open .exam-drawing-extra{display:flex}
+.exam-annotation-tools:not(.is-open) .tool-btn,.exam-annotation-tools:not(.is-open) #examDrawingNote{display:none}
+.exam-annotation-note-wrap{display:none;position:fixed;right:82px;bottom:24px;width:min(320px,calc(100vw - 100px));padding:10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);box-shadow:0 14px 34px rgba(0,0,0,.2)}
+.exam-annotation-note-wrap.is-open{display:block}
+.exam-annotation-note{width:100%;min-height:120px;max-height:220px;resize:vertical;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);padding:10px 12px;font-family:var(--font-sans);font-size:13px;line-height:1.5}
 .exam-annotation-stage{position:relative;margin:12px;border:1px dashed var(--line);border-radius:var(--radius-sm);padding:12px;background:var(--card)}
 .exam-annotation-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:8;touch-action:none;pointer-events:none}
 .exam-annotation-canvas.drawing-enabled{pointer-events:auto;cursor:crosshair}
-.exam-annotation-note{width:100%;min-height:78px;max-height:180px;resize:vertical;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--card);color:var(--text);padding:10px 12px;font-family:var(--font-sans);font-size:13px;line-height:1.5}
-.exam-annotation-note-wrap{padding:0 12px 12px}
-.exam-annotation-hint{font-size:11px;color:var(--muted);margin-left:auto}
-@media(max-width:700px){.exam-annotation-toolbar{gap:6px}.exam-annotation-toolbar .btn{padding:7px 9px}.exam-annotation-hint{width:100%;margin-left:0}}
+.exam-annotation-note-label{display:block;font-weight:700;font-size:12px;margin-bottom:7px;color:var(--text)}
+@media(max-width:700px){.exam-annotation-tools{right:8px;padding:6px;width:48px;border-radius:18px}.exam-annotation-tools.is-open{width:52px}.exam-annotation-toolbar .btn{width:36px;height:36px;min-width:36px}.exam-annotation-note-wrap{right:66px;bottom:14px;width:min(290px,calc(100vw - 82px))}}
 
 .exam-ai-wrap{margin-top:14px}
 .exam-ai-trigger{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg)}
@@ -1886,6 +1894,8 @@ function setExamDrawingTool(tool){
   if(!exam)return;
   examDrawingTool=tool;
   examDrawingEnabled=true;
+  const rail=document.getElementById('examDrawingTools');
+  if(rail)rail.classList.add('is-open');
   const canvas=document.getElementById('examAnnotationCanvas');
   if(canvas)canvas.classList.add('drawing-enabled');
   document.querySelectorAll('.exam-annotation-toolbar .tool-btn').forEach(b=>b.classList.toggle('tool-active',b.dataset.tool===tool));
@@ -1896,6 +1906,13 @@ function toggleExamDrawing(){
   if(canvas)canvas.classList.toggle('drawing-enabled',examDrawingEnabled);
   const btn=document.getElementById('examDrawingToggle');
   if(btn)btn.classList.toggle('tool-active',examDrawingEnabled);
+  const rail=document.getElementById('examDrawingTools');
+  if(rail)rail.classList.toggle('is-open',examDrawingEnabled);
+  if(examDrawingEnabled)setExamDrawingTool(examDrawingTool);
+}
+function toggleExamNote(){
+  const wrap=document.getElementById('examAnnotationNoteWrap');
+  if(wrap)wrap.classList.toggle('is-open');
 }
 function undoExamDrawing(){
   if(!exam)return; const data=annotationData(exam.list[exam.index]);
@@ -1952,19 +1969,20 @@ function renderQuiz(){
         <span><i class="nav-dot current"></i>Current</span>
       </div>
     </div>
-    <div class="exam-annotation-tools">
+    <div class="exam-annotation-tools ${examDrawingEnabled?'is-open':''}" id="examDrawingTools" aria-label="Exam drawing tools">
       <div class="exam-annotation-toolbar">
-        <span class="exam-annotation-title">✎ Notes & Highlight</span>
-        <button type="button" id="examDrawingToggle" class="btn ${examDrawingEnabled?'tool-active':''}" onclick="toggleExamDrawing()">${examDrawingEnabled?'Drawing On':'Draw'}</button>
-        <button type="button" class="btn tool-btn ${examDrawingTool==='pen'?'tool-active':''}" data-tool="pen" onclick="setExamDrawingTool('pen')">Pen</button>
-        <button type="button" class="btn tool-btn ${examDrawingTool==='highlighter'?'tool-active':''}" data-tool="highlighter" onclick="setExamDrawingTool('highlighter')">Highlight</button>
-        <button type="button" class="btn tool-btn ${examDrawingTool==='eraser'?'tool-active':''}" data-tool="eraser" onclick="setExamDrawingTool('eraser')">Eraser</button>
-        <label class="mini" style="display:flex;align-items:center;gap:5px">Size <input type="range" min="1" max="8" value="${examDrawingSize}" oninput="setExamDrawingSize(this.value)" style="width:70px"></label>
-        <button type="button" class="btn" onclick="undoExamDrawing()">Undo</button>
-        <button type="button" class="btn" onclick="clearExamDrawing()">Clear</button>
-        <span class="exam-annotation-hint">Draw/highlight over the question. Notes stay only during this exam.</span>
+        <button type="button" id="examDrawingToggle" class="btn exam-drawing-launcher ${examDrawingEnabled?'tool-active':''}" onclick="toggleExamDrawing()" title="Drawing tools" aria-label="Open drawing tools">✎</button>
+        <div class="exam-drawing-extra">
+          <button type="button" class="btn tool-btn ${examDrawingTool==='pen'?'tool-active':''}" data-tool="pen" onclick="setExamDrawingTool('pen')" title="Pen" aria-label="Pen">✎</button>
+          <button type="button" class="btn tool-btn ${examDrawingTool==='highlighter'?'tool-active':''}" data-tool="highlighter" onclick="setExamDrawingTool('highlighter')" title="Highlight" aria-label="Highlight">▰</button>
+          <button type="button" class="btn tool-btn ${examDrawingTool==='eraser'?'tool-active':''}" data-tool="eraser" onclick="setExamDrawingTool('eraser')" title="Eraser" aria-label="Eraser">⌫</button>
+          <button type="button" class="btn" onclick="undoExamDrawing()" title="Undo" aria-label="Undo">↶</button>
+          <button type="button" class="btn" onclick="clearExamDrawing()" title="Clear drawings" aria-label="Clear drawings">⌫</button>
+          <button type="button" class="btn" id="examDrawingNote" onclick="toggleExamNote()" title="Private note" aria-label="Private note">▤</button>
+          <label class="btn" title="Brush size" aria-label="Brush size" style="cursor:pointer;overflow:hidden"><input type="range" min="1" max="8" value="${examDrawingSize}" oninput="setExamDrawingSize(this.value)" style="width:28px;accent-color:var(--primary);transform:rotate(-90deg)"></label>
+        </div>
       </div>
-      <div class="exam-annotation-note-wrap"><textarea id="examAnnotationNote" class="exam-annotation-note" placeholder="Take a private note for this question…"></textarea></div>
+      <div class="exam-annotation-note-wrap" id="examAnnotationNoteWrap"><label class="exam-annotation-note-label">Private note</label><textarea id="examAnnotationNote" class="exam-annotation-note" placeholder="Take a private note for this question…"></textarea></div>
     </div>
     <div class="exam-annotation-stage">
       <canvas id="examAnnotationCanvas" class="exam-annotation-canvas ${examDrawingEnabled?'drawing-enabled':''}" aria-label="Exam drawing canvas"></canvas>
@@ -3899,7 +3917,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.5',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.6',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
