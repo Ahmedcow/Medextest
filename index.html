@@ -3003,82 +3003,126 @@ function printAdminQuestionBankPDF(){
     groupMap.get(key).rows.push(q);
   });
 
-  // Build page chunks while preserving the question order. Each chunk becomes one
-  // A4 landscape sheet with two vertical columns, matching the attached reference.
-  const pages=[]; let printedNumber=0;
-  groups.forEach(g=>{
-    const chunks=adminPrintChunkQuestions(g.rows,showAnswers,showExplanations);
-    chunks.forEach((chunk,i)=>{
-      const numbered=chunk.map(q=>({q,number:++printedNumber}));
-      pages.push({g,numbered,pageInSection:i+1,totalInSection:chunks.length});
-    });
-  });
-
   const total=rows.length;
   const printCSS=`
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:#fff;color:#101826;font-family:Arial,Helvetica,sans-serif}
     body{font-size:10pt}
-    .medex-print-page{page-break-after:always;break-after:page;position:relative;width:297mm;height:210mm;min-height:210mm;padding:9mm 10mm 11mm;background:#fff;color:#101826;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden}
+    .medex-print-page{page-break-after:always;break-after:page;position:relative;width:297mm;height:210mm;min-height:210mm;padding:8mm 10mm 9mm;background:#fff;color:#101826;display:flex;flex-direction:column;overflow:hidden}
     .medex-print-page:last-child{page-break-after:auto;break-after:auto}
-    .medex-print-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:7mm;border-bottom:1.4px solid #0c7c8c;padding-bottom:3.5mm;margin-bottom:3mm;flex:0 0 auto}
+    .medex-print-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:7mm;border-bottom:1.4px solid #0c7c8c;padding-bottom:3.2mm;margin-bottom:2.8mm;flex:0 0 auto}
     .medex-print-brand{font-family:Georgia,'Times New Roman',serif;font-size:20pt;font-weight:700;color:#101826;line-height:1}
-    .medex-print-brand.small{font-family:Arial,sans-serif;font-size:8pt;font-weight:400;color:#5b6b72;margin-top:1.5mm}
+    .medex-print-brand.small{font-family:Arial,sans-serif;font-size:8pt;font-weight:400;color:#5b6b72;margin-top:1.4mm}
     .medex-print-title{font-family:Arial,sans-serif;font-size:13pt;font-weight:800;text-align:center;color:#101826;line-height:1.1}
-    .medex-print-title span{display:block;font-size:9pt;font-weight:700;color:#0c7c8c;margin-top:1.7mm}
-    .medex-print-meta{font-family:Arial,sans-serif;font-size:8.5pt;line-height:1.45;color:#5b6b72;text-align:right}
+    .medex-print-title span{display:block;font-size:9pt;font-weight:700;color:#0c7c8c;margin-top:1.5mm}
+    .medex-print-meta{font-family:Arial,sans-serif;font-size:8.5pt;line-height:1.4;color:#5b6b72;text-align:right}
     .medex-print-meta b{color:#101826}
-    .medex-print-section{font-family:Arial,sans-serif;font-size:9pt;font-weight:800;color:#0c7c8c;margin:0 0 1.5mm;text-transform:uppercase;letter-spacing:.055em}
-    .medex-print-topic{display:flex;align-items:center;justify-content:center;gap:2.5mm;padding:2mm 3mm;margin:0 0 3mm;border:1px solid rgba(12,124,140,.28);border-radius:4mm;background:#eaf5f5;color:#095f6c;font-size:9.5pt;font-weight:800;line-height:1.2;flex:0 0 auto}
+    .medex-print-topic{display:flex;align-items:center;justify-content:center;gap:2.5mm;padding:1.8mm 3mm;margin:0 0 2.8mm;border:1px solid rgba(12,124,140,.28);border-radius:4mm;background:#eaf5f5;color:#095f6c;font-size:9.5pt;font-weight:800;line-height:1.2;flex:0 0 auto}
     .medex-print-topic-label{font-size:7.5pt;letter-spacing:.06em;text-transform:uppercase;color:#5b6b72;font-weight:700}
-    .medex-print-questions{flex:1;min-height:0;column-count:2;column-gap:6mm;column-fill:auto;overflow:hidden}
-    .medex-print-q{display:grid;grid-template-columns:minmax(0,1fr) 13mm;width:100%;border:1px solid #b9c5c7;border-radius:0;break-inside:avoid;page-break-inside:avoid;margin:0 0 2.2mm;background:#fff}
-    .medex-print-qbody{padding:2.7mm 3.2mm}
-    .medex-print-qtext{font-family:Arial,sans-serif;font-size:9.6pt;line-height:1.32;font-weight:700;margin-bottom:1.8mm;color:#101826}
+    .medex-print-questions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6mm;flex:1;min-height:0;align-items:start}
+    .medex-print-column{min-width:0;display:flex;flex-direction:column;gap:2.2mm;min-height:0}
+    .medex-print-q{display:grid;grid-template-columns:minmax(0,1fr) 12mm;width:100%;border:1px solid #b9c5c7;background:#fff;break-inside:avoid;page-break-inside:avoid;margin:0}
+    .medex-print-qbody{padding:2.45mm 3mm}
+    .medex-print-qtext{font-family:Arial,sans-serif;font-size:9.35pt;line-height:1.28;font-weight:700;margin-bottom:1.55mm;color:#101826}
     .medex-print-qnum{font-weight:800;color:#0c7c8c}
-    .medex-print-opt{font-family:Arial,sans-serif;font-size:8.7pt;line-height:1.25;margin:1mm 0;padding-left:1mm;color:#263238}
-    .medex-print-answer{border-left:1px solid #b9c5c7;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;font-size:11pt;font-weight:800;color:#095f6c;background:#eef7f7;min-height:100%}
-    .medex-print-expl{font-family:Arial,sans-serif;font-size:7.8pt;line-height:1.25;color:#5b6b72;margin-top:1.8mm;border-top:1px dashed #c9d1d3;padding-top:1.5mm}
-    .medex-print-footer{margin-top:2.5mm;border-top:1px solid #c9d1d3;padding-top:2.5mm;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6mm;font-family:Arial,sans-serif;font-size:7.5pt;color:#5b6b72;flex:0 0 auto}
+    .medex-print-opt{font-family:Arial,sans-serif;font-size:8.55pt;line-height:1.22;margin:.85mm 0;padding-left:1mm;color:#263238}
+    .medex-print-answer{border-left:1px solid #b9c5c7;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;font-size:10.5pt;font-weight:800;color:#095f6c;background:#eef7f7;min-height:100%}
+    .medex-print-expl{font-family:Arial,sans-serif;font-size:7.6pt;line-height:1.22;color:#5b6b72;margin-top:1.5mm;border-top:1px dashed #c9d1d3;padding-top:1.35mm}
+    .medex-print-footer{margin-top:2.2mm;border-top:1px solid #c9d1d3;padding-top:2.2mm;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6mm;font-family:Arial,sans-serif;font-size:7.3pt;color:#5b6b72;flex:0 0 auto}
     .medex-print-footer .sig{font-weight:800;color:#0c7c8c}
     .medex-print-footer .page-number{text-align:center;font-size:9pt;font-weight:800;color:#101826}
     .medex-print-footer .context{text-align:right}
+    .medex-print-q.compact .medex-print-qbody{padding:2mm 2.7mm}
+    .medex-print-q.compact .medex-print-qtext{font-size:8.75pt;line-height:1.2;margin-bottom:1.2mm}
+    .medex-print-q.compact .medex-print-opt{font-size:8pt;line-height:1.16;margin:.65mm 0}
+    .medex-print-q.compact .medex-print-answer{font-size:10pt}
     @page{size:A4 landscape;margin:0}
-    @media screen{body{background:#eef2f0}.medex-print-page{margin:0 auto 8mm;box-shadow:0 2px 14px rgba(0,0,0,.12)}}
   `;
-
-  const html=`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MedEx Question book</title><style>${printCSS}</style></head><body>`+
-    pages.map((p,idx)=>{
-      const first=p.numbered[0]?.q;
-      const last=p.numbered[p.numbered.length-1]?.q;
-      return `<section class="medex-print-page">
-        <header class="medex-print-header">
-          <div><div class="medex-print-brand">MedEx</div><div class="medex-print-brand small">Medical Examination Platform</div></div>
-          <div class="medex-print-title">Question book<span>Lecture topic: ${adminPrintEscapeHTML(p.g.lecture)}</span></div>
-          <div class="medex-print-meta"><b>Module:</b> ${adminPrintEscapeHTML(p.g.module)}<br><b>Subject:</b> ${adminPrintEscapeHTML(p.g.subject)}<br><b>Lecture:</b> ${adminPrintEscapeHTML(p.g.lecture)}</div>
-        </header>
-        <div class="medex-print-topic"><span class="medex-print-topic-label">Lecture topic</span><span>${adminPrintEscapeHTML(p.g.lecture)}</span></div>
-        <div class="medex-print-questions">${p.numbered.map(x=>adminPrintQuestionBlock(x.q,showAnswers,showExplanations,x.number)).join('')}</div>
-        <footer class="medex-print-footer">
-          <div><span class="sig">MedEx — Medical Examination Platform</span><br>Official Question Book · ${total} questions</div>
-          <div class="page-number">${idx+1}</div>
-          <div class="context">Module: ${adminPrintEscapeHTML(p.g.module)} · Subject: ${adminPrintEscapeHTML(p.g.subject)} · Lecture: ${adminPrintEscapeHTML(p.g.lecture)}</div>
-        </footer>
-      </section>`;
-    }).join('')+`</body></html>`;
 
   const w=window.open('', '_blank');
   if(!w){toast('Please allow pop-ups for MedEx to create the printable PDF.','error');return;}
+
+  const block=(q,n,compact=false)=>adminPrintQuestionBlock(q,showAnswers,showExplanations,n).replace('<article class="medex-print-q"','<article class="medex-print-q'+(compact?' compact':'')+'"');
+  const skeleton=(g)=>`<section class="medex-print-page" id="measurePage">
+    <header class="medex-print-header">
+      <div><div class="medex-print-brand">MedEx</div><div class="medex-print-brand small">Medical Examination Platform</div></div>
+      <div class="medex-print-title">Question book<span>Lecture topic: ${adminPrintEscapeHTML(g.lecture)}</span></div>
+      <div class="medex-print-meta"><b>Module:</b> ${adminPrintEscapeHTML(g.module)}<br><b>Subject:</b> ${adminPrintEscapeHTML(g.subject)}<br><b>Lecture:</b> ${adminPrintEscapeHTML(g.lecture)}</div>
+    </header>
+    <div class="medex-print-topic"><span class="medex-print-topic-label">Lecture topic</span><span>${adminPrintEscapeHTML(g.lecture)}</span></div>
+    <div class="medex-print-questions"><div class="medex-print-column" id="measureLeft"></div><div class="medex-print-column" id="measureRight"></div></div>
+    <footer class="medex-print-footer"><div><span class="sig">MedEx — Medical Examination Platform</span><br>Official Question Book · ${total} questions</div><div class="page-number">1</div><div class="context">Module: ${adminPrintEscapeHTML(g.module)} · Subject: ${adminPrintEscapeHTML(g.subject)} · Lecture: ${adminPrintEscapeHTML(g.lecture)}</div></footer>
+  </section>`;
+
   try{
     w.document.open();
-    w.document.write(html);
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MedEx Question book</title><style>${printCSS}</style></head><body>${skeleton(groups[0])}</body></html>`);
     w.document.close();
-    const doPrint=()=>{
-      try{w.focus();w.print();}
-      catch(e){console.error(e);toast('Could not open the print dialog.','error');}
+
+    const paginate=()=>{
+      try{
+        const measurePage=w.document.getElementById('measurePage');
+        const measureCols=[w.document.getElementById('measureLeft'),w.document.getElementById('measureRight')];
+        if(!measurePage||!measureCols[0])throw new Error('Print measurement page was not created.');
+        const capacity=Math.max(80,measureCols[0].getBoundingClientRect().height);
+        const safety=5.5/25.4*96; // reserve a small physical margin so the last box never touches/crops the footer
+        const usable=Math.max(80,capacity-safety);
+        const gap=2.2/25.4*96;
+
+        // Measure each question in the exact same column width/styles used for printing.
+        const measureQuestion=(q,n,compact=false)=>{
+          const holder=w.document.createElement('div');
+          holder.className='medex-print-column';
+          holder.style.position='absolute';holder.style.left='-10000px';holder.style.top='0';holder.style.width=measureCols[0].getBoundingClientRect().width+'px';holder.style.visibility='hidden';
+          holder.innerHTML=block(q,n,compact);
+          w.document.body.appendChild(holder);
+          const h=holder.firstElementChild?.getBoundingClientRect().height||0;
+          holder.remove();
+          return h;
+        };
+
+        const finalPages=[]; let number=0;
+        groups.forEach(g=>{
+          let page={g,left:[],right:[],lh:0,rh:0};
+          const commit=()=>{if(page.left.length||page.right.length)finalPages.push(page);page={g,left:[],right:[],lh:0,rh:0};};
+          g.rows.forEach(q=>{
+            const item={q,number:++number};
+            let h=measureQuestion(q,item.number,false);
+            let compact=false;
+            if(h+gap>usable){compact=true;h=measureQuestion(q,item.number,true);}
+            const need=h+gap;
+            if(page.lh+need<=usable || (!page.left.length&&!page.right.length)){
+              page.left.push({...item,compact});page.lh+=need;
+            }else if(page.rh+need<=usable || !page.right.length){
+              page.right.push({...item,compact});page.rh+=need;
+            }else{
+              commit();
+              page.left.push({...item,compact});page.lh+=need;
+            }
+          });
+          commit();
+        });
+
+        // Render only the measured pages. Nothing is allowed to flow automatically between pages.
+        const output=finalPages.map((p,idx)=>`<section class="medex-print-page">
+          <header class="medex-print-header">
+            <div><div class="medex-print-brand">MedEx</div><div class="medex-print-brand small">Medical Examination Platform</div></div>
+            <div class="medex-print-title">Question book<span>Lecture topic: ${adminPrintEscapeHTML(p.g.lecture)}</span></div>
+            <div class="medex-print-meta"><b>Module:</b> ${adminPrintEscapeHTML(p.g.module)}<br><b>Subject:</b> ${adminPrintEscapeHTML(p.g.subject)}<br><b>Lecture:</b> ${adminPrintEscapeHTML(p.g.lecture)}</div>
+          </header>
+          <div class="medex-print-topic"><span class="medex-print-topic-label">Lecture topic</span><span>${adminPrintEscapeHTML(p.g.lecture)}</span></div>
+          <div class="medex-print-questions"><div class="medex-print-column">${p.left.map(x=>block(x.q,x.number,x.compact)).join('')}</div><div class="medex-print-column">${p.right.map(x=>block(x.q,x.number,x.compact)).join('')}</div></div>
+          <footer class="medex-print-footer"><div><span class="sig">MedEx — Medical Examination Platform</span><br>Official Question Book · ${total} questions</div><div class="page-number">${idx+1}</div><div class="context">Module: ${adminPrintEscapeHTML(p.g.module)} · Subject: ${adminPrintEscapeHTML(p.g.subject)} · Lecture: ${adminPrintEscapeHTML(p.g.lecture)}</div></footer>
+        </section>`).join('');
+        w.document.body.innerHTML=output;
+        setTimeout(()=>{w.focus();w.print();},250);
+      }catch(e){
+        console.error('Question book pagination error:',e);
+        toast('Could not prepare the question book print layout.','error');
+        try{w.close();}catch(_){}
+      }
     };
-    if(w.document.readyState==='complete') setTimeout(doPrint,500);
-    else w.addEventListener('load',()=>setTimeout(doPrint,250),{once:true});
+    if(w.document.readyState==='complete')setTimeout(paginate,400);else w.addEventListener('load',()=>setTimeout(paginate,250),{once:true});
   }catch(e){
     console.error('Print window error:',e);
     try{w.close();}catch(_){}
@@ -4222,7 +4266,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.16',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.17',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
