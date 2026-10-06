@@ -4263,33 +4263,55 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.21',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw-v41.22.js',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
   });
 }
 
+function startupTimeout(promise,ms,label){
+  let timer;
+  const timeout=new Promise((_,reject)=>{ timer=setTimeout(()=>reject(new Error(label+' timed out')),ms); });
+  return Promise.race([promise,timeout]).finally(()=>clearTimeout(timer));
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
   applyTheme();
+  // Render the application immediately. Network/Supabase failures must never
+  // leave the MedEx shell stuck on a blank page.
+  try{ render(); }catch(e){ console.error('Initial MedEx render failed:',e); }
+
   if(SUPABASE_ENABLED){
     supabaseClient.auth.onAuthStateChange((event,session)=>{
       setTimeout(()=>{
         currentUser=session?.user||null;
         adminCheckLoaded=false;
         if(!currentUser){ isAdmin=false; remoteHistory=[]; remoteHistoryLoaded=false; }
-        render();
+        try{ render(); }catch(e){ console.error('Auth render failed:',e); }
       },0);
     });
   }
-  refreshAuthUser().then(async()=>{
-    await loadModuleVisibility();
-    await loadActiveNotifications();
-    await loadQuestions();
+
+  (async()=>{
+    try{ await startupTimeout(refreshAuthUser(),5000,'Authentication'); }
+    catch(e){ console.warn('Startup auth skipped:',e.message); currentUser=null; }
+    try{ await startupTimeout(loadModuleVisibility(),4000,'Module visibility'); }
+    catch(e){ console.warn('Startup module visibility skipped:',e.message); }
+    try{ await startupTimeout(loadActiveNotifications(),4000,'Notifications'); }
+    catch(e){ console.warn('Startup notifications skipped:',e.message); }
+    try{ await startupTimeout(loadQuestions(),8000,'Question bank'); }
+    catch(e){ console.warn('Startup question loading skipped:',e.message); }
     const restored=restoreActiveExam();
-    if(currentUser) await afterAuthChanged();
-    else { await loadFavorites(); await loadGlobalAnalytics(); applyModuleVisibility(); if(!restored) render(); }
-  });
+    if(currentUser){
+      try{ await startupTimeout(afterAuthChanged(),5000,'Account sync'); }catch(e){ console.warn('Startup account sync skipped:',e.message); }
+    }else{
+      try{ await startupTimeout(loadFavorites(),3000,'Favorites'); }catch(e){ console.warn('Startup favorites skipped:',e.message); }
+      try{ await startupTimeout(loadGlobalAnalytics(),4000,'Analytics'); }catch(e){ console.warn('Startup analytics skipped:',e.message); }
+      applyModuleVisibility();
+    }
+    try{ if(!restored) render(); }catch(e){ console.error('Final MedEx render failed:',e); }
+  })();
 });
 </script>
 </body>
