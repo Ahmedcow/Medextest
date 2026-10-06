@@ -3007,42 +3007,42 @@ function printAdminQuestionBankPDF(){
   const printCSS=`
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;background:#fff;color:#101826;font-family:Arial,Helvetica,sans-serif}
-    body{font-size:10pt}
-    .medex-print-page{page-break-after:always;break-after:page;position:relative;width:297mm;height:210mm;min-height:210mm;padding:8mm 10mm 9mm;background:#fff;color:#101826;display:flex;flex-direction:column;overflow:hidden}
+    body{font-size:9pt}
+    .medex-print-page{page-break-after:always;break-after:page;position:relative;width:297mm;height:210mm;padding:6mm 8mm 7mm;background:#fff;color:#101826;display:flex;flex-direction:column;overflow:hidden}
     .medex-print-page:last-child{page-break-after:auto;break-after:auto}
-    .medex-print-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:7mm;border-bottom:1.4px solid #0c7c8c;padding-bottom:3.2mm;margin-bottom:2.8mm;flex:0 0 auto}
-    .medex-print-brand{font-family:Georgia,'Times New Roman',serif;font-size:20pt;font-weight:700;color:#101826;line-height:1}
-    .medex-print-brand.small{font-family:Arial,sans-serif;font-size:8pt;font-weight:400;color:#5b6b72;margin-top:1.4mm}
-    .medex-print-title{font-family:Arial,sans-serif;font-size:13pt;font-weight:800;text-align:center;color:#101826;line-height:1.1}
-    .medex-print-title span{display:block;font-size:9pt;font-weight:700;color:#0c7c8c;margin-top:1.5mm}
-    .medex-print-meta{font-family:Arial,sans-serif;font-size:8.5pt;line-height:1.4;color:#5b6b72;text-align:right}
+    .medex-print-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:5mm;border-bottom:1.2px solid #0c7c8c;padding-bottom:2.2mm;margin-bottom:1.8mm;flex:0 0 auto}
+    .medex-print-brand{font-family:Georgia,'Times New Roman',serif;font-size:17pt;font-weight:700;color:#101826;line-height:1}
+    .medex-print-brand.small{font-family:Arial,sans-serif;font-size:6.8pt;font-weight:400;color:#5b6b72;margin-top:1mm}
+    .medex-print-title{font-family:Arial,sans-serif;font-size:11pt;font-weight:800;text-align:center;color:#101826;line-height:1.05}
+    .medex-print-title span{display:block;font-size:7.5pt;font-weight:700;color:#0c7c8c;margin-top:1mm}
+    .medex-print-meta{font-family:Arial,sans-serif;font-size:7.2pt;line-height:1.25;color:#5b6b72;text-align:right}
     .medex-print-meta b{color:#101826}
-    .medex-print-topic{display:flex;align-items:center;justify-content:center;gap:2.5mm;padding:1.8mm 3mm;margin:0 0 2.8mm;border:1px solid rgba(12,124,140,.28);border-radius:4mm;background:#eaf5f5;color:#095f6c;font-size:9.5pt;font-weight:800;line-height:1.2;flex:0 0 auto}
-    .medex-print-topic-label{font-size:7.5pt;letter-spacing:.06em;text-transform:uppercase;color:#5b6b72;font-weight:700}
-    .medex-print-questions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6mm;flex:1;min-height:0;align-items:start}
-    .medex-print-column{min-width:0;display:flex;flex-direction:column;gap:2.2mm;min-height:0}
-    .medex-print-q{display:grid;grid-template-columns:minmax(0,1fr) 12mm;width:100%;border:1px solid #b9c5c7;background:#fff;break-inside:avoid;page-break-inside:avoid;margin:0}
-    .medex-print-qbody{padding:2.45mm 3mm}
-    .medex-print-qtext{font-family:Arial,sans-serif;font-size:9.35pt;line-height:1.28;font-weight:700;margin-bottom:1.55mm;color:#101826}
+    .medex-print-topic{display:flex;align-items:center;justify-content:center;gap:2mm;padding:1.1mm 2.5mm;margin:0 0 1.8mm;border:1px solid rgba(12,124,140,.28);border-radius:3mm;background:#eaf5f5;color:#095f6c;font-size:8pt;font-weight:800;line-height:1.1;flex:0 0 auto}
+    .medex-print-topic-label{font-size:6.2pt;letter-spacing:.06em;text-transform:uppercase;color:#5b6b72;font-weight:700}
+    .medex-print-questions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4mm;flex:1;min-height:0;align-items:stretch}
+    .medex-print-column{min-width:0;display:flex;flex-direction:column;gap:1.35mm;min-height:0;align-content:flex-start}
+    .medex-print-q{display:grid;grid-template-columns:minmax(0,1fr) 9mm;width:100%;border:1px solid #b9c5c7;background:#fff;break-inside:avoid;page-break-inside:avoid;margin:0;flex:0 0 auto}
+    .medex-print-qbody{padding:1.65mm 2.15mm}
+    .medex-print-qtext{font-family:Arial,sans-serif;font-size:8.05pt;line-height:1.16;font-weight:700;margin-bottom:.95mm;color:#101826}
     .medex-print-qnum{font-weight:800;color:#0c7c8c}
-    .medex-print-opt{font-family:Arial,sans-serif;font-size:8.55pt;line-height:1.22;margin:.85mm 0;padding-left:1mm;color:#263238}
-    .medex-print-answer{border-left:1px solid #b9c5c7;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;font-size:10.5pt;font-weight:800;color:#095f6c;background:#eef7f7;min-height:100%}
-    .medex-print-expl{font-family:Arial,sans-serif;font-size:7.6pt;line-height:1.22;color:#5b6b72;margin-top:1.5mm;border-top:1px dashed #c9d1d3;padding-top:1.35mm}
-    .medex-print-footer{margin-top:2.2mm;border-top:1px solid #c9d1d3;padding-top:2.2mm;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6mm;font-family:Arial,sans-serif;font-size:7.3pt;color:#5b6b72;flex:0 0 auto}
+    .medex-print-opt{font-family:Arial,sans-serif;font-size:7.25pt;line-height:1.12;margin:.48mm 0;padding-left:.7mm;color:#263238}
+    .medex-print-answer{border-left:1px solid #b9c5c7;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;font-size:9.2pt;font-weight:800;color:#095f6c;background:#eef7f7;min-height:100%}
+    .medex-print-expl{font-family:Arial,sans-serif;font-size:6.5pt;line-height:1.12;color:#5b6b72;margin-top:1mm;border-top:1px dashed #c9d1d3;padding-top:.9mm}
+    .medex-print-footer{margin-top:1.6mm;border-top:1px solid #c9d1d3;padding-top:1.5mm;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:4mm;font-family:Arial,sans-serif;font-size:6.4pt;color:#5b6b72;flex:0 0 auto}
     .medex-print-footer .sig{font-weight:800;color:#0c7c8c}
-    .medex-print-footer .page-number{text-align:center;font-size:9pt;font-weight:800;color:#101826}
+    .medex-print-footer .page-number{text-align:center;font-size:8.5pt;font-weight:800;color:#101826}
     .medex-print-footer .context{text-align:right}
-    .medex-print-q.compact .medex-print-qbody{padding:2mm 2.7mm}
-    .medex-print-q.compact .medex-print-qtext{font-size:8.75pt;line-height:1.2;margin-bottom:1.2mm}
-    .medex-print-q.compact .medex-print-opt{font-size:8pt;line-height:1.16;margin:.65mm 0}
-    .medex-print-q.compact .medex-print-answer{font-size:10pt}
+    .medex-print-q.compact .medex-print-qbody{padding:1.25mm 1.8mm}
+    .medex-print-q.compact .medex-print-qtext{font-size:7.35pt;line-height:1.08;margin-bottom:.75mm}
+    .medex-print-q.compact .medex-print-opt{font-size:6.65pt;line-height:1.05;margin:.35mm 0}
+    .medex-print-q.compact .medex-print-answer{font-size:8.4pt}
     @page{size:A4 landscape;margin:0}
   `;
 
   const w=window.open('', '_blank');
   if(!w){toast('Please allow pop-ups for MedEx to create the printable PDF.','error');return;}
 
-  const block=(q,n,compact=false)=>adminPrintQuestionBlock(q,showAnswers,showExplanations,n).replace('<article class="medex-print-q"','<article class="medex-print-q'+(compact?' compact':'')+'"');
+  const block=(q,n,compact=false,scale=1)=>{ const html=adminPrintQuestionBlock(q,showAnswers,showExplanations,n).replace('<article class="medex-print-q"','<article class="medex-print-q'+(compact?' compact':'')+'"'); return scale===1?html:html.replace('<article ',`<article style=\"font-size:${scale}em\" `); };
   const skeleton=(g)=>`<section class="medex-print-page" id="measurePage">
     <header class="medex-print-header">
       <div><div class="medex-print-brand">MedEx</div><div class="medex-print-brand small">Medical Examination Platform</div></div>
@@ -3064,16 +3064,22 @@ function printAdminQuestionBankPDF(){
         const measurePage=w.document.getElementById('measurePage');
         const measureCols=[w.document.getElementById('measureLeft'),w.document.getElementById('measureRight')];
         if(!measurePage||!measureCols[0])throw new Error('Print measurement page was not created.');
-        const capacity=Math.max(80,measureCols[0].getBoundingClientRect().height);
-        const safety=5.5/25.4*96; // reserve a small physical margin so the last box never touches/crops the footer
-        const usable=Math.max(80,capacity-safety);
-        const gap=2.2/25.4*96;
+        // The measurement page has the exact A4 landscape dimensions. Reserve the footer and a physical safety margin.
+        const pageHeight=measurePage.getBoundingClientRect().height;
+        const header=measurePage.querySelector('.medex-print-header')?.getBoundingClientRect().height||0;
+        const topic=measurePage.querySelector('.medex-print-topic')?.getBoundingClientRect().height||0;
+        const footer=measurePage.querySelector('.medex-print-footer')?.getBoundingClientRect().height||0;
+        const questionsTop=measurePage.querySelector('.medex-print-questions')?.getBoundingClientRect().top||0;
+        const safety=3.5/25.4*96;
+        const usable=Math.max(100,pageHeight-questionsTop-footer-safety);
+        const gap=1.35/25.4*96;
+        const colWidth=measureCols[0].getBoundingClientRect().width;
 
-        // Measure each question in the exact same column width/styles used for printing.
+        // Measure every question in a fixed-width offscreen column. We never let the browser paginate a question itself.
         const measureQuestion=(q,n,compact=false)=>{
           const holder=w.document.createElement('div');
           holder.className='medex-print-column';
-          holder.style.position='absolute';holder.style.left='-10000px';holder.style.top='0';holder.style.width=measureCols[0].getBoundingClientRect().width+'px';holder.style.visibility='hidden';
+          holder.style.position='absolute';holder.style.left='-100000px';holder.style.top='0';holder.style.width=colWidth+'px';holder.style.visibility='hidden';holder.style.pointerEvents='none';
           holder.innerHTML=block(q,n,compact);
           w.document.body.appendChild(holder);
           const h=holder.firstElementChild?.getBoundingClientRect().height||0;
@@ -3087,13 +3093,31 @@ function printAdminQuestionBankPDF(){
           const commit=()=>{if(page.left.length||page.right.length)finalPages.push(page);page={g,left:[],right:[],lh:0,rh:0};};
           g.rows.forEach(q=>{
             const item={q,number:++number};
-            let h=measureQuestion(q,item.number,false);
             let compact=false;
-            if(h+gap>usable){compact=true;h=measureQuestion(q,item.number,true);}
+            let h=measureQuestion(q,item.number,false);
+            if(h>usable){compact=true;h=measureQuestion(q,item.number,true);}
+            // If even compact is too tall for one column, progressively reduce only this question until it fits.
+            if(h>usable){
+              let scale=0.94;
+              while(h>usable && scale>=0.76){
+                const holder=w.document.createElement('div');
+                holder.className='medex-print-column';
+                holder.style.position='absolute';holder.style.left='-100000px';holder.style.top='0';holder.style.width=colWidth+'px';holder.style.visibility='hidden';
+                holder.innerHTML=block(q,item.number,true);
+                holder.firstElementChild.style.transformOrigin='top left';
+                holder.firstElementChild.style.transform='scale('+scale+')';
+                holder.firstElementChild.style.width=(100/scale)+'%';
+                w.document.body.appendChild(holder);
+                h=holder.firstElementChild.getBoundingClientRect().height;
+                holder.remove();
+                if(h<=usable){item.extraScale=scale;break;}
+                scale-=0.04;
+              }
+            }
             const need=h+gap;
-            if(page.lh+need<=usable || (!page.left.length&&!page.right.length)){
+            if(page.lh+need<=usable){
               page.left.push({...item,compact});page.lh+=need;
-            }else if(page.rh+need<=usable || !page.right.length){
+            }else if(page.rh+need<=usable){
               page.right.push({...item,compact});page.rh+=need;
             }else{
               commit();
@@ -3111,7 +3135,7 @@ function printAdminQuestionBankPDF(){
             <div class="medex-print-meta"><b>Module:</b> ${adminPrintEscapeHTML(p.g.module)}<br><b>Subject:</b> ${adminPrintEscapeHTML(p.g.subject)}<br><b>Lecture:</b> ${adminPrintEscapeHTML(p.g.lecture)}</div>
           </header>
           <div class="medex-print-topic"><span class="medex-print-topic-label">Lecture topic</span><span>${adminPrintEscapeHTML(p.g.lecture)}</span></div>
-          <div class="medex-print-questions"><div class="medex-print-column">${p.left.map(x=>block(x.q,x.number,x.compact)).join('')}</div><div class="medex-print-column">${p.right.map(x=>block(x.q,x.number,x.compact)).join('')}</div></div>
+          <div class="medex-print-questions"><div class="medex-print-column">${p.left.map(x=>block(x.q,x.number,x.compact,x.extraScale||1)).join('')}</div><div class="medex-print-column">${p.right.map(x=>block(x.q,x.number,x.compact,x.extraScale||1)).join('')}</div></div>
           <footer class="medex-print-footer"><div><span class="sig">MedEx — Medical Examination Platform</span><br>Official Question Book · ${total} questions</div><div class="page-number">${idx+1}</div><div class="context">Module: ${adminPrintEscapeHTML(p.g.module)} · Subject: ${adminPrintEscapeHTML(p.g.subject)} · Lecture: ${adminPrintEscapeHTML(p.g.lecture)}</div></footer>
         </section>`).join('');
         w.document.body.innerHTML=output;
