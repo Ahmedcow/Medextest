@@ -264,15 +264,30 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .exam-annotation-tools.is-open .exam-drawing-extra{display:flex}
 .exam-annotation-tools:not(.is-open) .tool-btn,.exam-annotation-tools:not(.is-open) #examDrawingNote{display:none}
 
-/* v41.9: compact exam-builder chooser */
-.exam-builder-chooser{padding:12px 16px;margin-bottom:16px}
-.exam-builder-chooser .chooser-row{display:flex;align-items:center;gap:12px}
-.exam-builder-chooser .chooser-copy{min-width:0;flex:1}
-.exam-builder-chooser .chooser-copy strong{font-size:14px}
-.exam-builder-chooser .chooser-copy .mini{margin-top:2px}
-.exam-builder-chooser .chooser-select{flex:0 1 520px;min-width:280px}
-.exam-builder-chooser .chooser-select select{width:100%}
-@media(max-width:700px){.exam-builder-chooser .chooser-row{display:block}.exam-builder-chooser .chooser-select{min-width:0;margin-top:9px}}
+/* v41.10: compact, theme-safe exam-builder picker */
+.exam-builder-chooser{padding:0;margin:0 0 16px;background:transparent;border:0;box-shadow:none}
+.exam-builder-chooser details{border:1px solid var(--line);border-radius:14px;background:var(--card);overflow:hidden}
+.exam-builder-chooser summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:9px 13px;cursor:pointer;user-select:none}
+.exam-builder-chooser summary::-webkit-details-marker{display:none}
+.exam-builder-chooser summary:hover{background:var(--primary-soft)}
+.exam-builder-chooser .chooser-summary-main{display:flex;align-items:center;gap:10px;min-width:0}
+.exam-builder-chooser .chooser-summary-icon{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary);font-size:15px;flex:0 0 auto}
+.exam-builder-chooser .chooser-summary-copy{min-width:0}
+.exam-builder-chooser .chooser-summary-copy strong{display:block;font-size:13px;line-height:1.2}
+.exam-builder-chooser .chooser-summary-copy span{display:block;margin-top:2px;color:var(--muted);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exam-builder-chooser .chooser-chevron{color:var(--muted);font-size:17px;transition:transform .16s ease}
+.exam-builder-chooser details[open] .chooser-chevron{transform:rotate(180deg);color:var(--primary)}
+.exam-builder-chooser .chooser-menu{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 9px 9px;border-top:1px solid var(--line);background:var(--bg)}
+.exam-builder-chooser .chooser-option{display:flex;align-items:center;gap:9px;width:100%;min-height:50px;padding:8px 10px;border:1px solid var(--line);border-radius:11px;background:var(--card);color:var(--text);text-align:left;cursor:pointer;transition:border-color .15s ease,background .15s ease,transform .1s ease}
+.exam-builder-chooser .chooser-option:hover{border-color:var(--primary);background:var(--primary-soft);transform:translateY(-1px)}
+.exam-builder-chooser .chooser-option.active{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 1px color-mix(in srgb,var(--primary) 18%,transparent)}
+.exam-builder-chooser .chooser-option-icon{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--bg);color:var(--primary);font-size:14px;flex:0 0 auto}
+.exam-builder-chooser .chooser-option-copy{min-width:0}
+.exam-builder-chooser .chooser-option-copy strong{display:block;font-size:11.5px}
+.exam-builder-chooser .chooser-option-copy span{display:block;margin-top:2px;color:var(--muted);font-size:9.5px;line-height:1.25}
+.exam-builder-chooser .chooser-check{margin-left:auto;color:var(--primary);font-weight:800;opacity:0}
+.exam-builder-chooser .chooser-option.active .chooser-check{opacity:1}
+@media(max-width:700px){.exam-builder-chooser .chooser-menu{grid-template-columns:1fr}.exam-builder-chooser summary{min-height:46px}.exam-builder-chooser .chooser-summary-copy span{max-width:calc(100vw - 145px)}}
 
 /* v41.9: clearer lateral drawing controls */
 .exam-annotation-toolbar .tool-btn svg,.exam-annotation-toolbar .size-tool svg{width:19px;height:19px;display:block}
@@ -288,6 +303,11 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .exam-annotation-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:8;touch-action:none;pointer-events:none}
 .exam-annotation-canvas.drawing-enabled{pointer-events:auto;cursor:crosshair}
 .exam-annotation-note-label{display:block;font-weight:700;font-size:12px;margin-bottom:7px;color:var(--text)}
+/* v41.10 visual polish: clearer icon geometry and dark/light-safe controls */
+.exam-annotation-toolbar .tool-btn,.exam-annotation-toolbar .size-tool{background:var(--card);box-shadow:0 1px 0 rgba(0,0,0,.04)}
+.exam-annotation-toolbar .tool-btn:hover,.exam-annotation-toolbar .size-tool:hover{background:var(--primary-soft)}
+.exam-annotation-toolbar .tool-btn svg,.exam-annotation-toolbar .size-tool svg{stroke-width:2;vector-effect:non-scaling-stroke}
+.exam-size-indicator{right:2px;bottom:2px}
 @media(max-width:700px){.exam-annotation-tools{right:8px;padding:6px;width:48px;border-radius:18px}.exam-annotation-tools.is-open{width:52px}.exam-annotation-toolbar .btn{width:36px;height:36px;min-width:36px}.exam-annotation-note-wrap{right:66px;bottom:14px;width:min(290px,calc(100vw - 82px))}}
 
 /* V41.8: compact exam controls for phone screens */
@@ -563,7 +583,7 @@ let examBuilderSelection = new Set();
 let examBuilderExpanded = new Set();
 let examBuilderSearch = '';
 let flashcardSession = null;
-let flashcardFilter = {module:'',subject:'',lecture:'',mode:'due',count:20};
+let flashcardFilter = {module:'',subject:'',lecture:'',mode:'due',count:0};
 let reportPanelOpen=false;
 let examBuilderMode='simple';
 
@@ -1611,7 +1631,14 @@ function setExamBuilderMode(mode){
   const simple=document.getElementById('simpleExamBuilderWrap'), advanced=document.getElementById('advancedExamBuilderWrap');
   if(simple)simple.classList.toggle('hidden',examBuilderMode!=='simple');
   if(advanced)advanced.classList.toggle('hidden',examBuilderMode!=='advanced');
-  const sel=document.getElementById('examBuilderMode'); if(sel)sel.value=examBuilderMode;
+  const current=document.getElementById('examBuilderCurrent');
+  if(current)current.textContent=examBuilderMode==='advanced'
+    ? 'Current: Advanced Smart Exam Builder · Mixed Module → Subject → Lecture selection'
+    : 'Current: Simple Exam Builder · Module → Subject → Lecture';
+  document.querySelectorAll('.exam-builder-chooser .chooser-option').forEach(b=>{
+    const active=(b.textContent||'').includes(examBuilderMode==='advanced'?'Advanced Smart':'Simple Exam');
+    b.classList.toggle('active',active); b.setAttribute('aria-selected',active?'true':'false');
+  });
   if(examBuilderMode==='advanced'){ renderExamTree(); updateExamSelectionSummary(); }
 }
 function renderExamSetup(){
@@ -1619,10 +1646,23 @@ function renderExamSetup(){
   const body=`
   <div id="simpleExamBuilderWrap">${simpleExamControlsHTML()}</div>
   <div class="card exam-builder-chooser">
-    <div class="chooser-row">
-      <div class="chooser-copy"><strong>Choose Exam Builder</strong><div class="mini">Switch between the classic builder and Smart Exam Builder.</div></div>
-      <div class="chooser-select"><label class="sr-only" for="examBuilderMode">Exam builder</label><select id="examBuilderMode" onchange="setExamBuilderMode(this.value)"><option value="simple">Simple Exam Builder — Module → Subject → Lecture</option><option value="advanced">Advanced — Smart Exam Builder</option></select></div>
-    </div>
+    <details id="examBuilderChooser">
+      <summary>
+        <div class="chooser-summary-main">
+          <span class="chooser-summary-icon">▦</span>
+          <span class="chooser-summary-copy"><strong>Choose Exam Builder</strong><span id="examBuilderCurrent">Current: Simple Exam Builder · Module → Subject → Lecture</span></span>
+        </div>
+        <span class="chooser-chevron">⌄</span>
+      </summary>
+      <div class="chooser-menu" role="listbox" aria-label="Exam builder options">
+        <button type="button" class="chooser-option ${examBuilderMode==='simple'?'active':''}" onclick="setExamBuilderMode('simple');document.getElementById('examBuilderChooser').open=false" role="option" aria-selected="${examBuilderMode==='simple'}">
+          <span class="chooser-option-icon">✓</span><span class="chooser-option-copy"><strong>Simple Exam Builder</strong><span>Module → Subject → Lecture</span></span><span class="chooser-check">✓</span>
+        </button>
+        <button type="button" class="chooser-option ${examBuilderMode==='advanced'?'active':''}" onclick="setExamBuilderMode('advanced');document.getElementById('examBuilderChooser').open=false" role="option" aria-selected="${examBuilderMode==='advanced'}">
+          <span class="chooser-option-icon">✦</span><span class="chooser-option-copy"><strong>Advanced Smart Exam Builder</strong><span>Mix modules, subjects and specific lectures</span></span><span class="chooser-check">✓</span>
+        </button>
+      </div>
+    </details>
   </div>
   <div id="advancedExamBuilderWrap" class="hidden">
     <div class="card">
@@ -2030,12 +2070,12 @@ function renderQuiz(){
         <div class="exam-drawing-extra">
           <button type="button" class="btn tool-btn ${examDrawingTool==='pen'?'tool-active':''}" data-tool="pen" onclick="setExamDrawingTool('pen')" title="Pen" aria-label="Pen">✎</button>
           ${examPenPaletteHTML()}
-          <button type="button" class="btn tool-btn ${examDrawingTool==='highlighter'?'tool-active':''}" data-tool="highlighter" onclick="setExamDrawingTool('highlighter')" title="Highlighter" aria-label="Highlighter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m5 15 8.8-8.8a2 2 0 0 1 2.8 0l1.2 1.2a2 2 0 0 1 0 2.8L10 18H5v-3Z"/><path d="M13 7.1 16.9 11"/><path d="M3.5 20h17"/></svg></button>
-          <button type="button" class="btn tool-btn ${examDrawingTool==='eraser'?'tool-active':''}" data-tool="eraser" onclick="setExamDrawingTool('eraser')" title="Eraser" aria-label="Eraser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m7.2 16.8 8.7-8.7a2.2 2.2 0 0 1 3.1 0l.9.9a2.2 2.2 0 0 1 0 3.1l-6.8 6.8H8.2a2 2 0 0 1-1.4-.6l-.5-.5a2 2 0 0 1 .9-1Z"/><path d="m13 12 4 4"/><path d="M8.2 18.9H20"/></svg></button>
+          <button type="button" class="btn tool-btn ${examDrawingTool==='highlighter'?'tool-active':''}" data-tool="highlighter" onclick="setExamDrawingTool('highlighter')" title="Highlighter" aria-label="Highlighter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 14.8 9.7-9.7a2 2 0 0 1 2.8 0l2 2a2 2 0 0 1 0 2.8l-9.7 9.7H6.2a2 2 0 0 1-1.7-2.9Z"/><path d="m12.8 6.5 4.7 4.7"/><path d="M3.5 20.5h17"/></svg></button>
+          <button type="button" class="btn tool-btn ${examDrawingTool==='eraser'?'tool-active':''}" data-tool="eraser" onclick="setExamDrawingTool('eraser')" title="Eraser" aria-label="Eraser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4.8 15.8 8.9-8.9a2.1 2.1 0 0 1 3 0l2.4 2.4a2.1 2.1 0 0 1 0 3l-7.1 7.1H8.1a2.2 2.2 0 0 1-1.6-.7l-1.7-1.7a.9.9 0 0 1 0-1.2Z"/><path d="m12.5 9.1 5.4 5.4"/><path d="M12 19.4h8"/></svg></button>
           <button type="button" class="btn" onclick="undoExamDrawing()" title="Undo" aria-label="Undo"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7 4 12l5 5"/><path d="M4 12h9a6 6 0 0 1 6 6"/></svg></button>
           <button type="button" class="btn" onclick="clearExamDrawing()" title="Clear drawings" aria-label="Clear drawings"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="m7 7 .8 13h8.4L17 7"/><path d="M10 11v5M14 11v5"/></svg></button>
           <button type="button" class="btn" id="examDrawingNote" onclick="toggleExamNote()" title="Private note" aria-label="Private note"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></button>
-          <button type="button" class="btn size-tool" onclick="cycleExamDrawingSize()" title="Brush size" aria-label="Brush size"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="17" r="1.8"/><circle cx="12" cy="12" r="3"/><circle cx="18" cy="7" r="4.3"/></svg><span class="exam-size-indicator" data-size="${examDrawingSize<=2?'small':examDrawingSize>=6?'large':'medium'}"></span></button>
+          <button type="button" class="btn size-tool" onclick="cycleExamDrawingSize()" title="Brush size" aria-label="Brush size"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M5 7h4" stroke-width="1.5"/><path d="M5 12h8" stroke-width="3"/><path d="M5 17h13" stroke-width="5"/></svg><span class="exam-size-indicator" data-size="${examDrawingSize<=2?'small':examDrawingSize>=6?'large':'medium'}"></span></button>
         </div>
       </div>
       <div class="exam-annotation-note-wrap" id="examAnnotationNoteWrap"><label class="exam-annotation-note-label">Private note</label><textarea id="examAnnotationNote" class="exam-annotation-note" placeholder="Take a private note for this question…"></textarea></div>
@@ -2497,11 +2537,11 @@ function renderFlashcardSetup(){
     </div>
     <div class="study-selection-summary" style="margin-top:12px"><span><b>Selected:</b> ${esc(scopeLabel)}</span><span><b>${all.length}</b> cards match</span><span><b>${effectiveLimit}</b> max this session</span></div>
     <div class="study-filter-grid study-filter-grid-2">
-      <div class="field"><label>Review queue</label><select id="flashMode" onchange="updateFlashcardFilter('flashMode')"><option value="due" ${flashcardFilter.mode==='due'?'selected':''}>Due / learning only</option><option value="new" ${flashcardFilter.mode==='new'?'selected':''}>New only</option></select></div>
+      <div class="field"><label>Card type</label><select id="flashMode" onchange="updateFlashcardFilter('flashMode')"><option value="due" ${flashcardFilter.mode==='due'?'selected':''}>Due & learning</option><option value="new" ${flashcardFilter.mode==='new'?'selected':''}>New only</option></select></div>
       <div class="field"><label>Card limit for this exact Module → Subject → Lecture</label><select id="flashCount" onchange="updateFlashcardFilter('flashCount')">${[5,10,20,50,100].map(n=>`<option value="${n}" ${Number(flashcardFilter.count)===n?'selected':''}>${n} cards</option>`).join('')}<option value="0" ${Number(flashcardFilter.count)===0?'selected':''}>All matching cards</option></select></div>
     </div>
-    <div class="study-selection-summary"><span><b>Due / learning:</b> ${due.length}</span><span><b>New:</b> ${fresh.length}</span><span><b>Available:</b> ${all.length}</span><span><b>New today:</b> ${Number(daily.newCards||0)} / 20</span><span><b>Reviews today:</b> ${Number(daily.reviews||0)}</span></div>
-    <div class="study-selection-summary"><span><b>Anki-style rule:</b> due cards are never reduced by the new-card limit. New cards use the daily new-card limit.</span></div>
+    <div class="study-selection-summary"><span><b>Due & learning:</b> ${due.length}</span><span><b>New:</b> ${fresh.length}</span><span><b>Available:</b> ${all.length}</span><span><b>New today:</b> ${Number(daily.newCards||0)} / 20</span><span><b>Reviews today:</b> ${Number(daily.reviews||0)}</span></div>
+    <div class="study-selection-summary"><span><b>Queue rule:</b> due / learning cards are never capped by the daily new-card limit. New cards use the 20-card daily new limit.</span></div>
     <div class="actions study-builder-actions"><button class="btn primary btn-lg" onclick="startFlashcardSession()" ${(flashcardFilter.mode==='due'?due.length:fresh.length)?'':'disabled'}>Start Review</button><button class="btn" onclick="resetFlashcardFilter()">Reset filters</button></div>
   </section>`;
 }
@@ -2511,10 +2551,10 @@ function updateFlashcardFilter(source){
   else if(id==='flashSubject'){flashcardFilter.subject=document.getElementById('flashSubject')?.value||'';flashcardFilter.lecture='';}
   else if(id==='flashLecture')flashcardFilter.lecture=document.getElementById('flashLecture')?.value||'';
   else if(id==='flashMode')flashcardFilter.mode=document.getElementById('flashMode')?.value||'all';
-  else if(id==='flashCount')flashcardFilter.count=Number(document.getElementById('flashCount')?.value||20);
+  else if(id==='flashCount')flashcardFilter.count=Number(document.getElementById('flashCount')?.value||0);
   renderStudyTools();
 }
-function resetFlashcardFilter(){flashcardFilter={module:'',subject:'',lecture:'',mode:'due',count:20};renderStudyTools();}
+function resetFlashcardFilter(){flashcardFilter={module:'',subject:'',lecture:'',mode:'due',count:0};renderStudyTools();}
 function flashcardQueueForSession(){
   const mode=flashcardFilter.mode==='new'?'new':'due';
   let list=flashcardItems({...flashcardFilter,mode});
@@ -3970,7 +4010,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.8',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.10',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
