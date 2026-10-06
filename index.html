@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.8-mobile-exam-layout">
+<meta name="medex-build" content="v41.11-dark-start-exam-polish">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -49,7 +49,8 @@ html[data-theme="dark"]{
   --shadow-sm:0 1px 2px rgba(0,0,0,.4);
 }
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;color-scheme:light}
+html[data-theme="dark"]{color-scheme:dark}
 body{margin:0;font-family:var(--font-sans);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
@@ -62,7 +63,8 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .scrim{position:fixed;inset:0;background:rgba(8,12,18,.5);opacity:0;pointer-events:none;transition:opacity .22s ease;z-index:40}
 .app.sidebar-open .scrim{opacity:1;pointer-events:auto}
 .appshell{flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh}
-.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;height:var(--topbar-h);padding:0 18px;background:rgba(238,242,240,.86);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;height:var(--topbar-h);padding:0 18px;background:color-mix(in srgb,var(--card) 90%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+html[data-theme="dark"] .topbar{background:rgba(15,21,23,.88)}
 .topbar-brand{font-family:var(--font-serif);font-size:17px;font-weight:600}
 .topbar-brand small{display:block;font-family:var(--font-sans);font-weight:500;font-size:10.5px;color:var(--muted);letter-spacing:.02em;margin-top:-2px}
 .icon-btn{width:38px;height:38px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--card);border-radius:10px;transition:border-color .15s ease,background .15s ease}
@@ -125,6 +127,14 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .three{grid-template-columns:repeat(3,1fr)}
 .field label{display:block;font-size:12px;color:var(--muted);font-weight:600;margin-bottom:5px}
 .field input,.field select,.field textarea{width:100%;border:1px solid var(--line);background:var(--card);border-radius:var(--radius-sm);padding:10px;color:var(--text)}
+.field select{color-scheme:light;background-color:var(--card);color:var(--text);font-weight:500;min-height:42px}
+html[data-theme="dark"] .field select,
+html[data-theme="dark"] select#examBuilderChooser{color-scheme:dark;background-color:var(--card)!important;color:var(--text)!important;border-color:var(--line)}
+.field select option,
+select#examBuilderChooser option{background-color:var(--card);color:var(--text)}
+html[data-theme="dark"] .field select option,
+html[data-theme="dark"] select#examBuilderChooser option{background-color:#182023;color:#e7edee}
+.field select:hover{border-color:var(--primary)}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary)}
 .field textarea{min-height:130px;resize:vertical;font-family:var(--font-mono);font-size:13px}
 
@@ -264,12 +274,22 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .exam-annotation-tools.is-open .exam-drawing-extra{display:flex}
 .exam-annotation-tools:not(.is-open) .tool-btn,.exam-annotation-tools:not(.is-open) #examDrawingNote{display:none}
 
+/* v41.11: dark-mode-safe Start Exam controls and native-select fallback */
+select#examBuilderChooser{width:100%;min-height:44px;padding:10px 42px 10px 13px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);font-weight:600;appearance:auto;color-scheme:light}
+html[data-theme="dark"] select#examBuilderChooser{color-scheme:dark;background:var(--card)!important;color:var(--text)!important}
+html[data-theme="dark"] select#examBuilderChooser:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+#simpleExamBuilder{background:linear-gradient(135deg,var(--card),color-mix(in srgb,var(--card) 92%,var(--primary-soft)));border-color:color-mix(in srgb,var(--line) 78%,var(--primary))}
+html[data-theme="dark"] #simpleExamBuilder{background:linear-gradient(135deg,#182023,#17282c);border-color:#2e454a}
+#simpleExamBuilder .category-head{align-items:flex-start}
+#simpleExamBuilder .pill{box-shadow:inset 0 0 0 1px rgba(var(--primary-rgb),.12)}
 /* v41.10: compact, theme-safe exam-builder picker */
 .exam-builder-chooser{padding:0;margin:0 0 16px;background:transparent;border:0;box-shadow:none}
-.exam-builder-chooser details{border:1px solid var(--line);border-radius:14px;background:var(--card);overflow:hidden}
+.exam-builder-chooser details{border:1px solid var(--line);border-radius:14px;background:var(--card);overflow:hidden;box-shadow:0 6px 20px rgba(0,0,0,.08)}
+html[data-theme="dark"] .exam-builder-chooser details{background:#151e21;border-color:#2b3b3f;box-shadow:0 10px 26px rgba(0,0,0,.28)}
 .exam-builder-chooser summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:9px 13px;cursor:pointer;user-select:none}
 .exam-builder-chooser summary::-webkit-details-marker{display:none}
 .exam-builder-chooser summary:hover{background:var(--primary-soft)}
+.exam-builder-chooser summary:focus-visible{background:var(--primary-soft)}
 .exam-builder-chooser .chooser-summary-main{display:flex;align-items:center;gap:10px;min-width:0}
 .exam-builder-chooser .chooser-summary-icon{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary);font-size:15px;flex:0 0 auto}
 .exam-builder-chooser .chooser-summary-copy{min-width:0}
@@ -4010,7 +4030,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.10',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.11',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
