@@ -3056,10 +3056,9 @@ function printAdminQuestionBankPDF(){
   const skeleton=(g)=>`<section class="medex-print-page" id="measurePage">
     <header class="medex-print-header">
       <div><div class="medex-print-brand">MedEx</div><div class="medex-print-brand small">Medical Examination Platform</div></div>
-      <div class="medex-print-title">Question book<span>Lecture topic: ${adminPrintEscapeHTML(g.lecture)}</span></div>
+      <div class="medex-print-title">Question book<span>${adminPrintEscapeHTML(g.lecture)}</span></div>
       <div class="medex-print-meta"><b>Module:</b> ${adminPrintEscapeHTML(g.module)}<br><b>Subject:</b> ${adminPrintEscapeHTML(g.subject)}<br><b>Lecture:</b> ${adminPrintEscapeHTML(g.lecture)}</div>
     </header>
-    <div class="medex-print-topic"><span class="medex-print-topic-label">Lecture topic</span><span>${adminPrintEscapeHTML(g.lecture)}</span></div>
     <div class="medex-print-questions"><div class="medex-print-column" id="measureLeft"></div><div class="medex-print-column" id="measureRight"></div></div>
     <footer class="medex-print-footer"><div><span class="sig">MedEx — Medical Examination Platform</span><br>Official Question Book · ${total} questions</div><div class="page-number">1</div><div class="context">Module: ${adminPrintEscapeHTML(g.module)} · Subject: ${adminPrintEscapeHTML(g.subject)} · Lecture: ${adminPrintEscapeHTML(g.lecture)}</div></footer>
   </section>`;
@@ -3076,7 +3075,6 @@ function printAdminQuestionBankPDF(){
         if(!measurePage||!measureCols[0])throw new Error('Print measurement page was not created.');
         const pageHeight=measurePage.getBoundingClientRect().height;
         const header=measurePage.querySelector('.medex-print-header')?.getBoundingClientRect().height||0;
-        const topic=measurePage.querySelector('.medex-print-topic')?.getBoundingClientRect().height||0;
         const footer=measurePage.querySelector('.medex-print-footer')?.getBoundingClientRect().height||0;
         const questionsTop=measurePage.querySelector('.medex-print-questions')?.getBoundingClientRect().top||0;
         const pagePaddingTop=parseFloat(w.getComputedStyle(measurePage).paddingTop)||0;
@@ -3114,8 +3112,9 @@ function printAdminQuestionBankPDF(){
           return {compact,extraScale,h};
         };
 
-        const finalPages=[]; let number=0;
+        const finalPages=[];
         groups.forEach(g=>{
+          let number=0;
           let page={g,left:[],right:[],lh:0,rh:0,first:true};
           const commit=()=>{if(page.left.length||page.right.length)finalPages.push(page);page={g,left:[],right:[],lh:0,rh:0,first:false};};
           g.rows.forEach(q=>{
@@ -3143,10 +3142,9 @@ function printAdminQuestionBankPDF(){
           return `<section class="medex-print-page ${showLectureHeader?'lecture-start':'continuation-page'}">
           ${showLectureHeader?`<header class="medex-print-header">
             <div><div class="medex-print-brand">MedEx</div><div class="medex-print-brand small">Medical Examination Platform</div></div>
-            <div class="medex-print-title">Question book<span>Lecture topic: ${adminPrintEscapeHTML(p.g.lecture)}</span></div>
+            <div class="medex-print-title">Question book<span>${adminPrintEscapeHTML(p.g.lecture)}</span></div>
             <div class="medex-print-meta"><b>Module:</b> ${adminPrintEscapeHTML(p.g.module)}<br><b>Subject:</b> ${adminPrintEscapeHTML(p.g.subject)}<br><b>Lecture:</b> ${adminPrintEscapeHTML(p.g.lecture)}</div>
-          </header>
-          <div class="medex-print-topic"><span class="medex-print-topic-label">Lecture topic</span><span>${adminPrintEscapeHTML(p.g.lecture)}</span></div>`:''}
+          </header>`:''}
           <div class="medex-print-questions"><div class="medex-print-column">${p.left.map(x=>block(x.q,x.number,x.compact,x.extraScale||1)).join('')}</div><div class="medex-print-column">${p.right.map(x=>block(x.q,x.number,x.compact,x.extraScale||1)).join('')}</div></div>
           <footer class="medex-print-footer"><div><span class="sig">MedEx — Medical Examination Platform</span><br>Official Question Book · ${total} questions</div><div class="page-number">${idx+1}</div><div class="context">Module: ${adminPrintEscapeHTML(p.g.module)} · Subject: ${adminPrintEscapeHTML(p.g.subject)} · Lecture: ${adminPrintEscapeHTML(p.g.lecture)}</div></footer>
         </section>`;
