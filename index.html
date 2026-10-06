@@ -263,6 +263,24 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 
 .exam-annotation-tools.is-open .exam-drawing-extra{display:flex}
 .exam-annotation-tools:not(.is-open) .tool-btn,.exam-annotation-tools:not(.is-open) #examDrawingNote{display:none}
+
+/* v41.9: compact exam-builder chooser */
+.exam-builder-chooser{padding:12px 16px;margin-bottom:16px}
+.exam-builder-chooser .chooser-row{display:flex;align-items:center;gap:12px}
+.exam-builder-chooser .chooser-copy{min-width:0;flex:1}
+.exam-builder-chooser .chooser-copy strong{font-size:14px}
+.exam-builder-chooser .chooser-copy .mini{margin-top:2px}
+.exam-builder-chooser .chooser-select{flex:0 1 520px;min-width:280px}
+.exam-builder-chooser .chooser-select select{width:100%}
+@media(max-width:700px){.exam-builder-chooser .chooser-row{display:block}.exam-builder-chooser .chooser-select{min-width:0;margin-top:9px}}
+
+/* v41.9: clearer lateral drawing controls */
+.exam-annotation-toolbar .tool-btn svg,.exam-annotation-toolbar .size-tool svg{width:19px;height:19px;display:block}
+.exam-annotation-toolbar .size-tool{position:relative}
+.exam-size-indicator{position:absolute;right:3px;bottom:3px;width:6px;height:6px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 2px var(--card)}
+.exam-size-indicator[data-size=small]{width:4px;height:4px}
+.exam-size-indicator[data-size=large]{width:8px;height:8px}
+.exam-size-label{font-family:var(--font-mono);font-size:8px;font-weight:800;line-height:1;color:currentColor}
 .exam-annotation-note-wrap{display:none;position:fixed;right:82px;bottom:24px;width:min(320px,calc(100vw - 100px));padding:10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);box-shadow:0 14px 34px rgba(0,0,0,.2)}
 .exam-annotation-note-wrap.is-open{display:block}
 .exam-annotation-note{width:100%;min-height:120px;max-height:220px;resize:vertical;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);padding:10px 12px;font-family:var(--font-sans);font-size:13px;line-height:1.5}
@@ -545,7 +563,7 @@ let examBuilderSelection = new Set();
 let examBuilderExpanded = new Set();
 let examBuilderSearch = '';
 let flashcardSession = null;
-let flashcardFilter = {module:'',subject:'',lecture:'',mode:'all',count:20};
+let flashcardFilter = {module:'',subject:'',lecture:'',mode:'due',count:20};
 let reportPanelOpen=false;
 let examBuilderMode='simple';
 
@@ -1599,11 +1617,13 @@ function setExamBuilderMode(mode){
 function renderExamSetup(){
   const total=bank.length;
   const body=`
-  <div class="card" style="margin-bottom:16px">
-    <div class="category-head"><div><strong>Choose Exam Builder</strong><div class="mini" style="margin-top:4px">Use the classic step-by-step builder, or use Smart Exam Builder for mixed selections.</div></div><span class="pill">${total} Q available</span></div>
-    <div class="field" style="margin-top:14px"><label>Exam builder</label><select id="examBuilderMode" onchange="setExamBuilderMode(this.value)"><option value="simple">Simple Exam Builder — Module → Subject → Lecture</option><option value="advanced">Advanced — Smart Exam Builder</option></select></div>
-  </div>
   <div id="simpleExamBuilderWrap">${simpleExamControlsHTML()}</div>
+  <div class="card exam-builder-chooser">
+    <div class="chooser-row">
+      <div class="chooser-copy"><strong>Choose Exam Builder</strong><div class="mini">Switch between the classic builder and Smart Exam Builder.</div></div>
+      <div class="chooser-select"><label class="sr-only" for="examBuilderMode">Exam builder</label><select id="examBuilderMode" onchange="setExamBuilderMode(this.value)"><option value="simple">Simple Exam Builder — Module → Subject → Lecture</option><option value="advanced">Advanced — Smart Exam Builder</option></select></div>
+    </div>
+  </div>
   <div id="advancedExamBuilderWrap" class="hidden">
     <div class="card">
       <div class="category-head"><div><strong>Advanced Smart Exam Builder</strong><div class="mini" style="margin-top:4px">Select an entire module, a whole subject, specific lectures, or any mixture of branches.</div></div><span class="pill">Advanced</span></div>
@@ -1958,7 +1978,8 @@ function clearExamDrawing(){
   if(!data.strokes.length)return;
   if(confirm('Clear all drawings and highlights on this question?')){data.strokes=[];saveActiveExam();drawExamAnnotations();}
 }
-function setExamDrawingSize(v){examDrawingSize=Number(v)||3;}
+function setExamDrawingSize(v){examDrawingSize=Math.max(1,Math.min(8,Number(v)||3));}
+function cycleExamDrawingSize(){const sizes=[2,4,7];const i=sizes.indexOf(Number(examDrawingSize));setExamDrawingSize(sizes[(i+1)%sizes.length]);renderQuiz();}
 
 function renderQuiz(){
   if(!exam)return go('exam');
@@ -2009,12 +2030,12 @@ function renderQuiz(){
         <div class="exam-drawing-extra">
           <button type="button" class="btn tool-btn ${examDrawingTool==='pen'?'tool-active':''}" data-tool="pen" onclick="setExamDrawingTool('pen')" title="Pen" aria-label="Pen">✎</button>
           ${examPenPaletteHTML()}
-          <button type="button" class="btn tool-btn ${examDrawingTool==='highlighter'?'tool-active':''}" data-tool="highlighter" onclick="setExamDrawingTool('highlighter')" title="Highlight" aria-label="Highlight"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 15 9-9 5 5-9 9H4v-5Z"/><path d="m13 6 5 5"/><path d="M3 20h11"/></svg></button>
-          <button type="button" class="btn tool-btn ${examDrawingTool==='eraser'?'tool-active':''}" data-tool="eraser" onclick="setExamDrawingTool('eraser')" title="Eraser" aria-label="Eraser"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 16 8.5-8.5a2.1 2.1 0 0 1 3 3L10 19H6.5a2 2 0 0 1-1.4-.6L3.6 16.9a2 2 0 0 1 0-2.8L11 6.7"/><path d="M14 12l3 3"/><path d="M10 19h10"/></svg></button>
-          <button type="button" class="btn" onclick="undoExamDrawing()" title="Undo" aria-label="Undo">↶</button>
-          <button type="button" class="btn" onclick="clearExamDrawing()" title="Clear drawings" aria-label="Clear drawings">⌫</button>
-          <button type="button" class="btn" id="examDrawingNote" onclick="toggleExamNote()" title="Private note" aria-label="Private note">▤</button>
-          <label class="btn" title="Brush size" aria-label="Brush size" style="cursor:pointer;overflow:hidden"><input type="range" min="1" max="8" value="${examDrawingSize}" oninput="setExamDrawingSize(this.value)" style="width:28px;accent-color:var(--primary);transform:rotate(-90deg)"></label>
+          <button type="button" class="btn tool-btn ${examDrawingTool==='highlighter'?'tool-active':''}" data-tool="highlighter" onclick="setExamDrawingTool('highlighter')" title="Highlighter" aria-label="Highlighter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m5 15 8.8-8.8a2 2 0 0 1 2.8 0l1.2 1.2a2 2 0 0 1 0 2.8L10 18H5v-3Z"/><path d="M13 7.1 16.9 11"/><path d="M3.5 20h17"/></svg></button>
+          <button type="button" class="btn tool-btn ${examDrawingTool==='eraser'?'tool-active':''}" data-tool="eraser" onclick="setExamDrawingTool('eraser')" title="Eraser" aria-label="Eraser"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m7.2 16.8 8.7-8.7a2.2 2.2 0 0 1 3.1 0l.9.9a2.2 2.2 0 0 1 0 3.1l-6.8 6.8H8.2a2 2 0 0 1-1.4-.6l-.5-.5a2 2 0 0 1 .9-1Z"/><path d="m13 12 4 4"/><path d="M8.2 18.9H20"/></svg></button>
+          <button type="button" class="btn" onclick="undoExamDrawing()" title="Undo" aria-label="Undo"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7 4 12l5 5"/><path d="M4 12h9a6 6 0 0 1 6 6"/></svg></button>
+          <button type="button" class="btn" onclick="clearExamDrawing()" title="Clear drawings" aria-label="Clear drawings"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="m7 7 .8 13h8.4L17 7"/><path d="M10 11v5M14 11v5"/></svg></button>
+          <button type="button" class="btn" id="examDrawingNote" onclick="toggleExamNote()" title="Private note" aria-label="Private note"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></button>
+          <button type="button" class="btn size-tool" onclick="cycleExamDrawingSize()" title="Brush size" aria-label="Brush size"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="17" r="1.8"/><circle cx="12" cy="12" r="3"/><circle cx="18" cy="7" r="4.3"/></svg><span class="exam-size-indicator" data-size="${examDrawingSize<=2?'small':examDrawingSize>=6?'large':'medium'}"></span></button>
         </div>
       </div>
       <div class="exam-annotation-note-wrap" id="examAnnotationNoteWrap"><label class="exam-annotation-note-label">Private note</label><textarea id="examAnnotationNote" class="exam-annotation-note" placeholder="Take a private note for this question…"></textarea></div>
@@ -2476,12 +2497,12 @@ function renderFlashcardSetup(){
     </div>
     <div class="study-selection-summary" style="margin-top:12px"><span><b>Selected:</b> ${esc(scopeLabel)}</span><span><b>${all.length}</b> cards match</span><span><b>${effectiveLimit}</b> max this session</span></div>
     <div class="study-filter-grid study-filter-grid-2">
-      <div class="field"><label>Review queue</label><select id="flashMode" onchange="updateFlashcardFilter('flashMode')"><option value="all" ${flashcardFilter.mode==='all'?'selected':''}>Due + new</option><option value="due" ${flashcardFilter.mode==='due'?'selected':''}>Due only</option><option value="new" ${flashcardFilter.mode==='new'?'selected':''}>New only</option></select></div>
+      <div class="field"><label>Review queue</label><select id="flashMode" onchange="updateFlashcardFilter('flashMode')"><option value="due" ${flashcardFilter.mode==='due'?'selected':''}>Due / learning only</option><option value="new" ${flashcardFilter.mode==='new'?'selected':''}>New only</option></select></div>
       <div class="field"><label>Card limit for this exact Module → Subject → Lecture</label><select id="flashCount" onchange="updateFlashcardFilter('flashCount')">${[5,10,20,50,100].map(n=>`<option value="${n}" ${Number(flashcardFilter.count)===n?'selected':''}>${n} cards</option>`).join('')}<option value="0" ${Number(flashcardFilter.count)===0?'selected':''}>All matching cards</option></select></div>
     </div>
-    <div class="study-selection-summary"><span><b>Important:</b> the limit above applies only to the selected path.</span><span><b>${effectiveLimit}</b> cards will be used from this selection.</span></div>
-    <div class="study-selection-summary"><span><b>${due.length}</b> due</span><span><b>${fresh.length}</b> new</span><span><b>${all.length}</b> available in selection</span><span><b>${Number(daily.newCards||0)}</b> new today</span><span><b>${Number(daily.reviews||0)}</b> reviews today</span></div>
-    <div class="actions study-builder-actions"><button class="btn primary btn-lg" onclick="startFlashcardSession()" ${all.length?'':'disabled'}>Start Review</button><button class="btn" onclick="resetFlashcardFilter()">Reset filters</button></div>
+    <div class="study-selection-summary"><span><b>Due / learning:</b> ${due.length}</span><span><b>New:</b> ${fresh.length}</span><span><b>Available:</b> ${all.length}</span><span><b>New today:</b> ${Number(daily.newCards||0)} / 20</span><span><b>Reviews today:</b> ${Number(daily.reviews||0)}</span></div>
+    <div class="study-selection-summary"><span><b>Anki-style rule:</b> due cards are never reduced by the new-card limit. New cards use the daily new-card limit.</span></div>
+    <div class="actions study-builder-actions"><button class="btn primary btn-lg" onclick="startFlashcardSession()" ${(flashcardFilter.mode==='due'?due.length:fresh.length)?'':'disabled'}>Start Review</button><button class="btn" onclick="resetFlashcardFilter()">Reset filters</button></div>
   </section>`;
 }
 function updateFlashcardFilter(source){
@@ -2493,35 +2514,32 @@ function updateFlashcardFilter(source){
   else if(id==='flashCount')flashcardFilter.count=Number(document.getElementById('flashCount')?.value||20);
   renderStudyTools();
 }
-function resetFlashcardFilter(){flashcardFilter={module:'',subject:'',lecture:'',mode:'all',count:20};renderStudyTools();}
+function resetFlashcardFilter(){flashcardFilter={module:'',subject:'',lecture:'',mode:'due',count:20};renderStudyTools();}
 function flashcardQueueForSession(){
-  const mode=flashcardFilter.mode;
-  let list=flashcardItems({...flashcardFilter,mode:mode==='new'?'new':mode==='due'?'due':'all'});
-  const now=Date.now();
-  // Due cards first; learning/relearning before mature review; then new cards.
-  list.sort((a,b)=>{
+  const mode=flashcardFilter.mode==='new'?'new':'due';
+  let list=flashcardItems({...flashcardFilter,mode});
+  // Keep Anki's queue separation: time-sensitive learning/relearning first, then mature reviews.
+  if(mode==='due') list.sort((a,b)=>{
     const pa=flashcardRecord(a), pb=flashcardRecord(b);
-    const rank=x=>x.state==='learning'||x.state==='relearning'?0:x.state==='review'?1:2;
+    const rank=x=>x.state==='learning'||x.state==='relearning'?0:1;
     return rank(pa)-rank(pb) || Number(pa.due||0)-Number(pb.due||0);
   });
-  if(mode==='all'){
-    const due=list.filter(q=>flashcardRecord(q).state!=='new' && Number(flashcardRecord(q).due||0)<=now);
-    const fresh=list.filter(q=>flashcardRecord(q).state==='new');
-    list=[...due,...shuffle(fresh)];
-  }
+  else list=shuffle(list);
   return list;
 }
 function startFlashcardSession(){
+  const mode=flashcardFilter.mode==='new'?'new':'due';
   let list=flashcardQueueForSession();
-  if(!list.length){toast('No flashcards are due or available for this filter.','error');return;}
-  const daily=flashcardDailyStats().row, newRemaining=Math.max(0,20-Number(daily.newCards||0));
-  if(flashcardFilter.mode==='all') {
-    const due=list.filter(q=>flashcardRecord(q).state!=='new');
-    const fresh=list.filter(q=>flashcardRecord(q).state==='new').slice(0,newRemaining);
-    list=[...due,...fresh];
+  if(!list.length){toast(mode==='due'?'There are no due or learning cards in this selection.':'There are no new cards in this selection.','error');return;}
+  // Only NEW cards are subject to the daily new-card limit. Due/relearning cards are not.
+  if(mode==='new'){
+    const daily=flashcardDailyStats().row;
+    const newRemaining=Math.max(0,20-Number(daily.newCards||0));
+    if(newRemaining<=0){toast('Your daily new-card limit (20) is reached. Review due cards or continue tomorrow.','ok');return;}
+    list=list.slice(0,newRemaining);
   }
   const count=Number(flashcardFilter.count||0); if(count>0)list=list.slice(0,count);
-  if(!list.length){toast('Your daily new-card limit is reached. Review due cards or continue tomorrow.','ok');return;}
+  if(!list.length){toast('No cards are available for this selection and limit.','error');return;}
   flashcardSession={list,index:0,revealed:false,ratings:{again:0,hard:0,good:0,easy:0},startedAt:Date.now()};
   renderFlashcardSession();
 }
