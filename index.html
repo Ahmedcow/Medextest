@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.43-weekly-bell-cleanup">
+<meta name="medex-build" content="v41.50-weekly-bell-click-fix">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -632,7 +632,7 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
     <div class="topbar-actions">
       <div class="topbar-focus-cell" id="globalFocusTimer"></div>
       <div class="topbar-notification-wrap" id="globalWeeklyNotification">
-        <button class="icon-btn topbar-notification-btn" id="weeklyNotificationButton" type="button" title="Weekly notifications" aria-label="Weekly notifications" aria-expanded="false" onclick="toggleWeeklyNotifications();event.stopPropagation();return false;"></button>
+        <button class="icon-btn topbar-notification-btn" id="weeklyNotificationButton" type="button" title="Weekly notifications" aria-label="Weekly notifications" aria-expanded="false"></button>
       </div>
       <div class="topbar-theme-cell" id="globalThemeToggle"></div>
     </div>
@@ -4917,7 +4917,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.49',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.50',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
@@ -4925,6 +4925,7 @@ if('serviceWorker' in navigator){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
+  initWeeklyNotificationClickHandling();
   applyTheme();
   if(SUPABASE_ENABLED){
     supabaseClient.auth.onAuthStateChange((event,session)=>{
