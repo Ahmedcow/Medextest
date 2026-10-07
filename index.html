@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.40-supabase-notifications-fix">
+<meta name="medex-build" content="v41.41-supabase-questions-fix">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -1338,9 +1338,12 @@ async function loadQuestionsFromSupabase(){
     const allRows=[];
     for(let from=0;;from+=PAGE_SIZE){
       const to=from+PAGE_SIZE-1;
+      // Use select('*') here instead of a hard-coded column list. This keeps the
+      // loader compatible with the question schema already used by MedEx and
+      // avoids failing the entire load when an optional column is absent.
       const {data,error}=await supabaseClient
         .from('questions')
-        .select('id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference,image_url')
+        .select('*')
         .order('id',{ascending:true})
         .range(from,to);
       if(error)throw error;
@@ -1348,26 +1351,40 @@ async function loadQuestionsFromSupabase(){
       allRows.push(...data);
       if(data.length<PAGE_SIZE)break;
     }
-    const data=allRows;
-    if(data.length===0){
-      throw new Error('Supabase questions query returned 0 rows; keeping the existing question source and falling back to GitHub/cache.');
+
+    if(allRows.length===0){
+      throw new Error('Supabase returned 0 questions. Check the public.questions SELECT policy and Data API grant.');
     }
-    const all=data.map(q=>normalizeQuestion({
-      id:q.id,module:q.module,subject:q.subject,lecture:q.lecture,question:q.question,
-      options:q.options,correctIndex:q.correct_index,explanation:q.explanation,
-      difficulty:q.difficulty,reference:q.reference,imageUrl:q.image_url,source:'Supabase'
+
+    const all=allRows.map(q=>normalizeQuestion({
+      id:q.id ?? q.question_id,
+      module:q.module ?? q.section,
+      subject:q.subject ?? q.category,
+      lecture:q.lecture,
+      question:q.question ?? q.question_text,
+      options:q.options,
+      correctIndex:q.correct_index ?? q.correctIndex ?? q.correct_answer,
+      explanation:q.explanation,
+      difficulty:q.difficulty,
+      reference:q.reference,
+      imageUrl:q.image_url ?? q.imageUrl ?? q.illustration,
+      source:'Supabase'
     },'Supabase'));
+
     const errors=validateBank(all);
     if(errors.length)throw new Error(errors.slice(0,8).join('\n'));
-    const githubIds=new Set(all.map(q=>q.id));
-    const retainedLocal=localQuestions.filter(q=>!githubIds.has(q.id));
+
+    const supabaseIds=new Set(all.map(q=>q.id));
+    const retainedLocal=localQuestions.filter(q=>!supabaseIds.has(q.id));
     allQuestionBank=[...all,...retainedLocal];
     localQuestions=retainedLocal;
     applyModuleVisibility();
     sourceFiles=['Supabase'];
     lastSync=new Date();
     localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
-    localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:lastSync.toISOString(),sourceFiles,bank}));
+    localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:lastSync.toISOString(),sourceFiles,bank:allQuestionBank}));
+    render();
+    toast(`Loaded ${all.length} questions from Supabase${retainedLocal.length?` + ${retainedLocal.length} local questions`:''}.`,'ok');
     return true;
   }catch(e){
     console.warn('Supabase question load failed:',e.message);
@@ -4854,7 +4871,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.40',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.41',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
