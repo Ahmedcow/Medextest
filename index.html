@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.40-independent-weekly-notifications">
+<meta name="medex-build" content="v41.42-retake-bell-fix">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -112,9 +112,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .topbar-brand{font-family:var(--font-serif);font-size:17px;font-weight:600}
 .topbar-spacer{flex:1;min-width:0}
 .topbar-actions{display:flex;align-items:center;gap:8px;position:relative;flex:0 0 auto}
-.topbar-notification-wrap{position:relative}
-.topbar-notification-btn{position:relative}
-.topbar-notification-btn .notification-unread-dot{right:4px;top:4px;width:8px;height:8px;box-shadow:0 0 0 2px var(--card)}
+.topbar-notification-wrap{position:relative;width:38px;height:38px;flex:0 0 38px;z-index:120}.topbar-notification-btn{position:relative!important;width:38px!important;height:38px!important;min-width:38px;min-height:38px;padding:0;z-index:121;pointer-events:auto;cursor:pointer}.topbar-notification-btn svg,.topbar-notification-btn .notification-unread-dot{pointer-events:none}.topbar-notification-btn .notification-unread-dot{right:4px;top:4px;width:8px;height:8px;box-shadow:0 0 0 2px var(--card)}
 .global-notification-popover{position:fixed;right:18px;top:calc(var(--topbar-h) + 9px);width:min(390px,calc(100vw - 24px));max-height:min(70vh,520px);overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:10px;z-index:100}
 .global-notification-popover .weekly-notification-item{background:var(--bg)}
 .global-notification-popover .weekly-notifications-list{border:0;padding:0}
@@ -966,7 +964,7 @@ async function saveExamToSupabase(result){
     unanswered:result.unanswered,
     accuracy:result.accuracy,
     duration_seconds:result.durationSec,
-    exam_data:{list:result.list,answers:result.answers,auto:!!result.auto}
+    exam_data:{list:result.list,answers:result.answers,auto:!!result.auto,examMinutes:Number(result.examMinutes||0)}
   });
   if(error)console.warn('Exam sync failed:',error.message);
 }
@@ -978,7 +976,7 @@ async function loadSupabaseHistory(){
   if(error){console.warn('Exam history load failed:',error.message);return;}
   remoteHistory=(data||[]).map(e=>({
     id:e.id,date:e.finished_at,label:e.label||'Exam',moduleFilter:e.module_filter||'',subjectFilter:e.subject_filter||'',lectureFilter:e.lecture_filter||'',
-    total:e.total,answered:e.answered,correct:e.correct,unanswered:e.unanswered,accuracy:Number(e.accuracy||0),durationSec:e.duration_seconds||0,
+    total:e.total,answered:e.answered,correct:e.correct,unanswered:e.unanswered,accuracy:Number(e.accuracy||0),durationSec:e.duration_seconds||0,examMinutes:Number(e.exam_data?.examMinutes||0),
     list:e.exam_data?.list||[],answers:e.exam_data?.answers||{},auto:!!e.exam_data?.auto
   }));
   remoteHistoryLoaded=true;
@@ -2698,6 +2696,7 @@ async function submitExam(auto){
     answerMode:exam.answerMode||'finish',
     accuracy:pct(correct,exam.list.length-unanswered),
     durationSec,
+    examMinutes:Number(exam.minutes||0),
     list:exam.list,
     answers:exam.answers,
     auto
@@ -2745,6 +2744,19 @@ async function viewHistoryResult(id){
   const hist=getHistory(); const r=hist.find(h=>h.id===id);
   if(!r){toast('That exam result was not found.','error');return;}
   localStorage.setItem(CONFIG.lastResultKey,JSON.stringify(r)); go('results');
+}
+function retakeExamFromHistory(id){
+  const hist=getHistory(); const r=hist.find(h=>h.id===id);
+  if(!r){toast('That exam result was not found.','error');return;}
+  const source=Array.isArray(r.list)?r.list:[];
+  if(!source.length){toast('This exam does not contain its original questions, so it cannot be retaken.','error');return;}
+  const ids=new Set(source.map(q=>String(q.id)));
+  const available=questionUniverse();
+  const list=source.map(q=>available.find(x=>String(x.id)===String(q.id))||q).filter(q=>q&&Array.isArray(q.options)&&q.options.length>=2);
+  if(!list.length){toast('The original questions are no longer available.','error');return;}
+  const minutes=Number(r.examMinutes||0);
+  const label=`Retake · ${r.label||'Exam'}`;
+  startExam(list,{minutes},label);
 }
 async function clearHistory(){
   if(!confirm('Delete your exam history? This cannot be undone.'))return;
@@ -2819,7 +2831,7 @@ function renderHistory(){
   const hist=getHistory();
   const avgAcc=hist.length?Math.round(hist.reduce((s,h)=>s+Number(h.accuracy||0),0)/hist.length):0;
   const bestAcc=hist.length?Math.max(...hist.map(h=>Number(h.accuracy||0))):0;
-  const rows=hist.map(h=>`<div class="category-card"><div class="category-head"><div><b>${esc(h.label||'Exam')}</b><div class="mini">${new Date(h.date).toLocaleString()} · ${h.durationSec?formatTime(h.durationSec)+' taken':'no timer'}${h.auto?' · time expired':''}</div></div><span class="pill">${h.correct}/${h.total} correct · ${h.accuracy}%</span></div><div class="bar" style="margin-top:10px"><i style="width:${Math.min(100,Math.max(0,Number(h.accuracy)||0))}%"></i></div><div class="mini" style="margin-top:8px">${h.answered} answered · ${h.unanswered} unanswered</div><div class="actions" style="margin-top:10px"><button class="btn" onclick="viewHistoryResult('${attrJs(h.id)}')">Review this exam</button></div></div>`).join('');
+  const rows=hist.map(h=>`<div class="category-card"><div class="category-head"><div><b>${esc(h.label||'Exam')}</b><div class="mini">${new Date(h.date).toLocaleString()} · ${h.durationSec?formatTime(h.durationSec)+' taken':'no timer'}${h.auto?' · time expired':''}</div></div><span class="pill">${h.correct}/${h.total} correct · ${h.accuracy}%</span></div><div class="bar" style="margin-top:10px"><i style="width:${Math.min(100,Math.max(0,Number(h.accuracy)||0))}%"></i></div><div class="mini" style="margin-top:8px">${h.answered} answered · ${h.unanswered} unanswered</div><div class="actions" style="margin-top:10px"><button class="btn" onclick="viewHistoryResult('${attrJs(h.id)}')">Review this exam</button><button class="btn primary" onclick="retakeExamFromHistory('${attrJs(h.id)}')">Retake exam</button></div></div>`).join('');
   const body=`<div class="grid stats"><div class="card stat"><div class="label">Exams taken</div><div class="value">${hist.length}</div></div><div class="card stat"><div class="label">Average accuracy</div><div class="value">${avgAcc}%</div></div><div class="card stat"><div class="label">Best accuracy</div><div class="value">${bestAcc}%</div></div><div class="card stat"><div class="label">Last exam</div><div class="value" style="font-size:16px">${hist.length?new Date(hist[0].date).toLocaleDateString():'—'}</div></div></div><h2 class="section-title">All exams</h2><div class="card">${rows||'<div class="empty">No exams completed yet.</div>'}${hist.length?`<div class="actions" style="margin-top:12px"><button class="btn danger" onclick="clearHistory()">Clear history</button></div>`:''}</div>`;
   document.getElementById('app').innerHTML=layout('Exam History',currentUser?'Your exam history and performance.':'Your exam history and performance in this browser.',body);
 }
@@ -2868,9 +2880,21 @@ function renderResults(){
   const meta=`<div class="mini">${esc(r.label||'Exam')} · ${r.date?new Date(r.date).toLocaleString():''}${r.durationSec?' · '+formatTime(r.durationSec)+' taken':''}</div>`;
   const body=`${meta}
   <div class="grid stats" style="margin-top:10px"><div class="card stat"><div class="label">Score</div><div class="value">${r.correct}/${r.total}</div></div><div class="card stat"><div class="label">Accuracy</div><div class="value">${r.accuracy}%</div></div><div class="card stat"><div class="label">Answered</div><div class="value">${r.answered}</div></div><div class="card stat"><div class="label">Unanswered</div><div class="value">${r.unanswered}</div></div></div>
-  <h2 class="section-title">Full review</h2><div>${rows}</div><div class="actions" style="margin-top:14px"><button class="btn primary" onclick="go('exam')">New Exam</button><button class="btn" onclick="go('history')">Exam History</button><button class="btn" onclick="go('progress')">View Progress</button></div>`;
+  <h2 class="section-title">Full review</h2><div>${rows}</div><div class="actions" style="margin-top:14px"><button class="btn primary" onclick="retakeExamFromResult()">Retake exam</button><button class="btn" onclick="go('exam')">New Exam</button><button class="btn" onclick="go('history')">Exam History</button><button class="btn" onclick="go('progress')">View Progress</button></div>`;
   const modeNote=r.answerMode==='immediate'?'Answers were shown during the exam.':'Answers and explanations are shown here after submission.';
   document.getElementById('app').innerHTML=layout('Exam Results',`${r.auto?'Time expired — exam submitted automatically.':'Exam completed.'} ${modeNote}`,body);
+}
+
+
+function retakeExamFromResult(){
+  const r=loadJSON(CONFIG.lastResultKey,null);
+  if(!r){toast('No exam result is available to retake.','error');return;}
+  const source=Array.isArray(r.list)?r.list:[];
+  if(!source.length){toast('This exam does not contain its original questions, so it cannot be retaken.','error');return;}
+  const available=questionUniverse();
+  const list=source.map(q=>available.find(x=>String(x.id)===String(q.id))||q).filter(q=>q&&Array.isArray(q.options)&&q.options.length>=2);
+  if(!list.length){toast('The original questions are no longer available.','error');return;}
+  startExam(list,{minutes:Number(r.examMinutes||0)},`Retake · ${r.label||'Exam'}`);
 }
 
 
@@ -3660,8 +3684,8 @@ function initWeeklyNotificationClickHandling(){
   document.addEventListener('click',function(e){
     const toggle=e.target.closest?.('[data-weekly-notification-toggle]');
     const pop=e.target.closest?.('#globalNotificationPopover');
-    if(toggle){e.preventDefault();e.stopPropagation();toggleWeeklyNotifications();return;}
-    if(notificationPanelOpen && !pop) closeWeeklyNotifications();
+    if(toggle || pop)return;
+    if(notificationPanelOpen) closeWeeklyNotifications();
   },true);
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeWeeklyNotifications();});
 }
@@ -3695,7 +3719,14 @@ function updateTopbarControls(){
   const themeHost=document.getElementById('globalThemeToggle');
   const focusHost=document.getElementById('globalFocusTimer');
   const unread=notificationUnreadCount(weeklyNotificationRows());
-  if(weeklyHost){weeklyHost.innerHTML=`<div class="topbar-notification-wrap"><button class="icon-btn topbar-notification-btn" type="button" data-weekly-notification-toggle title="Weekly notifications" aria-label="Weekly notifications">${notificationBellSVG()}${unread?'<span class="notification-unread-dot" aria-label="Unread weekly notification"></span>':''}</button>${notificationPanelOpen?weeklyNotificationsPopoverHTML():''}</div>`;}
+  if(weeklyHost){
+    weeklyHost.innerHTML=`<div class="topbar-notification-wrap"><button class="icon-btn topbar-notification-btn" type="button" data-weekly-notification-toggle title="Weekly notifications" aria-label="Weekly notifications">${notificationBellSVG()}${unread?'<span class="notification-unread-dot" aria-label="Unread weekly notification"></span>':''}</button>${notificationPanelOpen?weeklyNotificationsPopoverHTML():''}</div>`;
+    const weeklyBtn=weeklyHost.querySelector('[data-weekly-notification-toggle]');
+    if(weeklyBtn){
+      weeklyBtn.onclick=(e)=>{e.preventDefault();e.stopPropagation();toggleWeeklyNotifications();};
+      weeklyBtn.addEventListener('pointerdown',(e)=>{e.stopPropagation();},{passive:true});
+    }
+  }
   if(themeHost)themeHost.innerHTML=dashboardThemeToggleHTML();
   if(focusHost)focusHost.innerHTML=globalFocusTimerHTML();
 }
@@ -4875,7 +4906,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.41',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.42',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
