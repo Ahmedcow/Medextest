@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.12-admin-pdf-print">
+<meta name="medex-build" content="v41.24-phase2-fixes">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -487,6 +487,9 @@ html[data-theme="dark"] .study-flash-content:hover{background:color-mix(in srgb,
 .study-tool-icon.is-difficult{color:#d98b36;background:var(--primary-soft)}.study-leech-note{margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(211,47,46,.08);border:1px solid rgba(211,47,46,.18);color:#c13b38;font-size:12px;line-height:1.5}.study-flash-meta .study-due-label{text-transform:capitalize}
 @media(max-width:850px){.study-tools-columns{grid-template-columns:1fr}.study-achievements-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.study-tools-hero{align-items:flex-start;flex-direction:column;padding:18px}.study-hero-actions{justify-content:flex-start}.study-filter-grid,.study-filter-grid-2{grid-template-columns:1fr}.study-card-heading{gap:10px}.study-flash-content{padding:24px 20px;min-height:360px}.study-flash-question{font-size:22px}.study-rating-grid{grid-template-columns:repeat(2,1fr)}.study-rating:nth-child(2){border-right:0}.study-rating{min-height:68px}.study-result-grid{grid-template-columns:repeat(2,1fr)}.study-achievements-grid{grid-template-columns:1fr}.study-due-label{width:100%;margin-left:0}.study-session-actions{flex-wrap:wrap}}
+
+/* v41.24 Phase 2 fixes */
+.phase2-exam-folder,.phase2-exam-notes{margin:10px 0;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);overflow:hidden}.phase2-exam-folder summary,.phase2-exam-notes summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;cursor:pointer;color:var(--text)}.phase2-exam-folder summary::-webkit-details-marker,.phase2-exam-notes summary::-webkit-details-marker{display:none}.phase2-folder-list,.phase2-notes-list{padding:8px 12px 12px;border-top:1px solid var(--line)}.phase2-folder-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);color:var(--text)}.phase2-folder-row:last-child{border-bottom:0}.phase2-note-row{width:100%;display:flex;align-items:flex-start;gap:9px;padding:9px 0;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:left}.phase2-note-row:last-child{border-bottom:0}.phase2-note-row span:last-child{line-height:1.45;overflow-wrap:anywhere}.phase2-review-note{margin-top:10px;padding:11px 12px;border:1px solid var(--line);border-left:3px solid var(--primary);border-radius:10px;background:var(--primary-soft);color:var(--text);line-height:1.5}.phase2-library-main select,.phase2-library-main input,.phase2-library-main textarea{background:var(--card);color:var(--text);border-color:var(--line)}.exam-builder-chooser .chooser-menu{gap:14px;padding:12px;background:var(--bg)}.exam-builder-chooser .chooser-option{background:var(--card);color:var(--text);border-color:var(--line);min-height:58px;padding:10px 12px;gap:11px}.exam-builder-chooser .chooser-option-copy strong{color:var(--text)}.exam-builder-chooser .chooser-option-copy span{color:var(--muted)}html[data-theme="dark"] select,html[data-theme="dark"] option{background-color:#182023;color:#e7edee}
 </style>
 </head>
 <body>
@@ -573,7 +576,6 @@ const CONFIG = {
   flashcardStateKey: 'med64_flashcard_state_v1',
   questionNotesKey: 'med64_question_notes_v1',
   questionFoldersKey: 'med64_question_folders_v1',
-  questionConfidenceKey: 'med64_question_confidence_v1',
 };
 
 const DEFAULT_SETTINGS = {
@@ -608,8 +610,10 @@ let progress = loadJSON(CONFIG.progressKey, {});
 let flashcardState = loadJSON(CONFIG.flashcardStateKey, {});
 let questionNotes = loadJSON(CONFIG.questionNotesKey, {});
 let questionFolders = loadJSON(CONFIG.questionFoldersKey, {folders:[]});
-let questionConfidence = loadJSON(CONFIG.questionConfidenceKey, {});
 let activeLibraryFolder='';
+let librarySearchTerm='';
+let librarySearchModule='';
+let librarySearchSubject='';
 let settings = {...DEFAULT_SETTINGS, ...loadJSON(CONFIG.settingsKey, {})};
 let exam = null;
 let timerId = null;
@@ -1892,7 +1896,6 @@ function startExam(customList=null, overrides=null, customLabel=null, setupAnswe
     list,
     index:0,
     answers:{},
-    confidence:{},
     started:Date.now(),
     minutes:customList?Number(overrides?.minutes||0):minutesValue,
     answerMode,
@@ -2066,6 +2069,10 @@ function clearExamDrawing(){
 function setExamDrawingSize(v){examDrawingSize=Math.max(1,Math.min(8,Number(v)||3));}
 function cycleExamDrawingSize(){const sizes=[2,4,7];const i=sizes.indexOf(Number(examDrawingSize));setExamDrawingSize(sizes[(i+1)%sizes.length]);renderQuiz();}
 
+function examFolderPanelHTML(qid){const folders=folderData();if(!folders.length)return `<div class="phase2-exam-folder"><span class="mini">No personal folders yet.</span> <button type="button" class="btn" onclick="createQuestionFolder();renderQuiz()">+ Create folder</button></div>`;const id=String(qid);const rows=folders.map(f=>{const has=f.questionIds.includes(id);return `<div class="phase2-folder-row"><span>${esc(f.name)}</span><button type="button" class="btn ${has?'danger':''}" onclick="${has?`removeQuestionFromExamFolder('${attrJs(id)}','${attrJs(f.id)}')`:`addQuestionToExamFolder('${attrJs(id)}','${attrJs(f.id)}')`}">${has?'Remove':'Add'}</button></div>`;}).join('');return `<details class="phase2-exam-folder"><summary><strong>📁 Add question to folder</strong><span class="mini">${folders.filter(f=>f.questionIds.includes(id)).length} folders</span></summary><div class="phase2-folder-list">${rows}</div></details>`;}
+function addQuestionToExamFolder(qid,folderId){const f=folderData().find(x=>x.id===folderId);if(!f)return;if(!f.questionIds.includes(String(qid)))f.questionIds.push(String(qid));saveFolders();renderQuiz();toast(`Added to ${f.name}.`,'ok');}
+function removeQuestionFromExamFolder(qid,folderId){const f=folderData().find(x=>x.id===folderId);if(!f)return;f.questionIds=f.questionIds.filter(id=>String(id)!==String(qid));saveFolders();renderQuiz();toast(`Removed from ${f.name}.`,'ok');}
+function examSavedNotesHTML(){if(!exam)return '';const rows=exam.list.map((q,i)=>({q,i,n:getQuestionNote(q.id)})).filter(x=>x.n.trim());if(!rows.length)return `<details class="phase2-exam-notes"><summary><strong>📝 My saved notes</strong><span class="mini">No notes for this exam yet</span></summary></details>`;return `<details class="phase2-exam-notes" open><summary><strong>📝 My saved notes</strong><span class="mini">${rows.length} saved</span></summary><div class="phase2-notes-list">${rows.map(x=>`<button type="button" class="phase2-note-row" onclick="jumpToQuestion(${x.i})"><span class="pill">Q${x.i+1}</span><span>${esc(x.n)}</span></button>`).join('')}</div></details>`;}
 function renderQuiz(){
   if(!exam)return go('exam');
   const q=exam.list[exam.index], selected=exam.answers[q.id];
@@ -2109,6 +2116,8 @@ function renderQuiz(){
         <span><i class="nav-dot current"></i>Current</span>
       </div>
     </div>
+    ${examSavedNotesHTML()}
+    ${examFolderPanelHTML(q.id)}
     <div class="exam-annotation-tools ${examDrawingEnabled?'is-open':''}" id="examDrawingTools" aria-label="Exam drawing tools">
       <div class="exam-annotation-toolbar">
         <button type="button" id="examDrawingToggle" class="btn exam-drawing-launcher ${examDrawingEnabled?'tool-active':''}" onclick="toggleExamDrawing()" title="Drawing tools" aria-label="Open drawing tools">✎</button>
@@ -2130,9 +2139,7 @@ function renderQuiz(){
       <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><div style="display:flex;gap:7px;flex:0 0 auto"><button type="button" class="btn" onclick="openQuestionReport()" title="Report this question" aria-label="Report this question">⚑</button><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div></div>
       ${q.imageUrl ? `<img class="question-illustration" src="${esc(q.imageUrl)}" alt="Question illustration" loading="eager">` : ''}
       <div class="options">${opts}</div>
-      ${sourceLinkedHTML(q)}
       <div style="margin-top:12px"><label class="mini">Personal note · saved locally</label><textarea class="phase2-note" id="questionPersistentNote" placeholder="Write a note you want to keep with this question…">${esc(getQuestionNote(q.id))}</textarea></div>
-      <div class="phase2-confidence"><span class="mini" style="align-self:center">Confidence in your answer</span>${[['low','Low'],['medium','Medium'],['high','High']].map(([v,l])=>`<button type="button" class="btn phase2-confidence-${v} ${getQuestionConfidence(q.id)===v?'active':''}" onclick="setQuestionConfidence('${attrJs(q.id)}','${v}')">${l}</button>`).join('')}</div>
     </div>
     ${reportPanelOpen ? questionReportHTML(q) : ''}
     ${exam.answerMode==='immediate' && selected!==undefined ? `<div class="review ${selected===q.correctIndex?'good':'bad'}"><b>${selected===q.correctIndex?'Correct':'Incorrect'}</b><br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b><br>${esc(q.explanation||'No explanation provided.')}</div>` : ''}
@@ -2352,7 +2359,6 @@ async function submitExam(auto){
     durationSec,
     list:exam.list,
     answers:exam.answers,
-    confidence:{...(exam.confidence||{})},
     auto
   };
 
@@ -2422,19 +2428,7 @@ function saveQuestionNote(id,text){
   if(value.trim()) questionNotes[keyId]=value; else delete questionNotes[keyId];
   localStorage.setItem(CONFIG.questionNotesKey,JSON.stringify(questionNotes));
 }
-function getQuestionConfidence(id){return questionConfidence[String(id)]||'';}
-function setQuestionConfidence(id,level){
-  const keyId=String(id); if(level) questionConfidence[keyId]=level; else delete questionConfidence[keyId];
-  localStorage.setItem(CONFIG.questionConfidenceKey,JSON.stringify(questionConfidence));
-  if(exam && !exam.submitted && exam.list.some(q=>String(q.id)===keyId)){exam.confidence=exam.confidence||{};exam.confidence[keyId]=level;saveActiveExam();renderQuiz();return;}
-  render();
-}
-function sourceLinkedHTML(q){
-  const source=String(q.source||q.reference||q.sourceFile||'').trim();
-  const evidence=String(q.sourceEvidence||'').trim();
-  if(!source&&!evidence)return '';
-  return `<details class="phase2-source"><summary><b>Source-linked explanation</b></summary><div style="margin-top:7px">${source?`<div><b>Source:</b> ${esc(source)}</div>`:''}${evidence?`<div style="margin-top:5px"><b>Evidence:</b> ${esc(evidence)}</div>`:''}</div></details>`;
-}
+function sourceLinkedHTML(){return '';}
 function folderData(){
   if(!questionFolders||!Array.isArray(questionFolders.folders))questionFolders={folders:[]};
   return questionFolders.folders;
@@ -2447,39 +2441,29 @@ function createQuestionFolder(){
 }
 function addQuestionToFolder(qid){
   const folders=folderData(); if(!folders.length){toast('Create a folder first.','error');return;}
+  if(folders.length===1){const f=folders[0];if(!f.questionIds.includes(String(qid)))f.questionIds.push(String(qid));saveFolders();toast(`Added to ${f.name}.`,'ok');if(location.hash==='#library')renderStudyLibrary();return;}
   const names=folders.map((f,i)=>`${i+1}. ${f.name}`).join('\n'); const choice=prompt(`Add this question to which folder?\n\n${names}\n\nEnter folder number:`); const i=Number(choice)-1;
   if(!Number.isInteger(i)||!folders[i])return; const f=folders[i]; if(!f.questionIds.includes(String(qid)))f.questionIds.push(String(qid)); saveFolders(); toast(`Added to ${f.name}.`,'ok'); if(location.hash==='#library')renderStudyLibrary();
 }
 function removeQuestionFromFolder(qid,folderId){const f=folderData().find(x=>x.id===folderId);if(!f)return;f.questionIds=f.questionIds.filter(id=>String(id)!==String(qid));saveFolders();renderStudyLibrary();}
 function deleteQuestionFolder(folderId){const f=folderData().find(x=>x.id===folderId);if(!f)return;if(!confirm(`Delete folder “${f.name}”? Questions will not be deleted.`))return;questionFolders.folders=folderData().filter(x=>x.id!==folderId);if(activeLibraryFolder===folderId)activeLibraryFolder='';saveFolders();renderStudyLibrary();}
 function practiceSingleQuestion(qid){const q=questionById(qid);if(!q)return;startExam([q],{answerMode:settings.showAnswerImmediately?'immediate':'finish',minutes:0});}
-function librarySearchResults(){
-  const term=(document.getElementById('librarySearch')?.value||'').trim().toLowerCase();
-  const module=(document.getElementById('libraryModule')?.value||'').trim();
-  const subject=(document.getElementById('librarySubject')?.value||'').trim();
-  const folder=folderData().find(f=>f.id===activeLibraryFolder);
-  return questionUniverse().filter(q=>{
-    const hay=[q.question,q.module,q.subject,q.lecture,q.source,q.reference,q.sourceEvidence,getQuestionNote(q.id)].map(x=>String(x||'').toLowerCase()).join(' ');
-    if(term&&!hay.includes(term))return false;
-    if(module&&String(q.module)!==module)return false;
-    if(subject&&String(q.subject)!==subject)return false;
-    if(folder&&!folder.questionIds.includes(String(q.id)))return false;
-    return true;
-  }).slice(0,80);
-}
+function librarySearchChanged(value){librarySearchTerm=String(value||'');clearTimeout(window.__librarySearchTimer);window.__librarySearchTimer=setTimeout(renderStudyLibrary,120);}
+function libraryFilterChanged(value,which){if(which==='module'){librarySearchModule=String(value||'');librarySearchSubject='';}else librarySearchSubject=String(value||'');renderStudyLibrary();}
+function librarySearchResults(){const term=String(librarySearchTerm||'').trim().toLowerCase(),module=String(librarySearchModule||'').trim(),subject=String(librarySearchSubject||'').trim(),folder=folderData().find(f=>f.id===activeLibraryFolder);return questionUniverse().filter(q=>{const hay=[q.id,q.question,q.module,q.subject,q.lecture,getQuestionNote(q.id)].map(x=>String(x||'').toLowerCase()).join(' ');if(term&&!hay.includes(term))return false;if(module&&String(q.module)!==module)return false;if(subject&&String(q.subject)!==subject)return false;if(folder&&!folder.questionIds.includes(String(q.id)))return false;return true;}).slice(0,120);}
 function renderStudyLibrary(){
   const universe=questionUniverse();
   const modules=[...new Set(universe.map(q=>String(q.module||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-  const selectedModule=(document.getElementById('libraryModule')?.value||'');
-  const selectedSubject=(document.getElementById('librarySubject')?.value||'');
+  const selectedModule=librarySearchModule || (document.getElementById('libraryModule')?.value||'');
+  const selectedSubject=librarySearchSubject || (document.getElementById('librarySubject')?.value||'');
   const subjects=[...new Set(universe.filter(q=>!selectedModule||String(q.module)===selectedModule).map(q=>String(q.subject||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   const folders=folderData();
   const selectedFolder=folders.find(f=>f.id===activeLibraryFolder);
   const folderHtml=folders.length?folders.map(f=>`<div class="phase2-folder ${f.id===activeLibraryFolder?'active':''}" onclick="activeLibraryFolder='${attrJs(f.id)}';renderStudyLibrary()"><div class="phase2-folder-head"><b>${esc(f.name)}</b><span class="pill">${f.questionIds.length}</span></div><div class="mini" style="margin-top:4px">Personal collection</div></div>`).join(''):'<div class="empty" style="margin-top:10px">No folders yet.</div>';
   const results=librarySearchResults();
-  const resultHtml=results.length?results.map(q=>{const note=getQuestionNote(q.id),conf=getQuestionConfidence(q.id);return `<article class="phase2-result"><div class="phase2-result-top"><div style="min-width:0"><b>${esc(q.question)}</b><div class="phase2-result-meta">${esc(q.module||'')} · ${esc(q.subject||'')} · ${esc(q.lecture||'')}</div></div><span class="pill">${isFavorite(q)?'★ Favourite':''}</span></div><div style="margin-top:10px">${q.options.map((o,i)=>`<div class="review-choice"><b>${String.fromCharCode(65+i)}.</b> ${esc(o)}</div>`).join('')}</div>${sourceLinkedHTML(q)}<div class="actions" style="margin-top:10px"><button class="btn primary" onclick="practiceSingleQuestion('${attrJs(q.id)}')">Practice</button><button class="btn" onclick="addQuestionToFolder('${attrJs(q.id)}')">Add to folder</button>${selectedFolder?`<button class="btn" onclick="removeQuestionFromFolder('${attrJs(q.id)}','${attrJs(selectedFolder.id)}')">Remove from folder</button>`:''}<button class="btn" onclick="toggleFavorite('${attrJs(q.id)}')">${isFavorite(q)?'★ Favourite':'☆ Favourite'}</button></div><div style="margin-top:10px"><label class="mini">Personal note</label><textarea class="phase2-note" oninput="saveQuestionNote('${attrJs(q.id)}',this.value)" placeholder="Your private note for this question…">${esc(note)}</textarea></div><div class="phase2-confidence"><span class="mini" style="align-self:center">Confidence</span>${[['low','Low'],['medium','Medium'],['high','High']].map(([v,l])=>`<button class="btn phase2-confidence-${v} ${conf===v?'active':''}" onclick="setQuestionConfidence('${attrJs(q.id)}','${v}')">${l}</button>`).join('')}</div></article>`}).join(''):'<div class="empty">No questions match your search.</div>';
-  const body=`<div class="phase2-library-grid"><aside class="card phase2-library-side"><div class="category-head"><div><strong>Personal folders</strong><div class="mini" style="margin-top:4px">Organize important questions locally.</div></div><button class="btn primary" onclick="createQuestionFolder()">+ Folder</button></div><div class="phase2-folder ${!activeLibraryFolder?'active':''}" onclick="activeLibraryFolder='';renderStudyLibrary()"><div class="phase2-folder-head"><b>All questions</b><span class="pill">${universe.length}</span></div><div class="mini" style="margin-top:4px">Search your complete library</div></div>${folderHtml}${selectedFolder?`<div class="actions" style="margin-top:12px"><button class="btn danger" onclick="deleteQuestionFolder('${attrJs(selectedFolder.id)}')">Delete folder</button></div>`:''}</aside><main class="phase2-library-main"><div class="card"><div class="category-head"><div><strong>Global MedEx Search</strong><div class="mini" style="margin-top:4px">Search questions, lectures, notes, source evidence and AI-generated content.</div></div><span class="pill">${results.length} shown</span></div><div class="phase2-search-row" style="margin-top:12px"><input id="librarySearch" class="field-input" placeholder="Search e.g. Bowman capsule, schistosomiasis…" value="${esc(document.getElementById('librarySearch')?.value||'')}" onkeydown="if(event.key==='Enter')renderStudyLibrary()"><select id="libraryModule" onchange="renderStudyLibrary()"><option value="">All modules</option>${modules.map(m=>`<option value="${attrJs(m)}" ${selectedModule===m?'selected':''}>${esc(m)}</option>`).join('')}</select><select id="librarySubject" onchange="renderStudyLibrary()"><option value="">All subjects</option>${subjects.map(x=>`<option value="${attrJs(x)}" ${selectedSubject===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div></div><div style="margin-top:12px">${resultHtml}</div></main></div>`;
-  document.getElementById('app').innerHTML=layout('Study Library','Global search, personal folders, question notes, confidence tracking and source-linked explanations.',body);
+  const resultHtml=results.length?results.map(q=>{const note=getQuestionNote(q.id);return `<article class="phase2-result"><div class="phase2-result-top"><div style="min-width:0"><b>${esc(q.question)}</b><div class="phase2-result-meta">${esc(q.module||'')} · ${esc(q.subject||'')} · ${esc(q.lecture||'')}</div></div><span class="pill">${isFavorite(q)?'★ Favourite':''}</span></div><div style="margin-top:10px">${q.options.map((o,i)=>`<div class="review-choice"><b>${String.fromCharCode(65+i)}.</b> ${esc(o)}</div>`).join('')}</div><div class="actions" style="margin-top:10px"><button class="btn primary" onclick="practiceSingleQuestion('${attrJs(q.id)}')">Practice</button><button class="btn" onclick="addQuestionToFolder('${attrJs(q.id)}')">Add to folder</button>${selectedFolder?`<button class="btn" onclick="removeQuestionFromFolder('${attrJs(q.id)}','${attrJs(selectedFolder.id)}')">Remove from folder</button>`:''}<button class="btn" onclick="toggleFavorite('${attrJs(q.id)}')">${isFavorite(q)?'★ Favourite':'☆ Favourite'}</button></div><div style="margin-top:10px"><label class="mini">Personal note · saved locally</label><textarea class="phase2-note" oninput="saveQuestionNote('${attrJs(q.id)}',this.value)" placeholder="Your private note for this question…">${esc(note)}</textarea></div></article>`}).join(''):'<div class="empty">No questions match your search.</div>';
+  const body=`<div class="phase2-library-grid"><aside class="card phase2-library-side"><div class="category-head"><div><strong>Personal folders</strong><div class="mini" style="margin-top:4px">Organize important questions locally.</div></div><button class="btn primary" onclick="createQuestionFolder()">+ Folder</button></div><div class="phase2-folder ${!activeLibraryFolder?'active':''}" onclick="activeLibraryFolder='';renderStudyLibrary()"><div class="phase2-folder-head"><b>All questions</b><span class="pill">${universe.length}</span></div><div class="mini" style="margin-top:4px">Search your complete library</div></div>${folderHtml}${selectedFolder?`<div class="actions" style="margin-top:12px"><button class="btn danger" onclick="deleteQuestionFolder('${attrJs(selectedFolder.id)}')">Delete folder</button></div>`:''}</aside><main class="phase2-library-main"><div class="card"><div class="category-head"><div><strong>Global MedEx Search</strong><div class="mini" style="margin-top:4px">Search questions, modules, subjects, lectures and your saved notes.</div></div><span class="pill">${results.length} shown</span></div><div class="phase2-search-row" style="margin-top:12px"><input id="librarySearch" class="field-input" placeholder="Search e.g. Bowman capsule, schistosomiasis…" value="${esc(librarySearchTerm)}" oninput="librarySearchChanged(this.value)"><select id="libraryModule" onchange="libraryFilterChanged(this.value,'module')"><option value="">All modules</option>${modules.map(m=>`<option value="${attrJs(m)}" ${selectedModule===m?'selected':''}>${esc(m)}</option>`).join('')}</select><select id="librarySubject" onchange="libraryFilterChanged(this.value,'subject')"><option value="">All subjects</option>${subjects.map(x=>`<option value="${attrJs(x)}" ${selectedSubject===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div></div><div style="margin-top:12px">${resultHtml}</div></main></div>`;
+  document.getElementById('app').innerHTML=layout('Study Library','Search your MedEx questions and organize your personal notes and folders locally.',body);
 }
 function renderHistory(){
   const hist=getHistory();
@@ -2528,6 +2512,7 @@ function renderResults(){
       <div class="mini" style="margin-top:6px">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</div>
       <div style="margin-top:12px">${choices}</div>
       <div class="review ${a===undefined?'bad':ok?'good':'bad'}">${a===undefined?'Unanswered':ok?'Correct':'Incorrect'} · Your answer: ${a===undefined?'—':esc(q.options[a])}<br>Correct answer: <b>${esc(q.options[q.correctIndex])}</b>${q.explanation?`<br>${esc(q.explanation)}`:''}</div>
+      ${getQuestionNote(q.id)?`<div class="phase2-review-note"><b>📝 My note</b><div style="margin-top:5px">${esc(getQuestionNote(q.id))}</div></div>`:''}
     </div>`;
   }).join('');
   const meta=`<div class="mini">${esc(r.label||'Exam')} · ${r.date?new Date(r.date).toLocaleString():''}${r.durationSec?' · '+formatTime(r.durationSec)+' taken':''}</div>`;
@@ -2804,47 +2789,7 @@ function renderStudyTools(){
   document.getElementById('app').innerHTML=layout('Study Tools','Flashcards, adaptive review, study planning and achievements.',body);
 }
 function renderProgress(){
-  const confidenceEntries=Object.entries(questionConfidence);
-  const highWrong=confidenceEntries.filter(([id,c])=>c==='high' && progress[id]?.last==='wrong').length;
-  const lowCorrect=confidenceEntries.filter(([id,c])=>c==='low' && progress[id]?.last==='correct').length;
-  const medium=confidenceEntries.filter(([,c])=>c==='medium').length;
-  const confidenceSummary=`<div class="card" style="margin-bottom:16px"><div class="category-head"><div><strong>Confidence tracking</strong><div class="mini" style="margin-top:4px">Your latest confidence labels are stored locally and help identify overconfidence and underconfidence.</div></div><span class="pill">${confidenceEntries.length} labelled</span></div><div class="phase2-confidence-summary"><div><b>${highWrong}</b><span>High confidence · wrong</span></div><div><b>${lowCorrect}</b><span>Low confidence · correct</span></div><div><b>${medium}</b><span>Medium confidence</span></div><div><b>${confidenceEntries.length}</b><span>Total labelled</span></div></div></div>`;
-  const modules=[...new Set(allQuestionBank.map(q=>q.module))].filter(isModuleVisible).sort((a,b)=>a.localeCompare(b));
-  const moduleRows=modules.map(m=>{
-    const list=bank.filter(q=>q.module===m);
-    const personalP=progressStats(list);
-    const subjects=getSubjects(m);
-    const subjectRows=subjects.map(subject=>{
-      const slist=list.filter(q=>q.subject===subject);
-      const sp=progressStats(slist);
-      const lectures=getLectures(m,subject);
-      const lectureRows=lectures.map(lecture=>{
-        const llist=slist.filter(q=>q.lecture===lecture);
-        const lp=progressStats(llist);
-        return `<div class="progress-row" style="grid-template-columns:minmax(170px,1.2fr) 1fr">
-          <span><b>${esc(lecture)}</b><div class="mini">${llist.length} questions</div></span>
-          <div><div class="bar"><i style="width:${lp.pct}%"></i></div><div class="mini" style="margin-top:4px">Progress ${lp.done}/${lp.total} · Accuracy ${accuracyStats(llist).pct}%</div></div>
-        </div>`;
-      }).join('');
-      return `<div class="category-card" style="margin-top:10px">
-        <div class="category-head"><div><b>${esc(subject)}</b><div class="mini">${slist.length} questions</div></div></div>
-        <div style="margin-top:8px"><div class="bar"><i style="width:${sp.pct}%"></i></div></div>
-        <div style="margin-top:10px">${lectureRows||'<div class="empty">No lectures.</div>'}</div>
-      </div>`;
-    }).join('');
-    return `<div class="card" style="margin-bottom:14px">
-      <div class="category-head"><div><h3 style="margin:0">${esc(m)}</h3><div class="mini">${list.length} questions</div></div></div>
-      <div class="bar" style="margin-top:10px"><i style="width:${personalP.pct}%"></i></div>
-      <div style="margin-top:12px">${subjectRows||'<div class="empty">No subjects.</div>'}</div>
-    </div>`;
-  }).join('');
-  const myP=progressStats(bank), myA=accuracyStats(bank), study=studyStats();
-  const todayRow=study.activity[localDayKey()]||{};
-  const todayTrue=Number(todayRow.correct||0), todayFalse=Number(todayRow.wrong||0), todayTotal=Number(todayRow.solved||todayRow.attempts||0);
-  const week=weekStudyData();
-  const weekTotal=week.reduce((n,d)=>n+d.total,0), weekTrue=week.reduce((n,d)=>n+d.correct,0), weekFalse=week.reduce((n,d)=>n+d.wrong,0);
-  const body=`${confidenceSummary}
-    ${dailyGoalStreakHTML()}
+  const body=`    ${dailyGoalStreakHTML()}
     ${spacedReviewSummaryHTML()}
     <div class="grid stats">
       <div class="card stat"><div class="label">My progress</div><div class="value">${myP.done}/${myP.total}</div><div class="mini">${myP.pct}% of available questions mastered</div></div>
