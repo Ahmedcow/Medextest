@@ -110,7 +110,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .topbar-brand{font-family:var(--font-serif);font-size:17px;font-weight:600}
 .topbar-spacer{flex:1;min-width:0}
 .topbar-actions{display:flex;align-items:center;gap:8px;position:relative;flex:0 0 auto}
-.topbar-notification-wrap{position:relative;width:38px;height:38px;flex:0 0 38px;z-index:120}.topbar-notification-btn{position:relative!important;width:38px!important;height:38px!important;min-width:38px;min-height:38px;padding:0;z-index:121;pointer-events:auto;cursor:pointer}.topbar-notification-btn svg,.topbar-notification-btn .notification-unread-dot{pointer-events:none}.topbar-notification-btn .notification-unread-dot{right:4px;top:4px;width:8px;height:8px;box-shadow:0 0 0 2px var(--card)}
+.topbar-notification-wrap{position:relative;width:38px;height:38px;flex:0 0 38px;z-index:120}.topbar-notification-btn{position:relative!important;width:38px!important;height:38px!important;min-width:38px;min-height:38px;padding:0;z-index:121;pointer-events:auto;cursor:pointer}.topbar-notification-btn svg,.topbar-notification-btn .notification-unread-dot{pointer-events:none}.topbar-notification-btn .notification-unread-dot{right:4px;top:4px;width:8px;height:8px;box-shadow:0 0 0 2px var(--card)}.weekly-notifications-list{display:flex;flex-direction:column;gap:8px}
 .global-notification-popover{position:fixed;right:18px;top:calc(var(--topbar-h) + 9px);width:min(390px,calc(100vw - 24px));max-height:min(70vh,520px);overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:10px;z-index:100}
 .global-notification-popover .weekly-notification-item{background:var(--bg)}
 .global-notification-popover .weekly-notifications-list{border:0;padding:0}
@@ -624,7 +624,10 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
     <div class="topbar-spacer"></div>
     <div class="topbar-actions">
       <div id="globalFocusTimer"></div>
-      <div id="globalWeeklyNotification"></div>
+      <div class="topbar-notification-wrap" id="globalWeeklyNotification">
+        <button class="icon-btn topbar-notification-btn" id="weeklyNotificationButton" type="button" title="Weekly notifications" aria-label="Weekly notifications"></button>
+        <div id="globalNotificationPopoverHost"></div>
+      </div>
       <div id="globalThemeToggle"></div>
     </div>
   </header>
@@ -3677,23 +3680,20 @@ function closeWeeklyNotifications(){if(!notificationPanelOpen)return;notificatio
 function initWeeklyNotificationClickHandling(){
   if(window.__weeklyNotificationClickHandler)return;
   window.__weeklyNotificationClickHandler=true;
-  // One delegated capture handler owns the bell. The old build attached an
-  // onclick to a button that is destroyed/recreated by updateTopbarControls(),
-  // which made the visible bell unreliable to click. Handle the stable selector
-  // at document level instead, before any other click handler can close it.
+  const btn=document.getElementById('weeklyNotificationButton');
+  if(btn){
+    btn.addEventListener('click',function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      toggleWeeklyNotifications();
+    });
+  }
   document.addEventListener('click',function(e){
     const target=e.target instanceof Element?e.target:null;
-    const toggle=target?.closest?.('[data-weekly-notification-toggle]');
-    const pop=target?.closest?.('#globalNotificationPopover');
-    if(toggle){
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      toggleWeeklyNotifications();
-      return;
-    }
-    if(pop)return;
-    if(notificationPanelOpen) closeWeeklyNotifications();
-  },true);
+    if(target?.closest?.('#globalNotificationPopover'))return;
+    if(target?.closest?.('#weeklyNotificationButton'))return;
+    if(notificationPanelOpen)closeWeeklyNotifications();
+  });
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeWeeklyNotifications();});
 }
 async function refreshWeeklyNotifications(){await loadWeeklyNotifications();setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));updateTopbarControls();if(location.hash.replace('#','')==='dashboard')renderDashboard();}
@@ -3722,13 +3722,16 @@ function globalFocusTimerHTML(){
   return `<div class="global-focus-timer" title="Focus timer"><span class="focus-global-label">Focus</span><span class="global-focus-timer-display">${formatTime(remain)}</span><button class="global-focus-control" onclick="event.stopPropagation();${focusTimerState.running?'pauseFocusTimer()':'startFocusTimer()'}" aria-label="${focusTimerState.running?'Pause focus timer':'Start focus timer'}">${icon}</button><button class="global-focus-control" onclick="event.stopPropagation();resetFocusTimer()" aria-label="Reset focus timer">↺</button></div>`;
 }
 function updateTopbarControls(){
-  const weeklyHost=document.getElementById('globalWeeklyNotification');
+  const weeklyBtn=document.getElementById('weeklyNotificationButton');
+  const popoverHost=document.getElementById('globalNotificationPopoverHost');
   const themeHost=document.getElementById('globalThemeToggle');
   const focusHost=document.getElementById('globalFocusTimer');
   const unread=notificationUnreadCount(weeklyNotificationRows());
-  if(weeklyHost){
-    weeklyHost.innerHTML=`<div class="topbar-notification-wrap"><button class="icon-btn topbar-notification-btn" type="button" data-weekly-notification-toggle title="Weekly notifications" aria-label="Weekly notifications">${notificationBellSVG()}${unread?'<span class="notification-unread-dot" aria-label="Unread weekly notification"></span>':''}</button>${notificationPanelOpen?weeklyNotificationsPopoverHTML():''}</div>`;
+  if(weeklyBtn){
+    weeklyBtn.innerHTML=`${notificationBellSVG()}${unread?'<span class="notification-unread-dot" aria-label="Unread weekly notification"></span>':''}`;
+    weeklyBtn.setAttribute('aria-expanded',notificationPanelOpen?'true':'false');
   }
+  if(popoverHost)popoverHost.innerHTML=notificationPanelOpen?weeklyNotificationsPopoverHTML():'';
   if(themeHost)themeHost.innerHTML=dashboardThemeToggleHTML();
   if(focusHost)focusHost.innerHTML=globalFocusTimerHTML();
 }
