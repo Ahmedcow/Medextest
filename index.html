@@ -358,6 +358,16 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .exam-annotation-stage.exam-zoomed{transition:transform .08s linear}
 .exam-annotation-canvas{touch-action:none}
 .exam-zoom-reset{font-size:11px!important;min-width:38px!important}
+/* v41.27: pinch zoom applies to the whole exam content, not only the drawing stage. */
+.exam-page-zoom{zoom:1;transform-origin:top center;will-change:zoom}
+.exam-note-editor-backdrop{position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(5,9,12,.58);backdrop-filter:blur(6px)}
+.exam-note-editor{width:min(560px,calc(100vw - 32px));max-height:min(78vh,620px);display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);box-shadow:0 24px 70px rgba(0,0,0,.32);overflow:hidden}
+.exam-note-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--bg)}
+.exam-note-editor-head strong{font-size:15px}
+.exam-note-editor-meta{padding:10px 16px 0;color:var(--muted);font-size:12px;line-height:1.45}
+.exam-note-editor textarea{width:calc(100% - 32px);min-height:220px;margin:12px 16px;resize:vertical;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--text);padding:12px 13px;font:14px/1.55 var(--font-sans);outline:none}
+.exam-note-editor textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-soft)}
+.exam-note-editor-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--line)}
 /* Detailed Module -> Subject -> Lecture progress */
 .progress-tree{display:grid;gap:10px}
 .progress-tree-module{border:1px solid var(--line);border-radius:14px;background:var(--card);overflow:hidden}
@@ -2079,7 +2089,8 @@ function initExamDrawing(){
   const canvas=document.getElementById('examAnnotationCanvas');
   const note=document.getElementById('examAnnotationNote');
   const stage=canvas?.parentElement;
-  if(!canvas||!exam)return;
+  const quiz=document.querySelector('.quiz');
+  if(!canvas||!exam||!quiz)return;
   const data=annotationData(exam.list[exam.index]);
   if(note){
     note.value=data?.note||'';
@@ -2091,20 +2102,72 @@ function initExamDrawing(){
     examDrawingResizeObserver=new ResizeObserver(()=>drawExamAnnotations());
     examDrawingResizeObserver.observe(stage);
   }
-  canvas._touchPoints=new Map(); canvas._pinchStartDistance=0; canvas._pinchStartZoom=1;
+
+  // One finger on the canvas draws. Two fingers anywhere on the exam content pinch-zoom
+  // the complete exam content (question, options, AI panel, navigation, etc.).
+  const pointers=new Map();
+  let pinchStartDistance=0;
+  let pinchStartZoom=1;
+  let pinchActive=false;
+  const zoomValue=()=>Number(quiz.dataset.examZoom||1);
+  const setPageZoom=(z)=>{
+    const value=Math.max(1,Math.min(2.25,Number(z)||1));
+    quiz.dataset.examZoom=String(value);
+    document.querySelectorAll('.exam-page-zoom').forEach(el=>{el.style.zoom=String(value);});
+  };
+  window._setExamPageZoom=setPageZoom;
+  window._resetExamPageZoom=()=>setPageZoom(1);
   const distance=()=>{
-    const pts=[...canvas._touchPoints.values()];
+    const pts=[...pointers.values()];
     if(pts.length<2)return 0;
     return Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
   };
-  const cancelStroke=()=>{if(canvas._activeStroke){data.strokes.pop();canvas._activeStroke=null;drawExamAnnotations();}};
-  canvas.onpointerdown=(e)=>{
-    if(!examDrawingEnabled)return;
-    if(e.pointerType==='touch'){
-      canvas._touchPoints.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(canvas._touchPoints.size>=2){cancelStroke();canvas._pinchStartDistance=distance();canvas._pinchStartZoom=Number(stage?.dataset.zoom||1);e.preventDefault();return;}
+  const cancelCanvasStroke=()=>{
+    if(canvas._activeStroke){
+      data.strokes.pop();
+      canvas._activeStroke=null;
+      drawExamAnnotations();
     }
-    if(canvas._touchPoints.size>=2)return;
+  };
+  quiz._examPointerDown=(e)=>{
+    if(e.pointerType!=='touch')return;
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pointers.size===2){
+      pinchActive=true;
+      pinchStartDistance=distance();
+      pinchStartZoom=zoomValue();
+      cancelCanvasStroke();
+      canvas._pinchActive=true;
+      e.preventDefault();
+    }
+  };
+  quiz._examPointerMove=(e)=>{
+    if(e.pointerType!=='touch'||!pointers.has(e.pointerId))return;
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pointers.size>=2&&pinchActive&&pinchStartDistance>0){
+      const d=distance();
+      setPageZoom(pinchStartZoom*(d/pinchStartDistance));
+      e.preventDefault();
+    }
+  };
+  quiz._examPointerUp=(e)=>{
+    if(e.pointerType!=='touch')return;
+    pointers.delete(e.pointerId);
+    if(pointers.size<2){
+      pinchStartDistance=0;
+      pinchActive=false;
+      canvas._pinchActive=false;
+    }
+  };
+  quiz.addEventListener('pointerdown',quiz._examPointerDown,{passive:false});
+  quiz.addEventListener('pointermove',quiz._examPointerMove,{passive:false});
+  quiz.addEventListener('pointerup',quiz._examPointerUp,{passive:true});
+  quiz.addEventListener('pointercancel',quiz._examPointerUp,{passive:true});
+  quiz.addEventListener('pointerleave',quiz._examPointerUp,{passive:true});
+
+  canvas.onpointerdown=(e)=>{
+    if(!examDrawingEnabled||canvas._pinchActive)return;
+    if(e.pointerType==='touch'&&pointers.size>=2)return;
     e.preventDefault();
     canvas.setPointerCapture?.(e.pointerId);
     const rect=canvas.getBoundingClientRect();
@@ -2114,28 +2177,21 @@ function initExamDrawing(){
     drawExamAnnotations();
   };
   canvas.onpointermove=(e)=>{
-    if(e.pointerType==='touch'&&canvas._touchPoints.has(e.pointerId)){
-      canvas._touchPoints.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(canvas._touchPoints.size>=2){
-        cancelStroke();
-        const startDist=canvas._pinchStartDistance||distance(); const d=distance();
-        if(stage&&startDist>0){const z=Math.max(1,Math.min(2.25,canvas._pinchStartZoom*(d/startDist)));stage.dataset.zoom=String(z);stage.style.transform=`scale(${z})`;stage.classList.add('exam-zoomed');}
-        e.preventDefault(); return;
-      }
-    }
+    if(canvas._pinchActive)return;
     const stroke=canvas._activeStroke;
-    if(!stroke||!examDrawingEnabled||canvas._touchPoints.size>=2)return;
+    if(!stroke||!examDrawingEnabled)return;
     e.preventDefault();
     const rect=canvas.getBoundingClientRect();
     stroke.points.push([Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))]);
     drawExamAnnotations();
   };
   const finish=(e)=>{
-    if(e?.pointerType==='touch')canvas._touchPoints.delete(e.pointerId);
-    if(canvas._touchPoints.size<2)canvas._pinchStartDistance=0;
-    if(canvas._touchPoints.size===0&&canvas._activeStroke){canvas._activeStroke=null;saveActiveExam();}
+    if(canvas._pinchActive){canvas._activeStroke=null;return;}
+    if(canvas._activeStroke){canvas._activeStroke=null;saveActiveExam();}
   };
-  canvas.onpointerup=finish; canvas.onpointercancel=finish; canvas.onpointerleave=(e)=>{if(e.pointerType!=='touch'&&e.buttons===0)finish(e);};
+  canvas.onpointerup=finish; canvas.onpointercancel=finish;
+  canvas.onpointerleave=(e)=>{if(e.pointerType!=='touch'&&e.buttons===0)finish(e);};
+  setPageZoom(zoomValue());
 }
 function setExamPenColor(color){
   examDrawingColor=color;
@@ -2167,12 +2223,43 @@ function toggleExamDrawing(){
 }
 function toggleExamToolPanel(name,force){
   const panels={notes:document.getElementById('examNotesPanel'),folder:document.getElementById('examFolderPanel')};
-  Object.entries(panels).forEach(([k,el])=>{if(!el)return;const open=force===undefined?k===name:force&&k===name;el.classList.toggle('is-open',open);});
+  Object.entries(panels).forEach(([k,el])=>{
+    if(!el)return;
+    const open=force===undefined?k===name:!!force&&k===name;
+    el.classList.toggle('is-open',open);
+  });
+}
+function closeExamToolPanel(name){
+  const el=document.getElementById(name==='notes'?'examNotesPanel':'examFolderPanel');
+  if(el)el.classList.remove('is-open');
 }
 function resetExamZoom(){
-  const stage=document.querySelector('.exam-annotation-stage');
-  if(stage){stage.dataset.zoom='1';stage.style.transform='scale(1)';stage.classList.remove('exam-zoomed');}
+  if(window._resetExamPageZoom)window._resetExamPageZoom();
+  else document.querySelectorAll('.exam-page-zoom').forEach(el=>el.style.zoom='1');
 }
+function openExamNoteEditor(qid){
+  if(!exam)return;
+  const q=exam.list.find(x=>String(x.id)===String(qid))||exam.list[exam.index];
+  if(!q)return;
+  document.getElementById('examNoteEditorBackdrop')?.remove();
+  const current=getQuestionNote(q.id);
+  document.body.insertAdjacentHTML('beforeend',`<div class="exam-note-editor-backdrop" id="examNoteEditorBackdrop" onclick="if(event.target===this)closeExamNoteEditor()">
+    <div class="exam-note-editor" role="dialog" aria-modal="true" aria-labelledby="examNoteEditorTitle">
+      <div class="exam-note-editor-head"><strong id="examNoteEditorTitle">📝 Question note</strong><button type="button" class="icon-btn" onclick="closeExamNoteEditor()" aria-label="Close note editor" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="exam-note-editor-meta">Q${exam.index+1} · ${esc(q.module||'')} · ${esc(q.subject||'')} · ${esc(q.lecture||'')}</div>
+      <textarea id="examNoteEditorText" placeholder="Write your note for this question…">${esc(current)}</textarea>
+      <div class="exam-note-editor-actions"><button type="button" class="btn" onclick="closeExamNoteEditor()">Cancel</button><button type="button" class="btn primary" onclick="saveExamNoteEditor('${attrJs(q.id)}')">Save note</button></div>
+    </div>
+  </div>`);
+  setTimeout(()=>document.getElementById('examNoteEditorText')?.focus(),0);
+}
+function saveExamNoteEditor(qid){
+  const text=document.getElementById('examNoteEditorText')?.value||'';
+  saveQuestionNote(qid,text);
+  closeExamNoteEditor();
+  renderQuiz();
+}
+function closeExamNoteEditor(){document.getElementById('examNoteEditorBackdrop')?.remove();}
 function toggleExamNote(){
   const wrap=document.getElementById('examAnnotationNoteWrap');
   if(wrap)wrap.classList.toggle('is-open');
@@ -2190,8 +2277,14 @@ function clearExamDrawing(){
 function setExamDrawingSize(v){examDrawingSize=Math.max(1,Math.min(8,Number(v)||3));}
 function cycleExamDrawingSize(){const sizes=[2,4,7];const i=sizes.indexOf(Number(examDrawingSize));setExamDrawingSize(sizes[(i+1)%sizes.length]);renderQuiz();}
 
-function examFolderPanelHTML(qid,inPanel=false){const folders=folderData();const id=String(qid);const rows=folders.map(f=>{const has=f.questionIds.includes(id);return `<div class="phase2-folder-row"><span>${esc(f.name)}</span><button type="button" class="btn ${has?'danger':''}" onclick="toggleQuestionFolder('${attrJs(id)}','${attrJs(f.id)}')">${has?'Remove':'Add'}</button></div>`;}).join('');if(inPanel)return `<div class="exam-tool-panel-head"><strong>📁 Add to folder</strong><button class="icon-btn" type="button" onclick="toggleExamToolPanel('folder')">×</button></div>${rows||'<div class="mini">No folders yet.</div>'}<button type="button" class="btn" style="margin-top:8px" onclick="createQuestionFolder();renderQuiz()">+ New folder</button>`;return `<details><summary><strong>📁 Add to folder</strong><span class="mini">${folders.filter(f=>f.questionIds.includes(id)).length}/${folders.length}</span></summary><div class="phase2-folder-list">${rows}<button type="button" class="btn" style="margin-top:6px" onclick="createQuestionFolder();renderQuiz()">+ New folder</button></div></details>`;}
-function examSavedNotesHTML(inPanel=false){if(!exam)return '';const rows=exam.list.map((q,i)=>({q,i,n:getQuestionNote(q.id)})).filter(x=>x.n.trim());const list=rows.length?rows.map(x=>`<button type="button" class="phase2-note-row" onclick="jumpToQuestion(${x.i});toggleExamToolPanel('notes',false)"><span class="pill">Q${x.i+1}</span><span>${esc(x.n)}</span></button>`).join(''):'<div class="mini" style="padding:5px 0">No saved notes in this exam.</div>';if(inPanel)return `<div class="exam-tool-panel-head"><strong>📝 Saved notes · ${rows.length}</strong><button class="icon-btn" type="button" onclick="toggleExamToolPanel('notes')">×</button></div><button type="button" class="btn primary" style="width:100%;margin-bottom:8px" onclick="editExamQuestionNote('${attrJs(exam.list[exam.index].id)}')">${getQuestionNote(exam.list[exam.index].id)?'Edit current note':'Add note to current question'}</button><div class="exam-tool-panel-list">${list}</div>`;return `<details><summary><strong>📝 Saved notes</strong><span class="mini">${rows.length} saved</span><button type="button" class="btn exam-phase2-note-add" onclick="event.preventDefault();event.stopPropagation();editExamQuestionNote('${attrJs(exam.list[exam.index].id)}')">${getQuestionNote(exam.list[exam.index].id)?'Edit note':'Add note'}</button></summary><div class="phase2-notes-list">${list}</div></details>`;}
+function examFolderPanelHTML(qid,inPanel=false){const folders=folderData();const id=String(qid);const rows=folders.map(f=>{const has=f.questionIds.includes(id);return `<div class="phase2-folder-row"><span>${esc(f.name)}</span><button type="button" class="btn ${has?'danger':''}" onclick="toggleQuestionFolder('${attrJs(id)}','${attrJs(f.id)}')">${has?'Remove':'Add'}</button></div>`;}).join('');if(inPanel)return `<div class="exam-tool-panel-head"><strong>📁 Add to folder</strong><button class="icon-btn" type="button" onclick="closeExamToolPanel('folder')" aria-label="Close add to folder" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>${rows||'<div class="mini">No folders yet.</div>'}<button type="button" class="btn" style="margin-top:8px" onclick="createQuestionFolder();renderQuiz()">+ New folder</button>`;return `<details><summary><strong>📁 Add to folder</strong><span class="mini">${folders.filter(f=>f.questionIds.includes(id)).length}/${folders.length}</span></summary><div class="phase2-folder-list">${rows}<button type="button" class="btn" style="margin-top:6px" onclick="createQuestionFolder();renderQuiz()">+ New folder</button></div></details>`;}
+function examSavedNotesHTML(inPanel=false){
+  if(!exam)return '';
+  const rows=exam.list.map((q,i)=>({q,i,n:getQuestionNote(q.id)})).filter(x=>x.n.trim());
+  const list=rows.length?rows.map(x=>`<button type="button" class="phase2-note-row" onclick="jumpToQuestion(${x.i});toggleExamToolPanel('notes',false)"><span class="pill">Q${x.i+1}</span><span>${esc(x.n)}</span></button>`).join(''):'<div class="mini" style="padding:5px 0">No saved notes in this exam.</div>';
+  if(inPanel)return `<div class="exam-tool-panel-head"><strong>📝 Saved notes · ${rows.length}</strong><button class="icon-btn" type="button" onclick="closeExamToolPanel('notes')" aria-label="Close saved notes" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><button type="button" class="btn primary" style="width:100%;margin-bottom:8px" onclick="openExamNoteEditor('${attrJs(exam.list[exam.index].id)}')">${getQuestionNote(exam.list[exam.index].id)?'Edit current note':'Add note to current question'}</button><div class="exam-tool-panel-list">${list}</div>`;
+  return `<details><summary><strong>📝 Saved notes</strong><span class="mini">${rows.length} saved</span><button type="button" class="btn exam-phase2-note-add" onclick="event.preventDefault();event.stopPropagation();openExamNoteEditor('${attrJs(exam.list[exam.index].id)}')">${getQuestionNote(exam.list[exam.index].id)?'Edit note':'Add note'}</button></summary><div class="phase2-notes-list">${list}</div></details>`;
+}
 function renderQuiz(){
   if(!exam)return go('exam');
   const q=exam.list[exam.index], selected=exam.answers[q.id];
@@ -2222,6 +2315,7 @@ function renderQuiz(){
   const answeredCount=exam.list.filter(item=>exam.answers[item.id]!==undefined).length;
   const answeredNow=selected!==undefined;
   const body=`<div class="quiz"><div class="card">
+    <div class="exam-page-zoom">
     <div class="qhead"><span class="pill">${exam.index+1} / ${exam.list.length}</span><span class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</span>${exam.minutes?`<span class="timer" id="timer">${formatTime(remaining)}</span>`:''}</div>
     <div class="bar"><i style="width:${pct(exam.index,exam.list.length-1)}%"></i></div>
     <div class="question-nav" aria-label="Question navigation">
@@ -2256,6 +2350,7 @@ function renderQuiz(){
       <div class="exam-tool-panel" id="examFolderPanel">${examFolderPanelHTML(q.id,true)}</div>
       <div class="exam-annotation-note-wrap" id="examAnnotationNoteWrap"><label class="exam-annotation-note-label">Private note</label><textarea id="examAnnotationNote" class="exam-annotation-note" placeholder="Take a private note for this question…"></textarea></div>
     </div>
+    <div class="exam-page-zoom">
     <div class="exam-annotation-stage">
       <canvas id="examAnnotationCanvas" class="exam-annotation-canvas ${examDrawingEnabled?'drawing-enabled':''}" aria-label="Exam drawing canvas"></canvas>
       <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><div style="display:flex;gap:7px;flex:0 0 auto"><button type="button" class="btn" onclick="openQuestionReport()" title="Report this question" aria-label="Report this question">⚑</button><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div></div>
@@ -2267,6 +2362,7 @@ function renderQuiz(){
     ${examAI.open?examAIHTML(q,answeredNow):`<div class="exam-ai-wrap"><div class="exam-ai-trigger"><div><strong>Need an explanation?</strong><div class="mini">Ask AI about this question before or after answering.</div></div><button class="btn primary" onclick="openExamAI()">✦ Ask AI</button></div></div>`}
     <div class="quiz-footer"><button class="btn" onclick="prevQ()" ${exam.index===0?'disabled':''}>Previous</button>
     <button class="btn primary" onclick="${exam.index===exam.list.length-1?'submitExam(false)':'nextQ()'}">${exam.index===exam.list.length-1?'Submit Exam':'Next'}</button></div>
+    </div>
   </div></div>`;
   document.getElementById('app').innerHTML=layout('Exam','Use the numbered buttons to move between questions. You can open Ask AI at any time for a question-specific explanation.',body);
   setTimeout(()=>{initExamDrawing();},0);
@@ -2501,6 +2597,8 @@ async function submitExam(auto){
   clearActiveExam();
   localStorage.setItem(CONFIG.lastResultKey,JSON.stringify(result));
   saveHistory(result);
+  // v41.27: submitting an exam must not create a toast/site notification.
+  document.getElementById('toast')?.classList.add('hidden');
   go('results');
 }
 function saveHistory(entry){
@@ -2567,7 +2665,7 @@ function addQuestionToFolder(qid){
 }
 function removeQuestionFromFolder(qid,folderId){const f=folderData().find(x=>x.id===folderId);if(!f)return;f.questionIds=f.questionIds.filter(id=>String(id)!==String(qid));saveFolders();if(location.hash==='#library')renderStudyLibrary();else renderQuiz();}
 function toggleQuestionFolder(qid,folderId){const f=folderData().find(x=>x.id===folderId);if(!f)return;const id=String(qid);const has=f.questionIds.includes(id);if(has)f.questionIds=f.questionIds.filter(x=>String(x)!==id);else f.questionIds.push(id);saveFolders();if(location.hash==='#library')renderStudyLibrary();else renderQuiz();toast(`${has?'Removed from':'Added to'} ${f.name}.`,'ok');}
-function editExamQuestionNote(qid){const current=getQuestionNote(qid);const value=prompt('Personal note for this question:',current);if(value===null)return;saveQuestionNote(qid,value);renderQuiz();toast(value.trim()?'Note saved locally.':'Note removed.','ok');}
+function editExamQuestionNote(qid){openExamNoteEditor(qid);}
 function deleteQuestionFolder(folderId){const f=folderData().find(x=>x.id===folderId);if(!f)return;if(!confirm(`Delete folder “${f.name}”? Questions will not be deleted.`))return;questionFolders.folders=folderData().filter(x=>x.id!==folderId);if(activeLibraryFolder===folderId)activeLibraryFolder='';saveFolders();renderStudyLibrary();}
 function practiceSingleQuestion(qid){const q=questionById(qid);if(!q)return;startExam([q],{answerMode:settings.showAnswerImmediately?'immediate':'finish',minutes:0});}
 function libraryFolderControlsHTML(qid){const folders=folderData();if(!folders.length)return `<div class="mini" style="margin-top:8px">No folders yet. <button class="btn" onclick="createQuestionFolder();renderStudyLibrary()">+ Create folder</button></div>`;return `<div class="phase2-library-folders" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${folders.map(f=>{const has=f.questionIds.includes(String(qid));return `<button class="btn ${has?'danger':'primary'}" type="button" onclick="toggleQuestionFolder('${attrJs(qid)}','${attrJs(f.id)}')">${has?'Remove from ': 'Add to '}${esc(f.name)}</button>`;}).join('')}</div>`;}
@@ -4521,7 +4619,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.26',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.27',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
