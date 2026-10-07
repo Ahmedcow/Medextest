@@ -353,20 +353,17 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 @media(max-width:700px){
   .exam-tool-panel{right:62px;top:auto;bottom:14px;transform:none;width:min(300px,calc(100vw - 78px));max-height:48vh}
 }
-/* One finger draws; two fingers pinch-zoom the exam question stage. */
-.exam-annotation-stage{overflow:hidden;transform-origin:center top;will-change:transform}
-.exam-annotation-stage.exam-zoomed{transition:transform .08s linear}
-.exam-annotation-canvas{touch-action:none}
+/* v41.31: drawing/zoom rebuilt from zero. The question area is a single
+   surface: one finger draws on the overlay; two fingers pinch and move the
+   whole surface. No page-level CSS zoom, no fixed-corner transform, no
+   layout reflow. */
+.exam-annotation-stage{position:relative;margin:12px;border:1px dashed var(--line);border-radius:var(--radius-sm);padding:12px;background:var(--card);overflow:hidden;touch-action:auto;overscroll-behavior:contain}
+.exam-annotation-stage:has(.exam-annotation-canvas.drawing-enabled){touch-action:none}
+.exam-draw-surface{position:relative;width:100%;transform:translate3d(0,0,0) scale(1);transform-origin:0 0;will-change:transform}
+.exam-draw-surface.is-zoomed{transition:none}
+.exam-annotation-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:8;touch-action:none;pointer-events:none}
+.exam-annotation-canvas.drawing-enabled{pointer-events:auto;cursor:crosshair}
 .exam-zoom-reset{font-size:11px!important;min-width:38px!important}
-/* v41.28: magnify the whole exam page without CSS zoom/reflow. The page keeps its
-   original layout dimensions; only the rendered exam surface is scaled. */
-.exam-page-zoom-viewport{position:relative;width:100%;overflow:visible;min-height:0}
-.exam-page-zoom{transform:translate3d(0,0,0) scale(1);transform-origin:0 0;will-change:transform}
-.exam-page-zoom.is-zoomed{transition:none}
-/* v41.30: the viewport behaves like a normal scrollable document while the
-   exam surface is magnified. No translated/corner-anchored transform. */
-.exam-page-zoom-viewport{overflow:auto;max-width:100%;touch-action:none;overscroll-behavior:contain;scroll-behavior:auto}
-.exam-page-zoom{transform-origin:0 0;transform:scale(1);margin-right:0;margin-bottom:0;will-change:transform}
 .exam-note-editor-backdrop{position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(5,9,12,.58);backdrop-filter:blur(6px)}
 .exam-note-editor{width:min(560px,calc(100vw - 32px));max-height:min(78vh,620px);display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);box-shadow:0 24px 70px rgba(0,0,0,.32);overflow:hidden}
 .exam-note-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--bg)}
@@ -2063,10 +2060,12 @@ function annotationPointsForCanvas(points,canvas){
 function drawExamAnnotations(){
   const canvas=document.getElementById('examAnnotationCanvas');
   if(!canvas||!exam)return;
-  const stage=canvas.parentElement;
-  const rect=stage.getBoundingClientRect();
+  const surface=canvas.parentElement;
+  // Always render in the surface's untransformed coordinate system. The
+  // entire surface (including this canvas) is transformed together during
+  // pinch zoom, preventing drawing drift/double-scaling.
   const dpr=Math.max(1,window.devicePixelRatio||1);
-  const w=Math.max(1,Math.round(rect.width)), h=Math.max(1,Math.round(rect.height));
+  const w=Math.max(1,Math.round(surface.offsetWidth)), h=Math.max(1,Math.round(surface.offsetHeight));
   if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){
     canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr);
     canvas.style.width=w+'px'; canvas.style.height=h+'px';
@@ -2095,9 +2094,9 @@ function drawExamAnnotations(){
 function initExamDrawing(){
   const canvas=document.getElementById('examAnnotationCanvas');
   const note=document.getElementById('examAnnotationNote');
-  const stage=canvas?.parentElement;
-  const quiz=document.querySelector('.quiz');
-  if(!canvas||!exam||!quiz)return;
+  const stage=document.querySelector('.exam-annotation-stage');
+  const surface=document.querySelector('.exam-draw-surface');
+  if(!canvas||!exam||!stage||!surface)return;
   const data=annotationData(exam.list[exam.index]);
   if(note){
     note.value=data?.note||'';
@@ -2107,67 +2106,56 @@ function initExamDrawing(){
   if(examDrawingResizeObserver)examDrawingResizeObserver.disconnect();
   if(window.ResizeObserver){
     examDrawingResizeObserver=new ResizeObserver(()=>drawExamAnnotations());
-    examDrawingResizeObserver.observe(stage);
+    examDrawingResizeObserver.observe(surface);
   }
 
-  // v41.30: true document-style pinch zoom for the whole exam surface.
-  // IMPORTANT: no translate transform is used. The page stays anchored at its
-  // normal top-left position and the viewport scrolls to the pinch focal point.
-  // This keeps drawings locked to the exact question location while zooming.
-  const pointers=new Map();
-  let pinchStartDistance=0;
-  let pinchStartZoom=1;
-  let pinchStartMid={x:0,y:0};
-  let pinchStartContent={x:0,y:0};
+  // v41.31: rebuilt drawing/zoom interaction from zero.
+  // One finger draws on the canvas. Two fingers pinch/drag the SAME exam
+  // surface (question + options + canvas) inside the drawing box. The canvas
+  // and exam content share one transform, so drawings never drift away.
+  let pointers=new Map();
+  let gestureStartDistance=0;
+  let gestureStartScale=1;
+  let gestureStartMid={x:0,y:0};
+  let gestureStartTranslate={x:0,y:0};
+  let gestureStartContent={x:0,y:0};
   let pinchActive=false;
-  const zoomValue=()=>Number(quiz.dataset.examZoom||1);
-  const getZoomSurface=()=>document.querySelector('.exam-page-zoom');
-  const getZoomViewport=()=>document.querySelector('.exam-page-zoom-viewport');
-  let baseSurfaceSize=null;
-  const measureBaseSurface=()=>{
-    const surface=getZoomSurface();
-    if(!surface)return null;
-    const rect=surface.getBoundingClientRect();
-    const z=zoomValue();
-    const w=surface.offsetWidth||rect.width/z;
-    const h=surface.offsetHeight||rect.height/z;
-    baseSurfaceSize={w,h};
-    return baseSurfaceSize;
+  let scale=Number(stage.dataset.drawZoom||1);
+  let tx=Number(stage.dataset.drawTx||0);
+  let ty=Number(stage.dataset.drawTy||0);
+  const MIN_SCALE=1;
+  const MAX_SCALE=3;
+  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+  const size=()=>({w:surface.offsetWidth||stage.clientWidth,h:surface.offsetHeight||stage.clientHeight});
+  const clampTranslation=(sx,sy,px,py)=>{
+    const st=size();
+    const vw=stage.clientWidth, vh=stage.clientHeight;
+    const minX=Math.min(0,vw-st.w*sx), minY=Math.min(0,vh-st.h*sy);
+    return {x:clamp(px,minX,0),y:clamp(py,minY,0)};
   };
-  const setPageZoom=(z,focusX,focusY,focusContent)=>{
-    const value=Math.max(1,Math.min(2.5,Number(z)||1));
-    const surface=getZoomSurface();
-    const viewport=getZoomViewport();
-    if(!surface||!viewport)return;
-    const size=baseSurfaceSize||measureBaseSurface();
-    if(!size)return;
-    const rect=viewport.getBoundingClientRect();
-    const oldZoom=zoomValue();
-    const fx=Number.isFinite(focusX)?focusX-rect.left:rect.width/2;
-    const fy=Number.isFinite(focusY)?focusY-rect.top:rect.height/2;
-    const contentX=Number.isFinite(focusContent?.x)?focusContent.x:(viewport.scrollLeft+fx)/oldZoom;
-    const contentY=Number.isFinite(focusContent?.y)?focusContent.y:(viewport.scrollTop+fy)/oldZoom;
-    quiz.dataset.examZoom=String(value);
-    surface.style.transform=`scale(${value})`;
-    surface.classList.toggle('is-zoomed',value!==1);
-    // The transform does not participate in layout. Add exactly the scaled
-    // overflow as margins so the viewport gets normal scrollable page space.
-    surface.style.marginRight=Math.max(0,size.w*(value-1))+'px';
-    surface.style.marginBottom=Math.max(0,size.h*(value-1))+'px';
-    if(value===1){
-      viewport.scrollLeft=0;
-      viewport.scrollTop=0;
-      return;
-    }
-    requestAnimationFrame(()=>{
-      const targetLeft=Math.max(0,contentX*value-fx);
-      const targetTop=Math.max(0,contentY*value-fy);
-      viewport.scrollLeft=targetLeft;
-      viewport.scrollTop=targetTop;
-    });
+  const applyTransform=()=>{
+    const cl=clampTranslation(scale,scale,tx,ty);
+    tx=cl.x;ty=cl.y;
+    stage.dataset.drawZoom=String(scale);
+    stage.dataset.drawTx=String(tx);
+    stage.dataset.drawTy=String(ty);
+    surface.style.transform=`translate3d(${tx}px,${ty}px,0) scale(${scale})`;
+    surface.classList.toggle('is-zoomed',scale!==1);
+    const reset=document.querySelector('.exam-zoom-reset');
+    if(reset)reset.textContent=scale<=1.001?'1×':`${scale.toFixed(1)}×`;
   };
-  window._setExamPageZoom=(z,fx,fy,fc)=>setPageZoom(z,fx,fy,fc);
-  window._resetExamPageZoom=()=>setPageZoom(1);
+  const reset=()=>{
+    scale=1;tx=0;ty=0;
+    applyTransform();
+  };
+  window._resetExamPageZoom=reset;
+  window._setExamPageZoom=(z)=>{
+    scale=clamp(Number(z)||1,MIN_SCALE,MAX_SCALE);
+    const cl=clampTranslation(scale,scale,tx,ty);tx=cl.x;ty=cl.y;
+    applyTransform();
+  };
+  applyTransform();
+
   const distance=()=>{
     const pts=[...pointers.values()];
     if(pts.length<2)return 0;
@@ -2177,6 +2165,10 @@ function initExamDrawing(){
     const pts=[...pointers.values()];
     return {x:(pts[0].x+pts[1].x)/2,y:(pts[0].y+pts[1].y)/2};
   };
+  const localPoint=(clientX,clientY)=>{
+    const r=stage.getBoundingClientRect();
+    return {x:clientX-r.left,y:clientY-r.top};
+  };
   const cancelCanvasStroke=()=>{
     if(canvas._activeStroke){
       data.strokes.pop();
@@ -2184,56 +2176,54 @@ function initExamDrawing(){
       drawExamAnnotations();
     }
   };
-  quiz._examPointerDown=(e)=>{
+
+  const onStageDown=(e)=>{
     if(e.pointerType!=='touch')return;
     pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(pointers.size===2){
       pinchActive=true;
-      pinchStartDistance=distance();
-      pinchStartZoom=zoomValue();
-      pinchStartMid=midpoint();
-      const viewport=getZoomViewport();
-      if(viewport){
-        const rect=viewport.getBoundingClientRect();
-        pinchStartContent={
-          x:(viewport.scrollLeft+(pinchStartMid.x-rect.left))/pinchStartZoom,
-          y:(viewport.scrollTop+(pinchStartMid.y-rect.top))/pinchStartZoom
-        };
-      }
+      gestureStartDistance=Math.max(1,distance());
+      gestureStartScale=scale;
+      gestureStartMid=midpoint();
+      gestureStartTranslate={x:tx,y:ty};
+      const m=localPoint(gestureStartMid.x,gestureStartMid.y);
+      gestureStartContent={
+        x:(m.x-tx)/scale,
+        y:(m.y-ty)/scale
+      };
       cancelCanvasStroke();
-      canvas._pinchActive=true;
       e.preventDefault();
     }
   };
-  quiz._examPointerMove=(e)=>{
+  const onStageMove=(e)=>{
     if(e.pointerType!=='touch'||!pointers.has(e.pointerId))return;
     pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(pointers.size>=2&&pinchActive&&pinchStartDistance>0){
-      const d=distance();
+    if(pointers.size>=2&&pinchActive){
+      const d=Math.max(1,distance());
       const mid=midpoint();
-      const nextZoom=Math.max(1,Math.min(2.5,pinchStartZoom*(d/pinchStartDistance)));
-      setPageZoom(nextZoom,mid.x,mid.y,pinchStartContent);
+      scale=clamp(gestureStartScale*(d/gestureStartDistance),MIN_SCALE,MAX_SCALE);
+      const m=localPoint(mid.x,mid.y);
+      tx=m.x-gestureStartContent.x*scale;
+      ty=m.y-gestureStartContent.y*scale;
+      applyTransform();
       e.preventDefault();
     }
   };
-  quiz._examPointerUp=(e)=>{
+  const onStageUp=(e)=>{
     if(e.pointerType!=='touch')return;
     pointers.delete(e.pointerId);
     if(pointers.size<2){
-      pinchStartDistance=0;
       pinchActive=false;
-      canvas._pinchActive=false;
+      gestureStartDistance=0;
     }
   };
-  quiz.addEventListener('pointerdown',quiz._examPointerDown,{passive:false});
-  quiz.addEventListener('pointermove',quiz._examPointerMove,{passive:false});
-  quiz.addEventListener('pointerup',quiz._examPointerUp,{passive:true});
-  quiz.addEventListener('pointercancel',quiz._examPointerUp,{passive:true});
-  quiz.addEventListener('pointerleave',quiz._examPointerUp,{passive:true});
+  stage.addEventListener('pointerdown',onStageDown,{capture:true,passive:false});
+  stage.addEventListener('pointermove',onStageMove,{capture:true,passive:false});
+  stage.addEventListener('pointerup',onStageUp,{capture:true,passive:true});
+  stage.addEventListener('pointercancel',onStageUp,{capture:true,passive:true});
 
   canvas.onpointerdown=(e)=>{
-    if(!examDrawingEnabled||canvas._pinchActive)return;
-    if(e.pointerType==='touch'&&pointers.size>=2)return;
+    if(!examDrawingEnabled||pinchActive||(e.pointerType==='touch'&&pointers.size>=2))return;
     e.preventDefault();
     canvas.setPointerCapture?.(e.pointerId);
     const rect=canvas.getBoundingClientRect();
@@ -2243,7 +2233,7 @@ function initExamDrawing(){
     drawExamAnnotations();
   };
   canvas.onpointermove=(e)=>{
-    if(canvas._pinchActive)return;
+    if(pinchActive)return;
     const stroke=canvas._activeStroke;
     if(!stroke||!examDrawingEnabled)return;
     e.preventDefault();
@@ -2252,12 +2242,12 @@ function initExamDrawing(){
     drawExamAnnotations();
   };
   const finish=(e)=>{
-    if(canvas._pinchActive){canvas._activeStroke=null;return;}
+    if(pinchActive){canvas._activeStroke=null;return;}
     if(canvas._activeStroke){canvas._activeStroke=null;saveActiveExam();}
   };
-  canvas.onpointerup=finish; canvas.onpointercancel=finish;
+  canvas.onpointerup=finish;
+  canvas.onpointercancel=finish;
   canvas.onpointerleave=(e)=>{if(e.pointerType!=='touch'&&e.buttons===0)finish(e);};
-  setPageZoom(zoomValue());
 }
 function setExamPenColor(color){
   examDrawingColor=color;
@@ -2301,8 +2291,9 @@ function closeExamToolPanel(name){
 }
 function resetExamZoom(){
   if(window._resetExamPageZoom)window._resetExamPageZoom();
-  document.querySelectorAll('.exam-page-zoom').forEach(el=>{el.style.transform='scale(1)';el.style.marginRight='';el.style.marginBottom='';el.classList.remove('is-zoomed');});
-  document.querySelectorAll('.exam-page-zoom-viewport').forEach(v=>{v.scrollLeft=0;v.scrollTop=0;});
+  else {
+    document.querySelectorAll('.exam-draw-surface').forEach(el=>el.style.transform='');
+  }
 }
 function openExamNoteEditor(qid){
   if(!exam)return;
@@ -2403,8 +2394,8 @@ function renderQuiz(){
       <div class="exam-tool-panel" id="examFolderPanel">${examFolderPanelHTML(q.id,true)}</div>
       <div class="exam-annotation-note-wrap" id="examAnnotationNoteWrap"><label class="exam-annotation-note-label">Private note</label><textarea id="examAnnotationNote" class="exam-annotation-note" placeholder="Take a private note for this question…"></textarea></div>
     </div>
-    <div class="exam-page-zoom-viewport">
-    <div class="exam-page-zoom">
+    <div class="exam-annotation-stage">
+      <div class="exam-draw-surface">
     <div class="qhead"><span class="pill">${exam.index+1} / ${exam.list.length}</span><span class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</span>${exam.minutes?`<span class="timer" id="timer">${formatTime(remaining)}</span>`:''}</div>
     <div class="bar"><i style="width:${pct(exam.index,exam.list.length-1)}%"></i></div>
     <div class="question-nav" aria-label="Question navigation">
@@ -2418,7 +2409,6 @@ function renderQuiz(){
         <span><i class="nav-dot current"></i>Current</span>
       </div>
     </div>
-    <div class="exam-annotation-stage">
       <canvas id="examAnnotationCanvas" class="exam-annotation-canvas ${examDrawingEnabled?'drawing-enabled':''}" aria-label="Exam drawing canvas"></canvas>
       <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><div style="display:flex;gap:7px;flex:0 0 auto"><button type="button" class="btn" onclick="openQuestionReport()" title="Report this question" aria-label="Report this question">⚑</button><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div></div>
       ${q.imageUrl ? `<img class="question-illustration" src="${esc(q.imageUrl)}" alt="Question illustration" loading="eager">` : ''}
@@ -2429,7 +2419,7 @@ function renderQuiz(){
     ${examAI.open?examAIHTML(q,answeredNow):`<div class="exam-ai-wrap"><div class="exam-ai-trigger"><div><strong>Need an explanation?</strong><div class="mini">Ask AI about this question before or after answering.</div></div><button class="btn primary" onclick="openExamAI()">✦ Ask AI</button></div></div>`}
     <div class="quiz-footer"><button class="btn" onclick="prevQ()" ${exam.index===0?'disabled':''}>Previous</button>
     <button class="btn primary" onclick="${exam.index===exam.list.length-1?'submitExam(false)':'nextQ()'}">${exam.index===exam.list.length-1?'Submit Exam':'Next'}</button></div>
-    </div>
+      </div>
     </div>
   </div></div>`;
   document.getElementById('app').innerHTML=layout('Exam','Use the numbered buttons to move between questions. You can open Ask AI at any time for a question-specific explanation.',body);
@@ -4687,7 +4677,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.30',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.31',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
