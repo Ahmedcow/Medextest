@@ -353,14 +353,11 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 @media(max-width:700px){
   .exam-tool-panel{right:62px;top:auto;bottom:14px;transform:none;width:min(300px,calc(100vw - 78px));max-height:48vh}
 }
-/* v41.32: stable drawing-box-only zoom. One touch draws; two touches pinch/pan the box. */
-.exam-annotation-viewport{position:relative;width:100%;overflow:auto;max-width:100%;border-radius:var(--radius-sm);touch-action:none;overscroll-behavior:contain;scroll-behavior:auto;}
-/* The viewport owns all touch gestures; capture-phase handlers update pointer state before the canvas sees the event. */
-.exam-annotation-surface{position:relative;width:100%;transform-origin:0 0;transform:scale(1);will-change:transform;}
-.exam-annotation-surface.is-zoomed{transition:none;}
-.exam-annotation-stage{overflow:hidden;}
+/* v41.37: simple one-finger drawing. No drawing-box zoom/pan. */
+.exam-annotation-viewport{position:relative;width:100%;overflow:hidden;max-width:100%;border-radius:var(--radius-sm);touch-action:none;overscroll-behavior:contain;}
+.exam-annotation-surface{position:relative;width:100%;transform:none!important;transform-origin:initial;will-change:auto;}
+.exam-annotation-stage{position:relative;overflow:hidden;}
 .exam-annotation-canvas{touch-action:none;}
-.exam-zoom-reset{font-size:11px!important;min-width:38px!important}
 .exam-note-editor-backdrop{position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(5,9,12,.58);backdrop-filter:blur(6px)}
 .exam-note-editor{width:min(560px,calc(100vw - 32px));max-height:min(78vh,620px);display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);box-shadow:0 24px 70px rgba(0,0,0,.32);overflow:hidden}
 .exam-note-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--bg)}
@@ -2099,11 +2096,13 @@ function initExamDrawing(){
   const viewport=document.querySelector('.exam-annotation-viewport');
   const surface=document.querySelector('.exam-annotation-surface');
   if(!canvas||!exam||!stage||!viewport||!surface)return;
+
   const data=annotationData(exam.list[exam.index]);
   if(note){
     note.value=data?.note||'';
     note.oninput=()=>{if(data){data.note=note.value;saveActiveExam();}};
   }
+
   drawExamAnnotations();
   if(examDrawingResizeObserver)examDrawingResizeObserver.disconnect();
   if(window.ResizeObserver){
@@ -2111,99 +2110,40 @@ function initExamDrawing(){
     examDrawingResizeObserver.observe(stage);
   }
 
-  // One finger = draw. Two fingers = pinch zoom + pan. The gesture model is
-  // deliberately isolated to this drawing box. Drawing coordinates always use
-  // the unzoomed stage, while CSS scaling is only a visual transformation.
-  let zoom=1;
-  const pointers=new Map();
+  // Drawing input is intentionally simple and stable:
+  //   • exactly ONE finger draws
+  //   • TWO OR MORE fingers NEVER draw and NEVER zoom the drawing box
+  //   • mouse/pen remain usable as normal single-pointer input
+  // There is deliberately NO pinch-zoom/pan logic here. This avoids the
+  // coordinate/layout changes that previously made the question collapse or
+  // made strokes jump to another location on iPad/touch devices.
+  const touchPointers=new Set();
   let drawingPointerId=null;
-  let pinchState=null;
-  const clampZoom=z=>Math.max(1,Math.min(3,Number(z)||1));
-  const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-  const midpoint=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
-  const syncTouchAction=()=>{ viewport.style.touchAction=examDrawingEnabled?'none':'auto'; };
+  let blockedByMultiTouch=false;
+
+  const syncTouchAction=()=>{
+    // While drawing is enabled, keep the browser from turning the single
+    // finger stroke into page scrolling/zooming. The drawing box itself has
+    // no custom zoom gesture.
+    viewport.style.touchAction=examDrawingEnabled?'none':'auto';
+  };
 
   const cancelStroke=()=>{
     if(canvas._activeStroke){
       data.strokes.pop();
       canvas._activeStroke=null;
-      drawingPointerId=null;
-      drawExamAnnotations();
     }
+    drawingPointerId=null;
+    drawExamAnnotations();
   };
 
-  const applyZoom=(z,focusX,focusY,contentPoint)=>{
-    zoom=clampZoom(z);
-    const baseW=Math.max(1,stage.offsetWidth);
-    const baseH=Math.max(1,stage.offsetHeight);
-    // The surface keeps its normal layout size. Margins create the scrollable
-    // area for the transformed content without changing the actual drawing
-    // coordinate system.
-    surface.style.width=baseW+'px';
-    surface.style.height=baseH+'px';
-    surface.style.transformOrigin='0 0';
-    surface.style.transform=`scale(${zoom})`;
-    surface.style.marginRight=Math.max(0,baseW*(zoom-1))+'px';
-    surface.style.marginBottom=Math.max(0,baseH*(zoom-1))+'px';
-    surface.dataset.zoom=String(zoom);
-    if(zoom===1){viewport.scrollLeft=0;viewport.scrollTop=0;return;}
-    const vr=viewport.getBoundingClientRect();
-    const fx=focusX-vr.left;
-    const fy=focusY-vr.top;
-    const cx=contentPoint?.x ?? ((viewport.scrollLeft+fx)/zoom);
-    const cy=contentPoint?.y ?? ((viewport.scrollTop+fy)/zoom);
-    requestAnimationFrame(()=>{
-      viewport.scrollLeft=Math.max(0,cx*zoom-fx);
-      viewport.scrollTop=Math.max(0,cy*zoom-fy);
-    });
-  };
-
-  window._resetExamDrawingZoom=()=>{
-    pinchState=null;
-    pointers.clear();
-    cancelStroke();
-    zoom=1;
-    surface.style.width=Math.max(1,stage.offsetWidth)+'px';
-    surface.style.height=Math.max(1,stage.offsetHeight)+'px';
-    surface.style.transform='scale(1)';
-    surface.style.marginRight='0px';
-    surface.style.marginBottom='0px';
-    surface.dataset.zoom='1';
-    viewport.scrollLeft=0;
-    viewport.scrollTop=0;
-    syncTouchAction();
-  };
-
-  const pointFromEvent=e=>({x:e.clientX,y:e.clientY});
-  const startPinch=()=>{
-    const pts=[...pointers.values()];
-    if(pts.length<2)return;
-    cancelStroke();
-    const a=pts[0],b=pts[1],mid=midpoint(a,b);
-    const surfaceRect=surface.getBoundingClientRect();
-    pinchState={
-      startZoom:zoom,
-      startDistance:Math.max(1,distance(a,b)),
-      contentX:Math.max(0,(mid.x-surfaceRect.left)/zoom),
-      contentY:Math.max(0,(mid.y-surfaceRect.top)/zoom)
-    };
-  };
-
-  const updatePinch=()=>{
-    if(!pinchState||pointers.size<2)return;
-    const pts=[...pointers.values()];
-    const a=pts[0],b=pts[1],mid=midpoint(a,b);
-    const next=pinchState.startZoom*(distance(a,b)/pinchState.startDistance);
-    applyZoom(next,mid.x,mid.y,{x:pinchState.contentX,y:pinchState.contentY});
-  };
-
-  const pointInBaseSpace=e=>{
-    const rect=surface.getBoundingClientRect();
-    const baseW=Math.max(1,stage.offsetWidth);
-    const baseH=Math.max(1,stage.offsetHeight);
+  const pointInDrawingBox=e=>{
+    const rect=canvas.getBoundingClientRect();
+    const w=Math.max(1,canvas.clientWidth||rect.width||1);
+    const h=Math.max(1,canvas.clientHeight||rect.height||1);
     return [
-      Math.max(0,Math.min(1,(e.clientX-rect.left)/(baseW*zoom))),
-      Math.max(0,Math.min(1,(e.clientY-rect.top)/(baseH*zoom)))
+      Math.max(0,Math.min(1,(e.clientX-rect.left)/w)),
+      Math.max(0,Math.min(1,(e.clientY-rect.top)/h))
     ];
   };
 
@@ -2212,24 +2152,49 @@ function initExamDrawing(){
       canvas._activeStroke=null;
       drawingPointerId=null;
       saveActiveExam();
+      drawExamAnnotations();
+    }else{
+      drawingPointerId=null;
+    }
+  };
+
+  const releaseTouchPointer=e=>{
+    if(e.pointerType==='touch'){
+      touchPointers.delete(e.pointerId);
+      if(touchPointers.size===0){
+        blockedByMultiTouch=false;
+      }
     }
   };
 
   const onPointerDown=e=>{
     if(e.pointerType==='touch'){
-      pointers.set(e.pointerId,pointFromEvent(e));
-      if(pointers.size===2){
+      touchPointers.add(e.pointerId);
+
+      // The moment a second finger appears, permanently block the current
+      // gesture until ALL fingers leave the drawing box. In particular, do
+      // not start a second stroke and do not perform any zoom operation.
+      if(touchPointers.size>=2){
         e.preventDefault();
-        startPinch();
+        blockedByMultiTouch=true;
+        cancelStroke();
         return;
       }
-      if(pointers.size>2){e.preventDefault();return;}
+
+      // A new touch cannot draw if the previous gesture was already
+      // classified as multi-touch.
+      if(blockedByMultiTouch){
+        e.preventDefault();
+        return;
+      }
     }
-    if(!examDrawingEnabled||pinchState||drawingPointerId!==null)return;
+
+    if(!examDrawingEnabled||blockedByMultiTouch||drawingPointerId!==null)return;
+
     e.preventDefault();
-    viewport.setPointerCapture?.(e.pointerId);
+    try{viewport.setPointerCapture?.(e.pointerId);}catch(_){ }
     drawingPointerId=e.pointerId;
-    const point=pointInBaseSpace(e);
+    const point=pointInDrawingBox(e);
     data.strokes.push({
       tool:examDrawingTool,
       color:examDrawingTool==='highlighter'?'#f2c94c':examDrawingColor,
@@ -2241,30 +2206,36 @@ function initExamDrawing(){
   };
 
   const onPointerMove=e=>{
-    if(e.pointerType==='touch'){
-      if(pointers.has(e.pointerId))pointers.set(e.pointerId,pointFromEvent(e));
-      if(pointers.size>=2){e.preventDefault();updatePinch();return;}
+    if(e.pointerType==='touch' && touchPointers.has(e.pointerId)){
+      if(blockedByMultiTouch || touchPointers.size>=2){
+        e.preventDefault();
+        return;
+      }
     }
-    if(drawingPointerId!==e.pointerId||pinchState||!canvas._activeStroke||!examDrawingEnabled)return;
+
+    if(drawingPointerId!==e.pointerId||blockedByMultiTouch||!canvas._activeStroke||!examDrawingEnabled)return;
     e.preventDefault();
-    canvas._activeStroke.points.push(pointInBaseSpace(e));
+    canvas._activeStroke.points.push(pointInDrawingBox(e));
     drawExamAnnotations();
   };
 
   const onPointerUp=e=>{
-    if(e.pointerType==='touch'){
-      pointers.delete(e.pointerId);
-      if(pinchState){
-        if(pointers.size<2)pinchState=null;
-        return;
+    const wasDrawing=drawingPointerId===e.pointerId;
+    releaseTouchPointer(e);
+    if(wasDrawing){
+      if(e.pointerType==='touch' && blockedByMultiTouch){
+        drawingPointerId=null;
+      }else{
+        finishStroke();
       }
     }
-    if(drawingPointerId===e.pointerId)finishStroke();
   };
+
   const onPointerCancel=e=>{
-    if(e.pointerType==='touch')pointers.delete(e.pointerId);
+    const wasTouch=e.pointerType==='touch';
     if(drawingPointerId===e.pointerId)cancelStroke();
-    if(pointers.size<2)pinchState=null;
+    if(wasTouch)releaseTouchPointer(e);
+    if(touchPointers.size===0)blockedByMultiTouch=false;
   };
 
   viewport.addEventListener('pointerdown',onPointerDown,{passive:false});
@@ -2274,18 +2245,18 @@ function initExamDrawing(){
   viewport.addEventListener('lostpointercapture',onPointerCancel,{passive:false});
   syncTouchAction();
 
-  requestAnimationFrame(()=>{
-    zoom=1;
-    surface.style.width=Math.max(1,stage.offsetWidth)+'px';
-    surface.style.height=Math.max(1,stage.offsetHeight)+'px';
-    surface.dataset.zoom='1';
-    surface.style.transform='scale(1)';
-    surface.style.marginRight='0px';
-    surface.style.marginBottom='0px';
-    viewport.scrollLeft=0;
-    viewport.scrollTop=0;
-    syncTouchAction();
-  });
+  // Always restore a plain, unscaled drawing surface when the question is
+  // rendered. No transform, scroll offset, or zoom state is carried between
+  // questions.
+  surface.style.width='100%';
+  surface.style.height='auto';
+  surface.style.transform='none';
+  surface.style.transformOrigin='initial';
+  surface.style.marginRight='0';
+  surface.style.marginBottom='0';
+  surface.dataset.zoom='1';
+  viewport.scrollLeft=0;
+  viewport.scrollTop=0;
 }
 
 function setExamPenColor(color){
@@ -2331,7 +2302,10 @@ function closeExamToolPanel(name){
   if(el)el.classList.remove('is-open');
 }
 function resetExamZoom(){
-  if(window._resetExamDrawingZoom)window._resetExamDrawingZoom();
+  const viewport=document.querySelector('.exam-annotation-viewport');
+  const surface=document.querySelector('.exam-annotation-surface');
+  if(viewport){viewport.scrollLeft=0;viewport.scrollTop=0;}
+  if(surface){surface.style.transform='none';surface.style.marginRight='0';surface.style.marginBottom='0';surface.dataset.zoom='1';}
 }
 function openExamNoteEditor(qid){
   if(!exam)return;
@@ -2425,7 +2399,6 @@ function renderQuiz(){
           <button type="button" class="btn size-tool" onclick="cycleExamDrawingSize()" title="Brush size" aria-label="Brush size"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M5 7h4" stroke-width="1.5"/><path d="M5 12h8" stroke-width="3"/><path d="M5 17h13" stroke-width="5"/></svg><span class="exam-size-indicator" data-size="${examDrawingSize<=2?'small':examDrawingSize>=6?'large':'medium'}"></span></button>
           <button type="button" class="btn tool-btn" onclick="toggleExamToolPanel('notes')" title="Saved notes" aria-label="Saved notes">📝</button>
           <button type="button" class="btn tool-btn" onclick="toggleExamToolPanel('folder')" title="Add to folder" aria-label="Add to folder">📁</button>
-          <button type="button" class="btn tool-btn exam-zoom-reset" onclick="resetExamZoom()" title="Reset zoom" aria-label="Reset zoom">1×</button>
         </div>
       </div>
       <div class="exam-tool-panel" id="examNotesPanel">${examSavedNotesHTML(true)}</div>
@@ -4721,7 +4694,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.36',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.37',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
