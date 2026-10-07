@@ -358,8 +358,11 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .exam-annotation-stage.exam-zoomed{transition:transform .08s linear}
 .exam-annotation-canvas{touch-action:none}
 .exam-zoom-reset{font-size:11px!important;min-width:38px!important}
-/* v41.27: pinch zoom applies to the whole exam content, not only the drawing stage. */
-.exam-page-zoom{zoom:1;transform-origin:top center;will-change:zoom}
+/* v41.28: magnify the whole exam page without CSS zoom/reflow. The page keeps its
+   original layout dimensions; only the rendered exam surface is scaled. */
+.exam-page-zoom-viewport{position:relative;width:100%;overflow:visible}
+.exam-page-zoom{transform:scale(1);transform-origin:top left;will-change:transform}
+.exam-page-zoom.is-zoomed{transition:transform .08s linear}
 .exam-note-editor-backdrop{position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(5,9,12,.58);backdrop-filter:blur(6px)}
 .exam-note-editor{width:min(560px,calc(100vw - 32px));max-height:min(78vh,620px);display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);box-shadow:0 24px 70px rgba(0,0,0,.32);overflow:hidden}
 .exam-note-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--bg)}
@@ -2113,7 +2116,18 @@ function initExamDrawing(){
   const setPageZoom=(z)=>{
     const value=Math.max(1,Math.min(2.25,Number(z)||1));
     quiz.dataset.examZoom=String(value);
-    document.querySelectorAll('.exam-page-zoom').forEach(el=>{el.style.zoom=String(value);});
+    document.querySelectorAll('.exam-page-zoom').forEach(el=>{
+      el.style.transform=`scale(${value})`;
+      el.classList.toggle('is-zoomed',value!==1);
+    });
+    document.querySelectorAll('.exam-page-zoom-viewport').forEach(v=>{
+      const inner=v.querySelector('.exam-page-zoom');
+      if(!inner)return;
+      requestAnimationFrame(()=>{
+        const base=inner.scrollHeight||inner.getBoundingClientRect().height/value;
+        v.style.minHeight=Math.ceil(base*value)+'px';
+      });
+    });
   };
   window._setExamPageZoom=setPageZoom;
   window._resetExamPageZoom=()=>setPageZoom(1);
@@ -2235,7 +2249,8 @@ function closeExamToolPanel(name){
 }
 function resetExamZoom(){
   if(window._resetExamPageZoom)window._resetExamPageZoom();
-  else document.querySelectorAll('.exam-page-zoom').forEach(el=>el.style.zoom='1');
+  else document.querySelectorAll('.exam-page-zoom').forEach(el=>{el.style.transform='scale(1)';el.classList.remove('is-zoomed');});
+  document.querySelectorAll('.exam-page-zoom-viewport').forEach(v=>v.style.minHeight='');
 }
 function openExamNoteEditor(qid){
   if(!exam)return;
@@ -2315,20 +2330,6 @@ function renderQuiz(){
   const answeredCount=exam.list.filter(item=>exam.answers[item.id]!==undefined).length;
   const answeredNow=selected!==undefined;
   const body=`<div class="quiz"><div class="card">
-    <div class="exam-page-zoom">
-    <div class="qhead"><span class="pill">${exam.index+1} / ${exam.list.length}</span><span class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</span>${exam.minutes?`<span class="timer" id="timer">${formatTime(remaining)}</span>`:''}</div>
-    <div class="bar"><i style="width:${pct(exam.index,exam.list.length-1)}%"></i></div>
-    <div class="question-nav" aria-label="Question navigation">
-      <div style="width:100%;display:flex;justify-content:space-between;align-items:center">
-        <strong>Questions</strong><span class="mini">${answeredCount}/${exam.list.length} answered</span>
-      </div>
-      ${nav}
-      <div class="nav-legend" style="width:100%">
-        <span><i class="nav-dot"></i>Not answered</span>
-        <span><i class="nav-dot answered"></i>Correct</span><span><i class="nav-dot wrong"></i>Wrong</span>
-        <span><i class="nav-dot current"></i>Current</span>
-      </div>
-    </div>
     <div class="exam-annotation-tools ${examDrawingEnabled?'is-open':''}" id="examDrawingTools" aria-label="Exam drawing tools">
       <div class="exam-annotation-toolbar">
         <button type="button" id="examDrawingToggle" class="btn exam-drawing-launcher ${examDrawingEnabled?'tool-active':''}" onclick="toggleExamDrawing()" title="Drawing tools" aria-label="Open drawing tools">✎</button>
@@ -2350,7 +2351,21 @@ function renderQuiz(){
       <div class="exam-tool-panel" id="examFolderPanel">${examFolderPanelHTML(q.id,true)}</div>
       <div class="exam-annotation-note-wrap" id="examAnnotationNoteWrap"><label class="exam-annotation-note-label">Private note</label><textarea id="examAnnotationNote" class="exam-annotation-note" placeholder="Take a private note for this question…"></textarea></div>
     </div>
+    <div class="exam-page-zoom-viewport">
     <div class="exam-page-zoom">
+    <div class="qhead"><span class="pill">${exam.index+1} / ${exam.list.length}</span><span class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</span>${exam.minutes?`<span class="timer" id="timer">${formatTime(remaining)}</span>`:''}</div>
+    <div class="bar"><i style="width:${pct(exam.index,exam.list.length-1)}%"></i></div>
+    <div class="question-nav" aria-label="Question navigation">
+      <div style="width:100%;display:flex;justify-content:space-between;align-items:center">
+        <strong>Questions</strong><span class="mini">${answeredCount}/${exam.list.length} answered</span>
+      </div>
+      ${nav}
+      <div class="nav-legend" style="width:100%">
+        <span><i class="nav-dot"></i>Not answered</span>
+        <span><i class="nav-dot answered"></i>Correct</span><span><i class="nav-dot wrong"></i>Wrong</span>
+        <span><i class="nav-dot current"></i>Current</span>
+      </div>
+    </div>
     <div class="exam-annotation-stage">
       <canvas id="examAnnotationCanvas" class="exam-annotation-canvas ${examDrawingEnabled?'drawing-enabled':''}" aria-label="Exam drawing canvas"></canvas>
       <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><div style="display:flex;gap:7px;flex:0 0 auto"><button type="button" class="btn" onclick="openQuestionReport()" title="Report this question" aria-label="Report this question">⚑</button><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div></div>
@@ -2362,6 +2377,7 @@ function renderQuiz(){
     ${examAI.open?examAIHTML(q,answeredNow):`<div class="exam-ai-wrap"><div class="exam-ai-trigger"><div><strong>Need an explanation?</strong><div class="mini">Ask AI about this question before or after answering.</div></div><button class="btn primary" onclick="openExamAI()">✦ Ask AI</button></div></div>`}
     <div class="quiz-footer"><button class="btn" onclick="prevQ()" ${exam.index===0?'disabled':''}>Previous</button>
     <button class="btn primary" onclick="${exam.index===exam.list.length-1?'submitExam(false)':'nextQ()'}">${exam.index===exam.list.length-1?'Submit Exam':'Next'}</button></div>
+    </div>
     </div>
   </div></div>`;
   document.getElementById('app').innerHTML=layout('Exam','Use the numbered buttons to move between questions. You can open Ask AI at any time for a question-specific explanation.',body);
@@ -4619,7 +4635,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.27',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.28',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
