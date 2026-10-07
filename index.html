@@ -353,8 +353,9 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 @media(max-width:700px){
   .exam-tool-panel{right:62px;top:auto;bottom:14px;transform:none;width:min(300px,calc(100vw - 78px));max-height:48vh}
 }
-/* v41.31: drawing-box-only zoom. One touch draws; two touches pinch/pan the box. */
+/* v41.32: stable drawing-box-only zoom. One touch draws; two touches pinch/pan the box. */
 .exam-annotation-viewport{position:relative;width:100%;overflow:auto;max-width:100%;border-radius:var(--radius-sm);touch-action:none;overscroll-behavior:contain;scroll-behavior:auto;}
+/* The viewport owns all touch gestures; capture-phase handlers update pointer state before the canvas sees the event. */
 .exam-annotation-surface{position:relative;width:100%;transform-origin:0 0;transform:scale(1);will-change:transform;}
 .exam-annotation-surface.is-zoomed{transition:none;}
 .exam-annotation-stage{overflow:hidden;}
@@ -2104,7 +2105,7 @@ function initExamDrawing(){
     examDrawingResizeObserver.observe(stage);
   }
 
-  // Rebuilt from zero: zoom belongs ONLY to the drawing/question box.
+  // Stable rebuild: zoom belongs ONLY to the drawing/question box.
   // One finger/touch is exclusively a drawing gesture when drawing is enabled.
   // Two touches are exclusively a pinch + pan gesture. No page-level transform.
   const pointers=new Map();
@@ -2212,10 +2213,10 @@ function initExamDrawing(){
       canvas._pinchActive=false;
     }
   };
-  viewport.addEventListener('pointerdown',onDown,{passive:false});
-  viewport.addEventListener('pointermove',onMove,{passive:false});
-  viewport.addEventListener('pointerup',onUp,{passive:true});
-  viewport.addEventListener('pointercancel',onUp,{passive:true});
+  viewport.addEventListener('pointerdown',onDown,{capture:true,passive:false});
+  viewport.addEventListener('pointermove',onMove,{capture:true,passive:false});
+  viewport.addEventListener('pointerup',onUp,{capture:true,passive:true});
+  viewport.addEventListener('pointercancel',onUp,{capture:true,passive:true});
 
   canvas.onpointerdown=(e)=>{
     if(!examDrawingEnabled||canvas._pinchActive)return;
