@@ -3018,8 +3018,7 @@ function printAdminQuestionBankPDF(){
     body{font-size:9pt}
     .medex-print-page{page-break-after:always;break-after:page;position:relative;width:297mm;height:210mm;padding:6mm 8mm 7mm;background:#fff;color:#101826;display:flex;flex-direction:column;overflow:hidden}
     .medex-print-page:last-child{page-break-after:auto;break-after:auto}
-    .medex-print-page.continuation-page{padding-top:6mm}
-    .medex-print-page.continuation-page .medex-print-questions{margin-top:0}
+    .medex-print-page.continuation-page{padding-top:5.5mm}
     .medex-print-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:end;gap:5mm;border-bottom:1.2px solid #0c7c8c;padding-bottom:2.2mm;margin-bottom:1.8mm;flex:0 0 auto}
     .medex-print-brand{font-family:Georgia,'Times New Roman',serif;font-size:17pt;font-weight:700;color:#101826;line-height:1}
     .medex-print-brand.small{font-family:Arial,sans-serif;font-size:6.8pt;font-weight:400;color:#5b6b72;margin-top:1mm}
@@ -3027,8 +3026,7 @@ function printAdminQuestionBankPDF(){
     .medex-print-title span{display:block;font-size:7.5pt;font-weight:700;color:#0c7c8c;margin-top:1mm}
     .medex-print-meta{font-family:Arial,sans-serif;font-size:7.2pt;line-height:1.25;color:#5b6b72;text-align:right}
     .medex-print-meta b{color:#101826}
-    .medex-print-topic{display:flex;align-items:center;justify-content:center;gap:2mm;padding:1.1mm 2.5mm;margin:0 0 1.8mm;border:1px solid rgba(12,124,140,.28);border-radius:3mm;background:#eaf5f5;color:#095f6c;font-size:8pt;font-weight:800;line-height:1.1;flex:0 0 auto}
-    .medex-print-topic-label{font-size:6.2pt;letter-spacing:.06em;text-transform:uppercase;color:#5b6b72;font-weight:700}
+    .medex-print-topic{display:flex;align-items:center;justify-content:center;gap:2mm;padding:1.2mm 3mm;margin:0 0 2.2mm;border:1px solid rgba(12,124,140,.28);border-radius:3mm;background:#eaf5f5;color:#095f6c;font-size:8.6pt;font-weight:800;line-height:1.1;flex:0 0 auto;letter-spacing:.02em}
     .medex-print-questions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:4mm;flex:1;min-height:0;align-items:stretch}
     .medex-print-column{min-width:0;display:flex;flex-direction:column;gap:1.35mm;min-height:0;align-content:flex-start}
     .medex-print-q{display:grid;grid-template-columns:minmax(0,1fr) 9mm;width:100%;border:1px solid #b9c5c7;background:#fff;break-inside:avoid;page-break-inside:avoid;margin:0;flex:0 0 auto}
@@ -3052,13 +3050,17 @@ function printAdminQuestionBankPDF(){
   const w=window.open('', '_blank');
   if(!w){toast('Please allow pop-ups for MedEx to create the printable PDF.','error');return;}
 
-  const block=(q,n,compact=false,scale=1)=>{ const html=adminPrintQuestionBlock(q,showAnswers,showExplanations,n).replace('<article class="medex-print-q"','<article class="medex-print-q'+(compact?' compact':'')+'"'); return scale===1?html:html.replace('<article ',`<article style=\"font-size:${scale}em\" `); };
+  const block=(q,n,compact=false,scale=1)=>{
+    const html=adminPrintQuestionBlock(q,showAnswers,showExplanations,n).replace('<article class="medex-print-q"','<article class="medex-print-q'+(compact?' compact':'')+'"');
+    return scale===1?html:html.replace('<article ',`<article style="font-size:${scale}em" `);
+  };
   const skeleton=(g)=>`<section class="medex-print-page" id="measurePage">
     <header class="medex-print-header">
       <div><div class="medex-print-brand">MedEx</div><div class="medex-print-brand small">Medical Examination Platform</div></div>
       <div class="medex-print-title">Question book<span>${adminPrintEscapeHTML(g.lecture)}</span></div>
       <div class="medex-print-meta"><b>Module:</b> ${adminPrintEscapeHTML(g.module)}<br><b>Subject:</b> ${adminPrintEscapeHTML(g.subject)}<br><b>Lecture:</b> ${adminPrintEscapeHTML(g.lecture)}</div>
     </header>
+    <div class="medex-print-topic">${adminPrintEscapeHTML(g.lecture)}</div>
     <div class="medex-print-questions"><div class="medex-print-column" id="measureLeft"></div><div class="medex-print-column" id="measureRight"></div></div>
     <footer class="medex-print-footer"><div><span class="sig">MedEx — Medical Examination Platform</span><br>Official Question Book · ${total} questions</div><div class="page-number">1</div><div class="context">Module: ${adminPrintEscapeHTML(g.module)} · Subject: ${adminPrintEscapeHTML(g.subject)} · Lecture: ${adminPrintEscapeHTML(g.lecture)}</div></footer>
   </section>`;
@@ -3075,10 +3077,11 @@ function printAdminQuestionBankPDF(){
         if(!measurePage||!measureCols[0])throw new Error('Print measurement page was not created.');
         const pageHeight=measurePage.getBoundingClientRect().height;
         const header=measurePage.querySelector('.medex-print-header')?.getBoundingClientRect().height||0;
+        const topic=measurePage.querySelector('.medex-print-topic')?.getBoundingClientRect().height||0;
         const footer=measurePage.querySelector('.medex-print-footer')?.getBoundingClientRect().height||0;
         const questionsTop=measurePage.querySelector('.medex-print-questions')?.getBoundingClientRect().top||0;
         const pagePaddingTop=parseFloat(w.getComputedStyle(measurePage).paddingTop)||0;
-        const safety=4/25.4*96;
+        const safety=5/25.4*96;
         const footerGap=1.6/25.4*96;
         const continuationTop=pagePaddingTop;
         const firstQuestionsTop=questionsTop;
@@ -3098,15 +3101,15 @@ function printAdminQuestionBankPDF(){
           return h;
         };
 
-        const fitQuestion=(q,n,usable)=>{
+        const fitQuestion=(q,n,available)=>{
           let compact=false;
           let h=measureQuestion(q,n,false,1);
-          if(h>usable){compact=true;h=measureQuestion(q,n,true,1);}
+          if(h>available){compact=true;h=measureQuestion(q,n,true,1);}
           let extraScale=1;
-          if(h>usable){
-            for(let scale=.96;scale>=.72;scale-=.04){
+          if(h>available){
+            for(let scale=.96;scale>=.60;scale-=.04){
               h=measureQuestion(q,n,true,scale);
-              if(h<=usable){extraScale=Number(scale.toFixed(2));break;}
+              if(h<=available){extraScale=Number(scale.toFixed(2));break;}
             }
           }
           return {compact,extraScale,h};
@@ -3116,22 +3119,37 @@ function printAdminQuestionBankPDF(){
         groups.forEach(g=>{
           let number=0;
           let page={g,left:[],right:[],lh:0,rh:0,first:true};
-          const commit=()=>{if(page.left.length||page.right.length)finalPages.push(page);page={g,left:[],right:[],lh:0,rh:0,first:false};};
+          const commit=()=>{
+            if(page.left.length||page.right.length)finalPages.push(page);
+            page={g,left:[],right:[],lh:0,rh:0,first:false};
+          };
+
           g.rows.forEach(q=>{
             const item={q,number:++number};
-            // Measure against the actual capacity of this page. Continuation pages
-            // have no lecture header, so they intentionally have more room.
-            const usable=Math.max(100,page.first?usableFirst:usableContinuation);
-            const fit=fitQuestion(q,item.number,usable);
-            const need=fit.h+gap;
-            if(page.lh+need<=usable){
-              page.left.push({...item,compact:fit.compact,extraScale:fit.extraScale});page.lh+=need;
-            }else if(page.rh+need<=usable){
-              page.right.push({...item,compact:fit.compact,extraScale:fit.extraScale});page.rh+=need;
-            }else{
+            let placed=false;
+            // Target the reference layout: 4–5 complete questions per column.
+            // Never exceed five, and never place a question unless its full box fits.
+            for(const colIndex of [0,1]){
+              const list=colIndex===0?page.left:page.right;
+              const used=colIndex===0?page.lh:page.rh;
+              const usable=page.first?usableFirst:usableContinuation;
+              if(list.length>=5)continue;
+              const available=Math.max(40,usable-used-(list.length?gap:0));
+              const fit=fitQuestion(q,item.number,available);
+              const need=fit.h+(list.length?gap:0);
+              if(need<=available+0.5){
+                list.push({...item,compact:fit.compact,extraScale:fit.extraScale});
+                if(colIndex===0)page.lh+=need; else page.rh+=need;
+                placed=true;
+                break;
+              }
+            }
+            if(!placed){
               commit();
-              const nextFit=fitQuestion(q,item.number,usableContinuation);
-              page.left.push({...item,compact:nextFit.compact,extraScale:nextFit.extraScale});page.lh+=nextFit.h+gap;
+              const usable=usableContinuation;
+              const fit=fitQuestion(q,item.number,usable);
+              page.left.push({...item,compact:fit.compact,extraScale:fit.extraScale});
+              page.lh+=fit.h;
             }
           });
           commit();
@@ -3144,13 +3162,13 @@ function printAdminQuestionBankPDF(){
             <div><div class="medex-print-brand">MedEx</div><div class="medex-print-brand small">Medical Examination Platform</div></div>
             <div class="medex-print-title">Question book<span>${adminPrintEscapeHTML(p.g.lecture)}</span></div>
             <div class="medex-print-meta"><b>Module:</b> ${adminPrintEscapeHTML(p.g.module)}<br><b>Subject:</b> ${adminPrintEscapeHTML(p.g.subject)}<br><b>Lecture:</b> ${adminPrintEscapeHTML(p.g.lecture)}</div>
-          </header>`:''}
+          </header><div class="medex-print-topic">${adminPrintEscapeHTML(p.g.lecture)}</div>`:''}
           <div class="medex-print-questions"><div class="medex-print-column">${p.left.map(x=>block(x.q,x.number,x.compact,x.extraScale||1)).join('')}</div><div class="medex-print-column">${p.right.map(x=>block(x.q,x.number,x.compact,x.extraScale||1)).join('')}</div></div>
           <footer class="medex-print-footer"><div><span class="sig">MedEx — Medical Examination Platform</span><br>Official Question Book · ${total} questions</div><div class="page-number">${idx+1}</div><div class="context">Module: ${adminPrintEscapeHTML(p.g.module)} · Subject: ${adminPrintEscapeHTML(p.g.subject)} · Lecture: ${adminPrintEscapeHTML(p.g.lecture)}</div></footer>
         </section>`;
         }).join('');
         w.document.body.innerHTML=output;
-        setTimeout(()=>{w.focus();w.print();},300);
+        setTimeout(()=>{w.focus();w.print();},350);
       }catch(e){
         console.error('Question book pagination error:',e);
         toast('Could not prepare the question book print layout.','error');
