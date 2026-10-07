@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.24-phase2-fixes">
+<meta name="medex-build" content="v41.39-phase2-ui-fixes">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -49,9 +49,12 @@ html[data-theme="dark"]{
   --shadow-sm:0 1px 2px rgba(0,0,0,.4);
 }
 *{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;color-scheme:light}
+html[data-theme="dark"]{color-scheme:dark}
 body{margin:0;font-family:var(--font-sans);background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{background:var(--card);color:var(--text);border-color:var(--line)}
+::placeholder{color:var(--muted);opacity:.9}
 button{cursor:pointer}
 h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;margin:0}
 :focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:4px}
@@ -92,8 +95,6 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 
 
 /* v41.38 Phase 2 learning + weekly notification system */
-.weekly-notifications-card{position:relative;overflow:hidden;margin-bottom:16px;border:1px solid var(--line);background:linear-gradient(135deg,var(--card),var(--primary-soft));}
-.weekly-notifications-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px;cursor:pointer}
 .weekly-notifications-title{display:flex;align-items:center;gap:11px;min-width:0}.notification-bell{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary);border:1px solid rgba(var(--primary-rgb),.22);position:relative;flex:0 0 auto}.notification-bell svg{width:21px;height:21px}.notification-unread-dot{position:absolute;right:-2px;top:-2px;width:10px;height:10px;border-radius:50%;background:#e53935;box-shadow:0 0 0 3px var(--card);animation:mePulse 1.8s ease-in-out infinite}.weekly-notifications-summary{min-width:0}.weekly-notifications-summary strong{display:block}.weekly-notifications-summary .mini{margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.weekly-notifications-list{border-top:1px solid var(--line);padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px}.weekly-notification-item{padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}.weekly-notification-item.is-new{border-color:rgba(var(--primary-rgb),.42);box-shadow:0 0 0 1px rgba(var(--primary-rgb),.08)}.weekly-notification-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted)}.weekly-notification-new{color:var(--primary);font-weight:800}.weekly-notification-message{white-space:pre-wrap;line-height:1.55;margin-top:6px;font-size:13px}
 .study-phase2-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}.study-hub-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px}.study-hub-action{padding:13px;border:1px solid var(--line);border-radius:12px;background:var(--bg);text-align:left;display:flex;flex-direction:column;gap:5px}.study-hub-action:hover{border-color:var(--primary);background:var(--primary-soft)}.study-hub-action b{font-size:13px}.study-hub-action span{font-size:11px;color:var(--muted);line-height:1.45}.focus-timer-card{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:245px}.focus-timer{font-family:var(--font-mono);font-size:56px;font-weight:800;letter-spacing:.04em;margin:10px 0}.focus-status{font-size:11px;color:var(--muted)}.focus-presets{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-top:10px}.focus-preset.active{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}.written-answer-box{min-height:130px;resize:vertical}.written-practice-shell{max-width:900px;margin:0 auto}.written-answer-feedback{margin-top:12px;line-height:1.6}.phase2-image-review{max-width:min(100%,720px);max-height:420px;display:block;margin:14px auto;border-radius:14px;border:1px solid var(--line);object-fit:contain;background:var(--bg)}
 @media(max-width:850px){.study-phase2-grid{grid-template-columns:1fr}.study-hub-grid{grid-template-columns:1fr 1fr}}
@@ -104,7 +105,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .scrim{position:fixed;inset:0;background:rgba(8,12,18,.5);opacity:0;pointer-events:none;transition:opacity .22s ease;z-index:40}
 .app.sidebar-open .scrim{opacity:1;pointer-events:auto}
 .appshell{flex:1;min-width:0;display:flex;flex-direction:column;min-height:100vh}
-.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;height:var(--topbar-h);padding:0 18px;background:rgba(238,242,240,.86);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.topbar{position:sticky;top:0;z-index:80;display:flex;align-items:center;gap:12px;height:var(--topbar-h);padding:0 18px;background:var(--card);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
 .topbar-brand{font-family:var(--font-serif);font-size:17px;font-weight:600}
 .topbar-brand small{display:block;font-family:var(--font-sans);font-weight:500;font-size:10.5px;color:var(--muted);letter-spacing:.02em;margin-top:-2px}
 .icon-btn{width:38px;height:38px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--card);border-radius:10px;transition:border-color .15s ease,background .15s ease}
@@ -114,6 +115,21 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .section-start-btn svg{width:13px;height:13px;stroke:var(--primary);fill:var(--primary);margin-left:1px}
 .icon-btn:hover{border-color:var(--primary)}
 .icon-btn svg{width:18px;height:18px;stroke:var(--text);fill:none}
+.topbar-spacer{flex:1;min-width:0}
+.topbar-actions{display:flex;align-items:center;gap:8px;position:relative}
+.topbar-notification-btn{position:relative}
+.topbar-notification-dot{position:absolute;right:-2px;top:-2px;width:9px;height:9px;border-radius:50%;background:#e53935;box-shadow:0 0 0 3px var(--card);animation:mePulse 1.8s ease-in-out infinite}
+.topbar-notification-panel{position:fixed;top:calc(var(--topbar-h) + 8px);right:18px;width:min(390px,calc(100vw - 24px));max-height:min(72vh,620px);overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);z-index:100;padding:12px}
+.topbar-notification-panel .weekly-notification-item{background:var(--bg)}
+.topbar-notification-panel .notification-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:3px 2px 10px;border-bottom:1px solid var(--line);margin-bottom:9px}
+.topbar-notification-panel .notification-panel-head strong{font-size:14px}
+.focus-topbar{height:38px;min-width:154px;display:flex;align-items:center;gap:7px;padding:0 8px 0 10px;border:1px solid var(--line);background:var(--card);border-radius:10px;color:var(--text)}
+.focus-topbar-label{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.focus-topbar-time{font-family:var(--font-mono);font-size:13px;font-weight:800;min-width:53px;text-align:center}
+.focus-topbar-action{width:27px;height:27px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);display:grid;place-items:center;padding:0}
+.focus-topbar-action:hover{border-color:var(--primary);color:var(--primary)}
+.focus-topbar-action svg{width:14px;height:14px;stroke:currentColor;fill:none}
+@media(max-width:700px){.topbar{padding:0 10px;gap:8px}.topbar-brand small{display:none}.focus-topbar{min-width:0;padding:0 5px 0 7px;gap:4px}.focus-topbar-label{display:none}.focus-topbar-time{font-size:12px;min-width:49px}.topbar-notification-panel{right:12px}.topbar-actions{gap:6px}}
 .main{flex:1;padding:24px;max-width:1500px;width:100%}
 
 /* ---------- Sidebar window ---------- */
@@ -602,7 +618,10 @@ html[data-theme="dark"] .study-flash-content:hover{background:color-mix(in srgb,
   <header class="topbar">
     <button class="icon-btn" id="sidebarOpen" aria-label="Toggle menu"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round"><line x1="2.5" y1="5.5" x2="17.5" y2="5.5"/><line x1="2.5" y1="10" x2="17.5" y2="10"/><line x1="2.5" y1="14.5" x2="17.5" y2="14.5"/></svg></button>
     <div class="topbar-brand">MedEx<small>Medical Examination Platform</small></div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-actions" id="topbarActions"></div>
   </header>
+  <div id="topbarNotificationPanel" class="topbar-notification-panel" hidden></div>
   <main class="main">
   <div id="app"></div>
   </main>
@@ -1447,6 +1466,7 @@ function layout(title,subtitle,body,actions=''){
 
 function render(){
   updateSidebarFoot();
+  renderTopbarUI();
   const view=location.hash.replace('#','')||'dashboard';
   const allowed=['dashboard','exam','progress','tools','library','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics','reports','replies','notifications'];
   const v=allowed.includes(view)?view:'dashboard';
@@ -1551,9 +1571,10 @@ function updateSupportUnreadDot(show){
 }
 function renderDashboard(){
   const modules=getModules();
-  setTimeout(()=>{updateSupportUnreadDot(false);setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));},0);
+  setTimeout(async()=>{updateSupportUnreadDot(await refreshSupportUnreadIndicator());},0);
+  const noticeHtml=(activeNotifications||[]).length ? activeNotifications.map(n=>`<div class="card" style="margin-bottom:16px;border-left:4px solid var(--primary)"><div class="category-head"><strong>${esc(n.title||'Announcement')}</strong><span class="mini">${n.created_at?new Date(n.created_at).toLocaleString():''}</span></div><div style="margin-top:8px;white-space:pre-wrap">${esc(n.message||'')}</div></div>`).join('') : '';
   const body=`
-  ${weeklyNotificationsHTML()}
+  ${noticeHtml}
   ${dailyGoalStreakHTML()}
   <div class="card dashboard-progress-shortcut" style="margin-bottom:16px;cursor:pointer" onclick="go('progress')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')go('progress')">
     <div class="dashboard-progress-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,17 8,11 12,14 21,5"/><polyline points="15,5 21,5 21,11"/><line x1="3" y1="20" x2="21" y2="20"/></svg></div>
@@ -1592,7 +1613,7 @@ function renderDashboard(){
     <div id="syncStatus">Source: <b>questions/index.json</b>${lastSync?` · Last successful sync: ${lastSync.toLocaleString()}`:''}</div>
     <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="loadFromGitHub()">Refresh from GitHub</button><button class="btn" onclick="go('import')">Upload / Update Questions</button><button class="btn primary btn-lg" onclick="go('exam')">Start an Exam</button></div>
   </div>`;
-  document.getElementById('app').innerHTML=layout('Dashboard','Your personal progress is stored in this browser.',body,dashboardThemeToggleHTML());
+  document.getElementById('app').innerHTML=layout('Dashboard','Your personal progress is stored in this browser.',body);
 }
 
 function examPathKey(type,module='',subject='',lecture=''){
@@ -3097,16 +3118,29 @@ function studyHubQuestions(){const f=studyHubSelection();return bank.filter(q=>(
 function startStudyHubExam(){const qs=studyHubQuestions();if(!qs.length){toast('No questions match this lecture selection.','error');return;}startExam(qs,null,'Study Hub practice');}
 function startStudyHubImageReview(){const qs=studyHubQuestions().filter(q=>q.imageUrl);if(!qs.length){toast('No image-based questions are available in this selection.','error');return;}startExam(qs,null,'Image-based review');}
 function startStudyHubWritten(){const qs=studyHubQuestions();if(!qs.length){toast('No questions match this selection.','error');return;}writtenPractice={list:shuffle([...qs]).slice(0,Math.min(10,qs.length)),index:0,feedback:'',busy:false};renderWrittenPractice();}
-function startFocusTimer(){if(focusTimerState.running)return;focusTimerState.running=true;focusTimerState.startedAt=Date.now();saveFocusState();runFocusTimer();renderStudyTools();}
-function pauseFocusTimer(){if(!focusTimerState.running)return;focusTimerState.running=false;const elapsed=Math.floor((Date.now()-(focusTimerState.startedAt||Date.now()))/1000);focusTimerState.remaining=Math.max(0,Number(focusTimerState.remaining||0)-elapsed);saveFocusState();clearInterval(focusTimerId);focusTimerId=null;renderStudyTools();}
-function resetFocusTimer(seconds=focusTimerState.preset||1500){clearInterval(focusTimerId);focusTimerId=null;focusTimerState={remaining:seconds,running:false,label:focusTimerState.label||'Focused study',preset:seconds};saveFocusState();renderStudyTools();}
+function refreshFocusTimerUI(){
+  const remain=Math.max(0,Number(focusTimerState.remaining||0));
+  const display=document.getElementById('focusTimerDisplay');
+  if(display)display.textContent=formatTime(remain);
+  const status=document.getElementById('focusTimerStatus');
+  if(status)status.textContent=focusTimerState.running?'Session running':'Ready to focus';
+  const action=document.getElementById('focusTimerAction');
+  if(action){action.textContent=focusTimerState.running?'Pause':'Start';action.title=focusTimerState.running?'Pause focus timer':'Start focus timer';}
+  const topTime=document.getElementById('focusTopbarTime');
+  if(topTime)topTime.textContent=formatTime(remain);
+  const topAction=document.getElementById('focusTopbarAction');
+  if(topAction){topAction.title=focusTimerState.running?'Pause focus timer':'Start focus timer';topAction.setAttribute('aria-label',topAction.title);topAction.innerHTML=focusTimerState.running?'<svg viewBox="0 0 20 20"><rect x="5.2" y="4" width="3.2" height="12" rx=".8"/><rect x="11.6" y="4" width="3.2" height="12" rx=".8"/></svg>':'<svg viewBox="0 0 20 20"><path d="M7 4.8 15 10 7 15.2Z" fill="currentColor" stroke="none"/></svg>';}
+}
+function startFocusTimer(){if(focusTimerState.running)return;focusTimerState.running=true;focusTimerState.startedAt=Date.now();saveFocusState();runFocusTimer();refreshFocusTimerUI();}
+function pauseFocusTimer(){if(!focusTimerState.running)return;focusTimerState.running=false;const elapsed=Math.floor((Date.now()-(focusTimerState.startedAt||Date.now()))/1000);focusTimerState.remaining=Math.max(0,Number(focusTimerState.remaining||0)-elapsed);saveFocusState();clearInterval(focusTimerId);focusTimerId=null;refreshFocusTimerUI();}
+function resetFocusTimer(seconds=focusTimerState.preset||1500){clearInterval(focusTimerId);focusTimerId=null;focusTimerState={remaining:seconds,running:false,label:focusTimerState.label||'Focused study',preset:seconds};saveFocusState();refreshFocusTimerUI();if(location.hash.replace('#','')==='tools')renderStudyTools();}
 function saveFocusState(){localStorage.setItem(CONFIG.focusStateKey,JSON.stringify(focusTimerState));}
 function focusLabelChanged(v){focusTimerState.label=String(v||'Focused study');saveFocusState();}
-function runFocusTimer(){clearInterval(focusTimerId);if(!focusTimerState.running)return;focusTimerState.startedAt=Date.now();focusTimerId=setInterval(()=>{if(!focusTimerState.running){clearInterval(focusTimerId);return;}const elapsed=Math.floor((Date.now()-focusTimerState.startedAt)/1000);const remain=Math.max(0,Number(focusTimerState.remaining||0)-elapsed);focusTimerState.remaining=remain;focusTimerState.startedAt=Date.now();saveFocusState();const el=document.getElementById('focusTimerDisplay');if(el)el.textContent=formatTime(remain);if(remain<=0){focusTimerState.running=false;saveFocusState();clearInterval(focusTimerId);focusTimerId=null;toast('Focus session complete. Nice work.','ok');if('Notification' in window&&Notification.permission==='granted')navigator.serviceWorker?.ready.then(r=>r.showNotification('MedEx Focus complete',{body:focusTimerState.label||'Your study session is complete.'})).catch(()=>{});}} ,1000);}
-function focusPreset(seconds){focusTimerState.preset=seconds;focusTimerState.remaining=seconds;focusTimerState.running=false;focusTimerState.startedAt=0;saveFocusState();renderStudyTools();}
+function runFocusTimer(){clearInterval(focusTimerId);if(!focusTimerState.running)return;focusTimerState.startedAt=Date.now();focusTimerId=setInterval(()=>{if(!focusTimerState.running){clearInterval(focusTimerId);return;}const elapsed=Math.floor((Date.now()-focusTimerState.startedAt)/1000);const remain=Math.max(0,Number(focusTimerState.remaining||0)-elapsed);focusTimerState.remaining=remain;focusTimerState.startedAt=Date.now();saveFocusState();refreshFocusTimerUI();if(remain<=0){focusTimerState.running=false;saveFocusState();clearInterval(focusTimerId);focusTimerId=null;refreshFocusTimerUI();toast('Focus session complete. Nice work.','ok');if('Notification' in window&&Notification.permission==='granted')navigator.serviceWorker?.ready.then(r=>r.showNotification('MedEx Focus complete',{body:focusTimerState.label||'Your study session is complete.'})).catch(()=>{});}} ,1000);}
+function focusPreset(seconds){focusTimerState.preset=seconds;focusTimerState.remaining=seconds;focusTimerState.running=false;focusTimerState.startedAt=0;saveFocusState();refreshFocusTimerUI();if(location.hash.replace('#','')==='tools')renderStudyTools();}
 function requestFocusNotifications(){if('Notification' in window&&Notification.permission==='default')Notification.requestPermission().catch(()=>{});}
-function focusTimerHTML(){const remain=Math.max(0,Number(focusTimerState.remaining||1500));const presets=[1500,3000,3600];return `<section class="study-tools-card focus-timer-card"><span class="study-eyebrow">FOCUS MODE</span><h3 style="margin-top:5px">One task. No distractions.</h3><input class="field" style="max-width:320px;width:100%;margin-top:8px;text-align:center" value="${esc(focusTimerState.label||'Focused study')}" onchange="focusLabelChanged(this.value)" placeholder="What are you studying?"><div id="focusTimerDisplay" class="focus-timer">${formatTime(remain)}</div><div class="focus-status">${focusTimerState.running?'Session running':'Ready to focus'}</div><div class="focus-presets">${presets.map(x=>`<button class="btn focus-preset ${focusTimerState.preset===x?'active':''}" onclick="focusPreset(${x})">${x/60} min</button>`).join('')}</div><div class="actions" style="margin-top:12px;justify-content:center"><button class="btn primary" onclick="${focusTimerState.running?'pauseFocusTimer()':'startFocusTimer()'}">${focusTimerState.running?'Pause':'Start focus'}</button><button class="btn" onclick="resetFocusTimer()">Reset</button><button class="btn" onclick="requestFocusNotifications()">Allow completion alert</button></div></section>`;}
-function studyHubHTML(){const modules=getModules().filter(isModuleVisible);const qs=studyHubQuestions();const imageCount=qs.filter(q=>q.imageUrl).length;const due=qs.filter(q=>{const p=flashcardRecord(q);return !p.suspended&&p.state!=='new'&&Number(p.due||0)<=Date.now();}).length;const mistakes=qs.filter(q=>Number(progress[key(q)]?.wrong||0)>0).length;return `<section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">LECTURE STUDY HUB</span><h3>Study one topic from every angle</h3><p>Select a module, subject and lecture, then jump directly to questions, images, written answers or spaced review.</p></div><span class="study-count-badge"><b>${qs.length}</b><span>QUESTIONS</span></span></div><div class="study-filter-grid"><div class="field"><label>Module</label><select id="studyHubModule" onchange="updateStudyHubSubjects()"><option value="">All modules</option>${modules.map(m=>`<option value="${attrJs(m)}" ${studyHubFilter.module===m?'selected':''}>${esc(m)}</option>`).join('')}</select></div><div class="field"><label>Subject</label><select id="studyHubSubject" onchange="updateStudyHubLectures()"><option value="">All subjects</option>${getSubjects(studyHubFilter.module||undefined).map(x=>`<option value="${attrJs(x)}" ${studyHubFilter.subject===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div><div class="field"><label>Lecture</label><select id="studyHubLecture" onchange="updateStudyHubLecture()"><option value="">All lectures</option>${getLectures(studyHubFilter.module||undefined,studyHubFilter.subject||undefined).map(x=>`<option value="${attrJs(x)}" ${studyHubFilter.lecture===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div></div><div class="study-hub-grid"><button class="study-hub-action" onclick="startStudyHubExam()"><b>❓ Practice questions</b><span>${qs.length} questions in this selection.</span></button><button class="study-hub-action" onclick="startStudyHubImageReview()"><b>🖼️ Image review</b><span>${imageCount} image-based questions.</span></button><button class="study-hub-action" onclick="startStudyHubWritten()"><b>✍️ Written answers</b><span>Write answers and get AI feedback.</span></button><button class="study-hub-action" onclick="go('mistakes')"><b>❌ Review mistakes</b><span>${mistakes} questions with previous wrong answers.</span></button><button class="study-hub-action" onclick="startStudyHubFlashcards()"><b>🧠 Flashcards</b><span>${due} due cards in the current selection.</span></button><button class="study-hub-action" onclick="go('progress')"><b>📊 View progress</b><span>Module → subject → lecture analytics.</span></button></div></section>`;}
+function focusTimerHTML(){const remain=Math.max(0,Number(focusTimerState.remaining||1500));const presets=[1500,3000,3600];return `<section class="study-tools-card focus-timer-card"><span class="study-eyebrow">FOCUS MODE</span><h3 style="margin-top:5px">One task. No distractions.</h3><input class="field" style="max-width:320px;width:100%;margin-top:8px;text-align:center" value="${esc(focusTimerState.label||'Focused study')}" onchange="focusLabelChanged(this.value)" placeholder="What are you studying?"><div id="focusTimerDisplay" class="focus-timer">${formatTime(remain)}</div><div id="focusTimerStatus" class="focus-status">${focusTimerState.running?'Session running':'Ready to focus'}</div><div class="focus-presets">${presets.map(x=>`<button class="btn focus-preset ${focusTimerState.preset===x?'active':''}" onclick="focusPreset(${x})">${x/60} min</button>`).join('')}</div><div class="actions" style="margin-top:12px;justify-content:center"><button id="focusTimerAction" class="btn primary" onclick="${focusTimerState.running?'pauseFocusTimer()':'startFocusTimer()'}">${focusTimerState.running?'Pause':'Start focus'}</button><button class="btn" onclick="resetFocusTimer()">Reset</button><button class="btn" onclick="requestFocusNotifications()">Allow completion alert</button></div></section>`;}
+function studyHubHTML(){return ''; }
 function renderWrittenPractice(){if(!writtenPractice)return go('tools');const q=writtenPractice.list[writtenPractice.index];if(!q)return go('tools');const body=`<div class="written-practice-shell"><div class="card"><div class="qhead"><span class="pill">${writtenPractice.index+1} / ${writtenPractice.list.length}</span><span class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</span></div><h2 style="margin-top:14px">${esc(q.question)}</h2>${q.imageUrl?`<img class="phase2-image-review" src="${esc(q.imageUrl)}" alt="Question illustration">`:''}<textarea id="writtenAnswerInput" class="written-answer-box" style="width:100%;margin-top:16px;padding:13px;border:1px solid var(--line);border-radius:12px;background:var(--bg)" placeholder="Write your answer in your own words…"></textarea><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="gradeWrittenAnswer()" ${writtenPractice.busy?'disabled':''}>${writtenPractice.busy?'Grading…':'Check with AI'}</button><button class="btn" onclick="go('tools')">Exit</button></div>${writtenPractice.feedback?`<div class="review good written-answer-feedback">${writtenPractice.feedback}</div>`:''}</div></div>`;document.getElementById('app').innerHTML=layout('Written Answer Practice','Explain the concept in your own words, then compare with AI feedback.',body);}
 async function gradeWrittenAnswer(){if(!writtenPractice||writtenPractice.busy)return;const q=writtenPractice.list[writtenPractice.index],input=document.getElementById('writtenAnswerInput');const answer=(input?.value||'').trim();if(!answer){toast('Write an answer first.','error');return;}writtenPractice.busy=true;renderWrittenPractice();try{const prompt=`You are a medical education tutor grading a student's written answer. Be concise but specific. Do not invent facts. Question: ${q.question}\nExpected correct option: ${q.options?.[q.correctIndex]||''}\nExplanation: ${q.explanation||'No explanation provided.'}\nStudent answer: ${answer}\nGive: 1) a brief verdict, 2) what the student got right, 3) what is missing or incorrect, 4) one improved model answer. Use plain text and bullets.`;const reply=await callAI([{role:'user',parts:[{text:prompt}]}],{maxOutputTokens:1200,responseMimeType:'text/plain'});writtenPractice.feedback=esc(formatAIChatReply(reply));}catch(e){writtenPractice.feedback=`AI grading failed: ${esc(e.message||String(e))}`;}finally{writtenPractice.busy=false;renderWrittenPractice();}}
 
@@ -3116,7 +3150,6 @@ function renderStudyTools(){
   const ach=achievements().map(a=>`<div class="study-achievement"><strong>${a[1]?'🏆':'○'} ${esc(a[0])}</strong><span>${a[1]?'Unlocked':'Keep studying to unlock this achievement.'}</span></div>`).join('');
   const body=`<div class="study-tools-page">
     <section class="study-tools-hero"><div><span class="study-eyebrow">STUDY TOOLS · PHASE 2</span><h2>Focused review, built into MedEx</h2><p>Study a lecture through questions, images, written answers, spaced repetition and focused sessions without leaving MedEx.</p></div><div class="study-hero-actions"><button class="btn primary" onclick="startSpacedReview()">Review due questions</button><button class="btn" onclick="go('dashboard')">Dashboard</button></div></section>
-    ${studyHubHTML()}
     <div class="study-phase2-grid">${focusTimerHTML()}${flashcardSummaryHTML()}</div>
     ${renderFlashcardSetup()}
     <div class="study-tools-columns">
@@ -3600,26 +3633,26 @@ function printAdminQuestionBankPDF(){
 function notificationReadAt(){return Number(localStorage.getItem(CONFIG.notificationReadKey)||0);}
 function notificationUnreadCount(list=activeNotifications){const seen=notificationReadAt();return list.filter(n=>(Date.parse(n.created_at||'')||0)>seen).length;}
 function setNotificationAppBadge(count){try{if(navigator.setAppBadge){if(count>0)navigator.setAppBadge(count);else if(navigator.clearAppBadge)navigator.clearAppBadge();}}catch(e){}}
-function markNotificationsRead(){const latest=(activeNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.notificationReadKey,String(latest));setNotificationAppBadge(0);}
+function markNotificationsRead(){const rows=weeklyNotificationRows();const latest=rows.reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.notificationReadKey,String(latest));setNotificationAppBadge(0);renderTopbarUI();}
 function weeklyNotificationRows(){const cutoff=Date.now()-7*86400000;return (activeNotifications||[]).filter(n=>(Date.parse(n.created_at||'')||0)>=cutoff).slice(0,12);}
-function weeklyNotificationsHTML(){
+function topbarNotificationPanelHTML(){
   const rows=weeklyNotificationRows(), unread=notificationUnreadCount(rows);
-  const expanded=notificationPanelOpen;
   const list=rows.length?rows.map(n=>{const isNew=(Date.parse(n.created_at||'')||0)>notificationReadAt();return `<article class="weekly-notification-item ${isNew?'is-new':''}"><div class="weekly-notification-meta"><span>${esc(n.created_at?new Date(n.created_at).toLocaleString():'')}</span>${isNew?'<span class="weekly-notification-new">NEW</span>':''}</div><strong style="display:block;margin-top:5px">${esc(n.title||'Announcement')}</strong><div class="weekly-notification-message">${esc(n.message||'')}</div></article>`;}).join(''):'<div class="empty">No notifications from the last 7 days.</div>';
-  return `<section class="card weekly-notifications-card" aria-label="Weekly notifications"><div class="weekly-notifications-head" onclick="toggleWeeklyNotifications()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')toggleWeeklyNotifications()"><div class="weekly-notifications-title"><div class="notification-bell" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5h12c-1-1.2-1.5-2.8-1.5-5.1 0-3.1-1.7-5.4-4.5-5.9V4.4a.7.7 0 0 0-1.4 0v1.1C7.7 6 6 8.3 6 11.4c0 2.3-.5 3.9-1.5 5.1Z"/><path d="M9.3 19h5.4"/></svg>${unread?'<span class="notification-unread-dot" aria-label="Unread notification"></span>':''}</div><div class="weekly-notifications-summary"><strong>Weekly notifications</strong><div class="mini">${rows.length?`${rows.length} notification${rows.length===1?'':'s'} from the last 7 days${unread?` · ${unread} unread`:''}`:'No new announcements this week.'}</div></div></div><span class="pill">${expanded?'Close':'View'}</span></div>${expanded?`<div class="weekly-notifications-list">${list}<div class="actions" style="justify-content:flex-end"><button class="btn" onclick="event.stopPropagation();markWeeklyNotificationsRead()">Mark all as read</button></div></div>`:''}</section>`;
+  return `<div class="notification-panel-head"><div><strong>Weekly notifications</strong><div class="mini" style="margin-top:2px">${rows.length?`${rows.length} from the last 7 days${unread?` · ${unread} unread`:''}`:'No announcements this week.'}</div></div><button class="btn" onclick="markWeeklyNotificationsRead()">Mark read</button></div><div class="weekly-notifications-list" style="border-top:0;padding:0">${list}</div>`;
 }
-function toggleWeeklyNotifications(){notificationPanelOpen=!notificationPanelOpen;if(notificationPanelOpen){markNotificationsRead();}renderDashboard();}
-function markWeeklyNotificationsRead(){markNotificationsRead();notificationPanelOpen=true;renderDashboard();}
-async function refreshWeeklyNotifications(){await loadActiveNotifications();setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));if(location.hash.replace('#','')==='dashboard')renderDashboard();}
-async function loadActiveNotifications(){
-  activeNotifications=[];
-  if(!SUPABASE_ENABLED)return;
-  try{
-    const {data,error}=await supabaseClient.from('site_notifications').select('id,title,message,created_at,active').eq('active',true).order('created_at',{ascending:false}).limit(20);
-    if(error)throw error;
-    activeNotifications=data||[];
-  }catch(e){ console.warn('Notifications unavailable:',e.message); }
+function renderTopbarUI(){
+  const host=document.getElementById('topbarActions');
+  if(!host)return;
+  const dark=!!settings.darkMode, unread=notificationUnreadCount(weeklyNotificationRows());
+  host.innerHTML=`<div class="focus-topbar" title="Focus Mode timer"><span class="focus-topbar-label">Focus</span><span id="focusTopbarTime" class="focus-topbar-time">${formatTime(Math.max(0,Number(focusTimerState.remaining||0)))}</span><button id="focusTopbarAction" class="focus-topbar-action" onclick="${focusTimerState.running?'pauseFocusTimer()':'startFocusTimer()'}" aria-label="${focusTimerState.running?'Pause focus timer':'Start focus timer'}" title="${focusTimerState.running?'Pause focus timer':'Start focus timer'}">${focusTimerState.running?'<svg viewBox="0 0 20 20"><rect x="5.2" y="4" width="3.2" height="12" rx=".8"/><rect x="11.6" y="4" width="3.2" height="12" rx=".8"/></svg>':'<svg viewBox="0 0 20 20"><path d="M7 4.8 15 10 7 15.2Z" fill="currentColor" stroke="none"/></svg>'}</button></div><button class="icon-btn topbar-notification-btn" onclick="toggleWeeklyNotifications()" title="Weekly notifications" aria-label="Weekly notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.5h12c-1-1.2-1.5-2.8-1.5-5.1 0-3.1-1.7-5.4-4.5-5.9V4.4a.7.7 0 0 0-1.4 0v1.1C7.7 6 6 8.3 6 11.4c0 2.3-.5 3.9-1.5 5.1Z"/><path d="M9.3 19h5.4"/></svg>${unread?'<span class="topbar-notification-dot" aria-label="Unread notification"></span>':''}</button><button class="icon-btn" onclick="toggleDarkMode()" title="${dark?'Switch to light mode':'Switch to dark mode'}" aria-label="${dark?'Switch to light mode':'Switch to dark mode'}">${dark?'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="10" cy="10" r="3.4"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M15.7 4.3l-1.4 1.4M5.7 14.3l-1.4 1.4"/></svg>':'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M15.5 12.7A6.4 6.4 0 0 1 7.3 4.5a6.4 6.4 0 1 0 8.2 8.2Z"/></svg>'}</button>`;
+  const panel=document.getElementById('topbarNotificationPanel');
+  if(panel){panel.hidden=!notificationPanelOpen;panel.innerHTML=notificationPanelOpen?topbarNotificationPanelHTML():'';}
+  refreshFocusTimerUI();
 }
+function toggleWeeklyNotifications(){notificationPanelOpen=!notificationPanelOpen;renderTopbarUI();if(notificationPanelOpen){markNotificationsRead();}}
+function markWeeklyNotificationsRead(){markNotificationsRead();notificationPanelOpen=true;renderTopbarUI();}
+async function refreshWeeklyNotifications(){await loadActiveNotifications();setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));renderTopbarUI();}
+
 async function loadAdminNotifications(){
   const el=document.getElementById('adminNotifications'); if(!el)return;
   if(!(await requireAdmin()))return;
@@ -4756,7 +4789,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.38',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.39',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
@@ -4765,6 +4798,7 @@ if('serviceWorker' in navigator){
 
 document.addEventListener('DOMContentLoaded',()=>{
   applyTheme();
+  renderTopbarUI();
   if(SUPABASE_ENABLED){
     supabaseClient.auth.onAuthStateChange((event,session)=>{
       setTimeout(()=>{
