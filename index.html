@@ -389,7 +389,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .progress-tree-lecture-title span{display:block;color:var(--muted);font-size:12px;margin-top:2px}
 .progress-tree-lecture-stat{text-align:right;color:var(--muted);font-size:12px}
 .progress-tree-lecture .bar{margin:0}
-.support-unread-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#e53935;box-shadow:0 0 0 3px rgba(229,57,53,.14);vertical-align:middle;margin-left:7px;animation:mePulse 1.8s ease-in-out infinite}
+.support-contact-title{display:inline-flex;align-items:center;gap:7px}.support-unread-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#e53935;box-shadow:0 0 0 3px rgba(229,57,53,.14);vertical-align:middle;animation:mePulse 1.8s ease-in-out infinite}
 @keyframes mePulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(.82);opacity:.72}}
 @media(max-width:800px){.progress-tree-lecture{grid-template-columns:1fr;gap:7px}.progress-tree-lecture-stat{text-align:left}}
 
@@ -1562,7 +1562,7 @@ function renderDashboard(){
   <div class="card support-contact-card">
     <div style="display:flex;align-items:center;gap:12px">
       <div class="support-contact-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9l-5 3.5z"/><path d="M7 9h10M7 12h6"/></svg></div>
-      <div><strong data-contact-medex>Contact MedEx team</strong><div class="mini" style="margin-top:4px">Send suggestions, complaints, or questions. You can continue as a visitor.</div></div>
+      <div><strong class="support-contact-title" data-contact-medex>Contact MedEx team</strong><div class="mini" style="margin-top:4px">Send suggestions, complaints, or questions. You can continue as a visitor.</div></div>
     </div>
     <button class="btn primary" onclick="openSupportChat()">Open chat</button>
   </div>
@@ -2052,8 +2052,13 @@ function annotationData(q){
   return exam.annotations[id];
 }
 function annotationPointsForCanvas(points,canvas){
-  const rect=canvas.getBoundingClientRect();
-  return points.map(p=>[p[0]*rect.width,p[1]*rect.height]);
+  // Stored points are normalized to the drawing box's *unzoomed* coordinate
+  // system. Never use getBoundingClientRect() here because CSS pinch-zoom
+  // changes that rectangle and would scale the stored coordinates a second
+  // time, making drawings jump away from the place where they were made.
+  const w=Math.max(1,canvas.clientWidth||canvas.offsetWidth||1);
+  const h=Math.max(1,canvas.clientHeight||canvas.offsetHeight||1);
+  return points.map(p=>[p[0]*w,p[1]*h]);
 }
 function drawExamAnnotations(){
   const canvas=document.getElementById('examAnnotationCanvas');
@@ -2106,10 +2111,9 @@ function initExamDrawing(){
     examDrawingResizeObserver.observe(stage);
   }
 
-  // Drawing/zoom is intentionally isolated to this box.
-  // One finger/pointer = draw. Two touch pointers = pinch + pan/zoom.
-  // Use one Pointer Events state machine so Safari/Chrome do not mix
-  // touch handlers with pointer handlers and accidentally draw during pinch.
+  // One finger = draw. Two fingers = pinch zoom + pan. The gesture model is
+  // deliberately isolated to this drawing box. Drawing coordinates always use
+  // the unzoomed stage, while CSS scaling is only a visual transformation.
   let zoom=1;
   const pointers=new Map();
   let drawingPointerId=null;
@@ -2117,6 +2121,7 @@ function initExamDrawing(){
   const clampZoom=z=>Math.max(1,Math.min(3,Number(z)||1));
   const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
   const midpoint=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
+  const syncTouchAction=()=>{ viewport.style.touchAction=examDrawingEnabled?'none':'auto'; };
 
   const cancelStroke=()=>{
     if(canvas._activeStroke){
@@ -2131,6 +2136,9 @@ function initExamDrawing(){
     zoom=clampZoom(z);
     const baseW=Math.max(1,stage.offsetWidth);
     const baseH=Math.max(1,stage.offsetHeight);
+    // The surface keeps its normal layout size. Margins create the scrollable
+    // area for the transformed content without changing the actual drawing
+    // coordinate system.
     surface.style.width=baseW+'px';
     surface.style.height=baseH+'px';
     surface.style.transformOrigin='0 0';
@@ -2155,12 +2163,15 @@ function initExamDrawing(){
     pointers.clear();
     cancelStroke();
     zoom=1;
+    surface.style.width=Math.max(1,stage.offsetWidth)+'px';
+    surface.style.height=Math.max(1,stage.offsetHeight)+'px';
     surface.style.transform='scale(1)';
     surface.style.marginRight='0px';
     surface.style.marginBottom='0px';
     surface.dataset.zoom='1';
     viewport.scrollLeft=0;
     viewport.scrollTop=0;
+    syncTouchAction();
   };
 
   const pointFromEvent=e=>({x:e.clientX,y:e.clientY});
@@ -2169,13 +2180,12 @@ function initExamDrawing(){
     if(pts.length<2)return;
     cancelStroke();
     const a=pts[0],b=pts[1],mid=midpoint(a,b);
-    const vr=viewport.getBoundingClientRect();
+    const surfaceRect=surface.getBoundingClientRect();
     pinchState={
       startZoom:zoom,
       startDistance:Math.max(1,distance(a,b)),
-      startMid:mid,
-      contentX:(viewport.scrollLeft+(mid.x-vr.left))/zoom,
-      contentY:(viewport.scrollTop+(mid.y-vr.top))/zoom
+      contentX:Math.max(0,(mid.x-surfaceRect.left)/zoom),
+      contentY:Math.max(0,(mid.y-surfaceRect.top)/zoom)
     };
   };
 
@@ -2185,6 +2195,16 @@ function initExamDrawing(){
     const a=pts[0],b=pts[1],mid=midpoint(a,b);
     const next=pinchState.startZoom*(distance(a,b)/pinchState.startDistance);
     applyZoom(next,mid.x,mid.y,{x:pinchState.contentX,y:pinchState.contentY});
+  };
+
+  const pointInBaseSpace=e=>{
+    const rect=surface.getBoundingClientRect();
+    const baseW=Math.max(1,stage.offsetWidth);
+    const baseH=Math.max(1,stage.offsetHeight);
+    return [
+      Math.max(0,Math.min(1,(e.clientX-rect.left)/(baseW*zoom))),
+      Math.max(0,Math.min(1,(e.clientY-rect.top)/(baseH*zoom)))
+    ];
   };
 
   const finishStroke=()=>{
@@ -2209,11 +2229,7 @@ function initExamDrawing(){
     e.preventDefault();
     viewport.setPointerCapture?.(e.pointerId);
     drawingPointerId=e.pointerId;
-    const rect=canvas.getBoundingClientRect();
-    const point=[
-      Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),
-      Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))
-    ];
+    const point=pointInBaseSpace(e);
     data.strokes.push({
       tool:examDrawingTool,
       color:examDrawingTool==='highlighter'?'#f2c94c':examDrawingColor,
@@ -2231,11 +2247,7 @@ function initExamDrawing(){
     }
     if(drawingPointerId!==e.pointerId||pinchState||!canvas._activeStroke||!examDrawingEnabled)return;
     e.preventDefault();
-    const rect=canvas.getBoundingClientRect();
-    canvas._activeStroke.points.push([
-      Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),
-      Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))
-    ]);
+    canvas._activeStroke.points.push(pointInBaseSpace(e));
     drawExamAnnotations();
   };
 
@@ -2251,9 +2263,7 @@ function initExamDrawing(){
   };
   const onPointerCancel=e=>{
     if(e.pointerType==='touch')pointers.delete(e.pointerId);
-    if(drawingPointerId===e.pointerId){
-      cancelStroke();
-    }
+    if(drawingPointerId===e.pointerId)cancelStroke();
     if(pointers.size<2)pinchState=null;
   };
 
@@ -2262,19 +2272,22 @@ function initExamDrawing(){
   viewport.addEventListener('pointerup',onPointerUp,{passive:false});
   viewport.addEventListener('pointercancel',onPointerCancel,{passive:false});
   viewport.addEventListener('lostpointercapture',onPointerCancel,{passive:false});
-  // The viewport must not hand these touches to page scrolling/viewport zoom.
-  viewport.style.touchAction='none';
+  syncTouchAction();
 
   requestAnimationFrame(()=>{
     zoom=1;
+    surface.style.width=Math.max(1,stage.offsetWidth)+'px';
+    surface.style.height=Math.max(1,stage.offsetHeight)+'px';
     surface.dataset.zoom='1';
     surface.style.transform='scale(1)';
     surface.style.marginRight='0px';
     surface.style.marginBottom='0px';
     viewport.scrollLeft=0;
     viewport.scrollTop=0;
+    syncTouchAction();
   });
 }
+
 function setExamPenColor(color){
   examDrawingColor=color;
   document.querySelectorAll('.exam-pen-color').forEach(b=>b.classList.toggle('active',b.dataset.color===color));
@@ -2296,7 +2309,9 @@ function setExamDrawingTool(tool){
 function toggleExamDrawing(){
   examDrawingEnabled=!examDrawingEnabled;
   const canvas=document.getElementById('examAnnotationCanvas');
+  const viewport=document.querySelector('.exam-annotation-viewport');
   if(canvas)canvas.classList.toggle('drawing-enabled',examDrawingEnabled);
+  if(viewport)viewport.style.touchAction=examDrawingEnabled?'none':'auto';
   const btn=document.getElementById('examDrawingToggle');
   if(btn)btn.classList.toggle('tool-active',examDrawingEnabled);
   const rail=document.getElementById('examDrawingTools');
@@ -3127,7 +3142,7 @@ function renderProgress(){
   const todayTotal=Number(todayRow.solved||todayRow.attempts||0), todayTrue=Number(todayRow.correct||0), todayFalse=Number(todayRow.wrong||0);
   const week=weekStudyData(), weekTotal=week.reduce((n,d)=>n+Number(d.total||0),0), weekTrue=week.reduce((n,d)=>n+Number(d.correct||0),0), weekFalse=week.reduce((n,d)=>n+Number(d.wrong||0),0);
   const detailedTree=detailedProgressTreeHTML();
-  const body=`${dailyGoalStreakHTML()}${spacedReviewSummaryHTML()}<div class="grid stats"><div class="card stat"><div class="label">My progress</div><div class="value">${myP.done}/${myP.total}</div><div class="mini">${myP.pct}% of available questions practiced</div></div><div class="card stat"><div class="label">My accuracy</div><div class="value">${myA.correct}/${myA.attempts}</div><div class="mini">${myA.pct}%</div></div><div class="card stat"><div class="label">Today solved</div><div class="value">${todayTotal}</div><div class="mini">${todayTrue} true · ${todayFalse} false</div></div><div class="card stat"><div class="label">Days studied</div><div class="value">${studyStats().daysStudied}</div><div class="mini">Days with answered questions</div></div></div><div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Daily study analytics</strong><div class="mini">This week · Sunday to Saturday</div></div><span class="pill">${weekTotal} solved</span></div>${renderStudyWeekChart()}<div class="grid stats" style="margin-top:12px"><div class="card stat"><div class="label">Total solved</div><div class="value">${weekTotal}</div><div class="mini">This week</div></div><div class="card stat"><div class="label">True</div><div class="value">${weekTrue}</div><div class="mini">Correct answers</div></div><div class="card stat"><div class="label">False</div><div class="value">${weekFalse}</div><div class="mini">Incorrect answers</div></div></div></div><div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Lecture performance</strong><div class="mini">Accuracy and attempts for each lecture you have practiced.</div></div><span class="pill">${lecturePerformanceData().length} lectures</span></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Lecture</th><th>Attempts</th><th>Correct</th><th>Accuracy</th></tr></thead><tbody>${lecturePerformanceData().sort((a,b)=>a.accuracy-b.accuracy||b.attempts-a.attempts).map(r=>`<tr><td><b>${esc(r.lecture)}</b><div class="mini">${esc(r.module)} · ${esc(r.subject)}</div></td><td>${r.attempts}</td><td>${r.correct}</td><td class="${r.accuracy<60?'phase2-bad':r.accuracy>=80?'phase2-good':''}"><b>${r.accuracy}%</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Answer questions to build lecture analytics.</td></tr>'}</tbody></table></div></div><div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Difficulty performance</strong><div class="mini">Your accuracy by question difficulty.</div></div></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Difficulty</th><th>Questions</th><th>Attempts</th><th>Accuracy</th></tr></thead><tbody>${difficultyPerformanceData().map(r=>`<tr><td><b>${esc(r.difficulty)}</b></td><td>${r.questions}</td><td>${r.attempts}</td><td class="${r.accuracy<60?'phase2-bad':r.accuracy>=80?'phase2-good':''}"><b>${r.accuracy}%</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">No difficulty-tagged attempts yet.</td></tr>'}</tbody></table></div></div><h2 class="section-title">Detailed progress · Module → Subject → Lecture</h2>${detailedTree}<div class="card" style="margin-top:16px"><button class="btn danger" onclick="resetProgress()">Reset my progress</button><span class="mini" style="margin-left:10px">This resets browser question progress. Study-day activity is kept.</span></div>`;
+  const body=`${dailyGoalStreakHTML()}${spacedReviewSummaryHTML()}<div class="grid stats"><div class="card stat"><div class="label">My progress</div><div class="value">${myP.done}/${myP.total}</div><div class="mini">${myP.pct}% of available questions practiced</div></div><div class="card stat"><div class="label">My accuracy</div><div class="value">${myA.correct}/${myA.attempts}</div><div class="mini">${myA.pct}%</div></div><div class="card stat"><div class="label">Today solved</div><div class="value">${todayTotal}</div><div class="mini">${todayTrue} true · ${todayFalse} false</div></div><div class="card stat"><div class="label">Days studied</div><div class="value">${studyStats().daysStudied}</div><div class="mini">Days with answered questions</div></div></div><div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Daily study analytics</strong><div class="mini">This week · Sunday to Saturday</div></div><span class="pill">${weekTotal} solved</span></div>${renderStudyWeekChart()}<div class="grid stats" style="margin-top:12px"><div class="card stat"><div class="label">Total solved</div><div class="value">${weekTotal}</div><div class="mini">This week</div></div><div class="card stat"><div class="label">True</div><div class="value">${weekTrue}</div><div class="mini">Correct answers</div></div><div class="card stat"><div class="label">False</div><div class="value">${weekFalse}</div><div class="mini">Incorrect answers</div></div></div></div><h2 class="section-title">Detailed progress · Module → Subject → Lecture</h2>${detailedTree}<div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Lecture performance</strong><div class="mini">Accuracy and attempts for each lecture you have practiced.</div></div><span class="pill">${lecturePerformanceData().length} lectures</span></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Lecture</th><th>Attempts</th><th>Correct</th><th>Accuracy</th></tr></thead><tbody>${lecturePerformanceData().sort((a,b)=>a.accuracy-b.accuracy||b.attempts-a.attempts).map(r=>`<tr><td><b>${esc(r.lecture)}</b><div class="mini">${esc(r.module)} · ${esc(r.subject)}</div></td><td>${r.attempts}</td><td>${r.correct}</td><td class="${r.accuracy<60?'phase2-bad':r.accuracy>=80?'phase2-good':''}"><b>${r.accuracy}%</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Answer questions to build lecture analytics.</td></tr>'}</tbody></table></div></div><div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Difficulty performance</strong><div class="mini">Your accuracy by question difficulty.</div></div></div><div style="margin-top:10px;overflow-x:auto"><table class="phase2-table"><thead><tr><th>Difficulty</th><th>Questions</th><th>Attempts</th><th>Accuracy</th></tr></thead><tbody>${difficultyPerformanceData().map(r=>`<tr><td><b>${esc(r.difficulty)}</b></td><td>${r.questions}</td><td>${r.attempts}</td><td class="${r.accuracy<60?'phase2-bad':r.accuracy>=80?'phase2-good':''}"><b>${r.accuracy}%</b></td></tr>`).join('')||'<tr><td colspan="4" class="empty">No difficulty-tagged attempts yet.</td></tr>'}</tbody></table></div></div><div class="card" style="margin-top:16px"><button class="btn danger" onclick="resetProgress()">Reset my progress</button><span class="mini" style="margin-left:10px">This resets browser question progress. Study-day activity is kept.</span></div>`;
   document.getElementById('app').innerHTML=layout('Progress & Accuracy','Track your progress, accuracy, daily solved questions, and study days.',body);
 }
 function resetProgress(){
