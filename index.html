@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.51-weekly-bell-ipad-touch-fix">
+<meta name="medex-build" content="v41.52-bell-fix">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -3667,6 +3667,13 @@ function weeklyNotificationReadAt(){return Number(localStorage.getItem(CONFIG.we
 function siteNotificationReadAt(){return Number(localStorage.getItem(CONFIG.siteNotificationReadKey)||0);}
 function notificationUnreadCount(list=weeklyNotifications){const seen=weeklyNotificationReadAt();return list.filter(n=>(Date.parse(n.created_at||'')||0)>seen).length;}
 function siteNotificationUnreadCount(list=activeNotifications){const seen=siteNotificationReadAt();return list.filter(n=>(Date.parse(n.created_at||'')||0)>seen).length;}
+function setNotificationAppBadge(count){
+  try{
+    const n=Math.max(0,Number(count)||0);
+    if(n>0&&navigator.setAppBadge)navigator.setAppBadge(n).catch(()=>{});
+    else if(navigator.clearAppBadge)navigator.clearAppBadge().catch(()=>{});
+  }catch(e){}
+}
 function markWeeklyNotificationsRead(){const latest=(weeklyNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.weeklyNotificationReadKey,String(latest));setNotificationAppBadge(0);}
 function markSiteNotificationsRead(){const latest=(activeNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.siteNotificationReadKey,String(latest));}
 function weeklyNotificationRows(){const cutoff=Date.now()-7*86400000;return (weeklyNotifications||[]).filter(n=>(Date.parse(n.created_at||'')||0)>=cutoff).slice(0,12);}
@@ -3685,34 +3692,27 @@ function siteNotificationsHTML(){
 function toggleWeeklyNotifications(){notificationPanelOpen=!notificationPanelOpen;if(notificationPanelOpen){markWeeklyNotificationsRead();}updateTopbarControls();}
 function closeWeeklyNotifications(){if(!notificationPanelOpen)return;notificationPanelOpen=false;updateTopbarControls();}
 function initWeeklyNotificationClickHandling(){
-  const btn=document.getElementById('weeklyNotificationButton');
-  if(!btn || btn.dataset.bound==='1')return;
-  btn.dataset.bound='1';
-  btn.style.webkitTapHighlightColor='transparent';
-  btn.style.touchAction='manipulation';
-  let lastActivation=0;
-  const activate=(e)=>{
-    const now=Date.now();
-    // iPad/iPhone Safari can synthesize a compatibility click after touchend.
-    // Handle the native touch/pointer activation once, then ignore the duplicate click.
-    if(now-lastActivation<650)return;
-    lastActivation=now;
-    if(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();}
-    notificationPanelOpen=!notificationPanelOpen;
-    if(notificationPanelOpen)markWeeklyNotificationsRead();
-    updateTopbarControls();
+  // v41.52: single delegated handler. The old version re-rendered the bell (innerHTML) on open,
+  // which detached the click target, so the document "outside click" handler thought the click
+  // was outside and instantly closed the panel again.
+  if(window.__weeklyBellBound)return;
+  window.__weeklyBellBound=true;
+  const inBell=(e)=>{
+    const path=typeof e.composedPath==='function'?e.composedPath():[];
+    return path.some(n=>n&&n.id&&(n.id==='weeklyNotificationButton'||n.id==='globalNotificationPopover'));
   };
-  btn.addEventListener('touchend',activate,{capture:true,passive:false});
-  btn.addEventListener('pointerup',function(e){
-    if(e.pointerType==='touch')return;
-    activate(e);
-  },{capture:true});
-  btn.addEventListener('click',activate,{capture:true});
   document.addEventListener('click',function(e){
-    const target=e.target instanceof Element?e.target:null;
-    if(target?.closest?.('#globalNotificationPopover') || target?.closest?.('#weeklyNotificationButton'))return;
-    if(notificationPanelOpen)closeWeeklyNotifications();
-  });
+    const path=typeof e.composedPath==='function'?e.composedPath():[];
+    const onBtn=path.some(n=>n&&n.id==='weeklyNotificationButton')||(e.target instanceof Element&&e.target.closest('#weeklyNotificationButton'));
+    if(onBtn){
+      e.preventDefault();e.stopPropagation();
+      notificationPanelOpen=!notificationPanelOpen;
+      if(notificationPanelOpen)markWeeklyNotificationsRead();
+      updateTopbarControls();
+      return;
+    }
+    if(notificationPanelOpen&&!inBell(e))closeWeeklyNotifications();
+  },true);
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeWeeklyNotifications();});
 }
 async function refreshWeeklyNotifications(){await loadWeeklyNotifications();setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));updateTopbarControls();if(location.hash.replace('#','')==='dashboard')renderDashboard();}
@@ -4930,7 +4930,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.50',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.52',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
