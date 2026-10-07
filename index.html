@@ -353,16 +353,12 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 @media(max-width:700px){
   .exam-tool-panel{right:62px;top:auto;bottom:14px;transform:none;width:min(300px,calc(100vw - 78px));max-height:48vh}
 }
-/* v41.31: drawing/zoom rebuilt from zero. The question area is a single
-   surface: one finger draws on the overlay; two fingers pinch and move the
-   whole surface. No page-level CSS zoom, no fixed-corner transform, no
-   layout reflow. */
-.exam-annotation-stage{position:relative;margin:12px;border:1px dashed var(--line);border-radius:var(--radius-sm);padding:12px;background:var(--card);overflow:hidden;touch-action:auto;overscroll-behavior:contain}
-.exam-annotation-stage:has(.exam-annotation-canvas.drawing-enabled){touch-action:none}
-.exam-draw-surface{position:relative;width:100%;transform:translate3d(0,0,0) scale(1);transform-origin:0 0;will-change:transform}
-.exam-draw-surface.is-zoomed{transition:none}
-.exam-annotation-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:8;touch-action:none;pointer-events:none}
-.exam-annotation-canvas.drawing-enabled{pointer-events:auto;cursor:crosshair}
+/* v41.31: drawing-box-only zoom. One touch draws; two touches pinch/pan the box. */
+.exam-annotation-viewport{position:relative;width:100%;overflow:auto;max-width:100%;border-radius:var(--radius-sm);touch-action:none;overscroll-behavior:contain;scroll-behavior:auto;}
+.exam-annotation-surface{position:relative;width:100%;transform-origin:0 0;transform:scale(1);will-change:transform;}
+.exam-annotation-surface.is-zoomed{transition:none;}
+.exam-annotation-stage{overflow:hidden;}
+.exam-annotation-canvas{touch-action:none;}
 .exam-zoom-reset{font-size:11px!important;min-width:38px!important}
 .exam-note-editor-backdrop{position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(5,9,12,.58);backdrop-filter:blur(6px)}
 .exam-note-editor{width:min(560px,calc(100vw - 32px));max-height:min(78vh,620px);display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);box-shadow:0 24px 70px rgba(0,0,0,.32);overflow:hidden}
@@ -2060,12 +2056,10 @@ function annotationPointsForCanvas(points,canvas){
 function drawExamAnnotations(){
   const canvas=document.getElementById('examAnnotationCanvas');
   if(!canvas||!exam)return;
-  const surface=canvas.parentElement;
-  // Always render in the surface's untransformed coordinate system. The
-  // entire surface (including this canvas) is transformed together during
-  // pinch zoom, preventing drawing drift/double-scaling.
+  const stage=canvas.parentElement;
+  const rect=stage.getBoundingClientRect();
   const dpr=Math.max(1,window.devicePixelRatio||1);
-  const w=Math.max(1,Math.round(surface.offsetWidth)), h=Math.max(1,Math.round(surface.offsetHeight));
+  const w=Math.max(1,Math.round(rect.width)), h=Math.max(1,Math.round(rect.height));
   if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){
     canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr);
     canvas.style.width=w+'px'; canvas.style.height=h+'px';
@@ -2095,8 +2089,9 @@ function initExamDrawing(){
   const canvas=document.getElementById('examAnnotationCanvas');
   const note=document.getElementById('examAnnotationNote');
   const stage=document.querySelector('.exam-annotation-stage');
-  const surface=document.querySelector('.exam-draw-surface');
-  if(!canvas||!exam||!stage||!surface)return;
+  const viewport=document.querySelector('.exam-annotation-viewport');
+  const surface=document.querySelector('.exam-annotation-surface');
+  if(!canvas||!exam||!stage||!viewport||!surface)return;
   const data=annotationData(exam.list[exam.index]);
   if(note){
     note.value=data?.note||'';
@@ -2106,55 +2101,59 @@ function initExamDrawing(){
   if(examDrawingResizeObserver)examDrawingResizeObserver.disconnect();
   if(window.ResizeObserver){
     examDrawingResizeObserver=new ResizeObserver(()=>drawExamAnnotations());
-    examDrawingResizeObserver.observe(surface);
+    examDrawingResizeObserver.observe(stage);
   }
 
-  // v41.31: rebuilt drawing/zoom interaction from zero.
-  // One finger draws on the canvas. Two fingers pinch/drag the SAME exam
-  // surface (question + options + canvas) inside the drawing box. The canvas
-  // and exam content share one transform, so drawings never drift away.
-  let pointers=new Map();
-  let gestureStartDistance=0;
-  let gestureStartScale=1;
-  let gestureStartMid={x:0,y:0};
-  let gestureStartTranslate={x:0,y:0};
-  let gestureStartContent={x:0,y:0};
+  // Rebuilt from zero: zoom belongs ONLY to the drawing/question box.
+  // One finger/touch is exclusively a drawing gesture when drawing is enabled.
+  // Two touches are exclusively a pinch + pan gesture. No page-level transform.
+  const pointers=new Map();
   let pinchActive=false;
-  let scale=Number(stage.dataset.drawZoom||1);
-  let tx=Number(stage.dataset.drawTx||0);
-  let ty=Number(stage.dataset.drawTy||0);
-  const MIN_SCALE=1;
-  const MAX_SCALE=3;
-  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
-  const size=()=>({w:surface.offsetWidth||stage.clientWidth,h:surface.offsetHeight||stage.clientHeight});
-  const clampTranslation=(sx,sy,px,py)=>{
-    const st=size();
-    const vw=stage.clientWidth, vh=stage.clientHeight;
-    const minX=Math.min(0,vw-st.w*sx), minY=Math.min(0,vh-st.h*sy);
-    return {x:clamp(px,minX,0),y:clamp(py,minY,0)};
+  let pinchStartDistance=0;
+  let pinchStartZoom=1;
+  let pinchStartMid={x:0,y:0};
+  let pinchStartContent={x:0,y:0};
+  let baseSize=null;
+  const zoomValue=()=>Number(surface.dataset.zoom||1);
+
+  const measureBase=()=>{
+    const w=stage.offsetWidth||stage.getBoundingClientRect().width;
+    const h=stage.offsetHeight||stage.getBoundingClientRect().height;
+    if(w>0&&h>0)baseSize={w,h};
+    return baseSize;
   };
-  const applyTransform=()=>{
-    const cl=clampTranslation(scale,scale,tx,ty);
-    tx=cl.x;ty=cl.y;
-    stage.dataset.drawZoom=String(scale);
-    stage.dataset.drawTx=String(tx);
-    stage.dataset.drawTy=String(ty);
-    surface.style.transform=`translate3d(${tx}px,${ty}px,0) scale(${scale})`;
-    surface.classList.toggle('is-zoomed',scale!==1);
-    const reset=document.querySelector('.exam-zoom-reset');
-    if(reset)reset.textContent=scale<=1.001?'1×':`${scale.toFixed(1)}×`;
+
+  const applyZoom=(z,focusX,focusY,focusContent)=>{
+    const value=Math.max(1,Math.min(3,Number(z)||1));
+    const size=baseSize||measureBase();
+    if(!size)return;
+    const rect=viewport.getBoundingClientRect();
+    const old=zoomValue();
+    const fx=Number.isFinite(focusX)?focusX-rect.left:rect.width/2;
+    const fy=Number.isFinite(focusY)?focusY-rect.top:rect.height/2;
+    const cx=Number.isFinite(focusContent?.x)?focusContent.x:(viewport.scrollLeft+fx)/old;
+    const cy=Number.isFinite(focusContent?.y)?focusContent.y:(viewport.scrollTop+fy)/old;
+
+    surface.dataset.zoom=String(value);
+    surface.style.width=size.w+'px';
+    surface.style.height=size.h+'px';
+    surface.style.transform=`scale(${value})`;
+    surface.style.marginRight=Math.max(0,size.w*(value-1))+'px';
+    surface.style.marginBottom=Math.max(0,size.h*(value-1))+'px';
+    surface.classList.toggle('is-zoomed',value!==1);
+
+    if(value===1){
+      viewport.scrollLeft=0;
+      viewport.scrollTop=0;
+      return;
+    }
+    requestAnimationFrame(()=>{
+      viewport.scrollLeft=Math.max(0,cx*value-fx);
+      viewport.scrollTop=Math.max(0,cy*value-fy);
+    });
   };
-  const reset=()=>{
-    scale=1;tx=0;ty=0;
-    applyTransform();
-  };
-  window._resetExamPageZoom=reset;
-  window._setExamPageZoom=(z)=>{
-    scale=clamp(Number(z)||1,MIN_SCALE,MAX_SCALE);
-    const cl=clampTranslation(scale,scale,tx,ty);tx=cl.x;ty=cl.y;
-    applyTransform();
-  };
-  applyTransform();
+
+  window._resetExamDrawingZoom=()=>applyZoom(1);
 
   const distance=()=>{
     const pts=[...pointers.values()];
@@ -2165,10 +2164,6 @@ function initExamDrawing(){
     const pts=[...pointers.values()];
     return {x:(pts[0].x+pts[1].x)/2,y:(pts[0].y+pts[1].y)/2};
   };
-  const localPoint=(clientX,clientY)=>{
-    const r=stage.getBoundingClientRect();
-    return {x:clientX-r.left,y:clientY-r.top};
-  };
   const cancelCanvasStroke=()=>{
     if(canvas._activeStroke){
       data.strokes.pop();
@@ -2177,78 +2172,96 @@ function initExamDrawing(){
     }
   };
 
-  const onStageDown=(e)=>{
+  // All gesture recognition is on the viewport. A second finger immediately
+  // cancels the active stroke and takes exclusive control of the gesture.
+  const onDown=(e)=>{
     if(e.pointerType!=='touch')return;
     pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(pointers.size===2){
       pinchActive=true;
-      gestureStartDistance=Math.max(1,distance());
-      gestureStartScale=scale;
-      gestureStartMid=midpoint();
-      gestureStartTranslate={x:tx,y:ty};
-      const m=localPoint(gestureStartMid.x,gestureStartMid.y);
-      gestureStartContent={
-        x:(m.x-tx)/scale,
-        y:(m.y-ty)/scale
+      pinchStartDistance=distance();
+      pinchStartZoom=zoomValue();
+      pinchStartMid=midpoint();
+      const r=viewport.getBoundingClientRect();
+      pinchStartContent={
+        x:(viewport.scrollLeft+(pinchStartMid.x-r.left))/pinchStartZoom,
+        y:(viewport.scrollTop+(pinchStartMid.y-r.top))/pinchStartZoom
       };
       cancelCanvasStroke();
+      canvas._pinchActive=true;
       e.preventDefault();
     }
   };
-  const onStageMove=(e)=>{
+  const onMove=(e)=>{
     if(e.pointerType!=='touch'||!pointers.has(e.pointerId))return;
     pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(pointers.size>=2&&pinchActive){
-      const d=Math.max(1,distance());
+    if(pointers.size>=2&&pinchActive&&pinchStartDistance>0){
+      const d=distance();
       const mid=midpoint();
-      scale=clamp(gestureStartScale*(d/gestureStartDistance),MIN_SCALE,MAX_SCALE);
-      const m=localPoint(mid.x,mid.y);
-      tx=m.x-gestureStartContent.x*scale;
-      ty=m.y-gestureStartContent.y*scale;
-      applyTransform();
+      const next=pinchStartZoom*(d/pinchStartDistance);
+      applyZoom(next,mid.x,mid.y,pinchStartContent);
       e.preventDefault();
     }
   };
-  const onStageUp=(e)=>{
+  const onUp=(e)=>{
     if(e.pointerType!=='touch')return;
     pointers.delete(e.pointerId);
     if(pointers.size<2){
       pinchActive=false;
-      gestureStartDistance=0;
+      pinchStartDistance=0;
+      canvas._pinchActive=false;
     }
   };
-  stage.addEventListener('pointerdown',onStageDown,{capture:true,passive:false});
-  stage.addEventListener('pointermove',onStageMove,{capture:true,passive:false});
-  stage.addEventListener('pointerup',onStageUp,{capture:true,passive:true});
-  stage.addEventListener('pointercancel',onStageUp,{capture:true,passive:true});
+  viewport.addEventListener('pointerdown',onDown,{passive:false});
+  viewport.addEventListener('pointermove',onMove,{passive:false});
+  viewport.addEventListener('pointerup',onUp,{passive:true});
+  viewport.addEventListener('pointercancel',onUp,{passive:true});
 
   canvas.onpointerdown=(e)=>{
-    if(!examDrawingEnabled||pinchActive||(e.pointerType==='touch'&&pointers.size>=2))return;
+    if(!examDrawingEnabled||canvas._pinchActive)return;
+    if(e.pointerType==='touch'&&pointers.size!==1)return;
     e.preventDefault();
     canvas.setPointerCapture?.(e.pointerId);
     const rect=canvas.getBoundingClientRect();
-    const point=[Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))];
-    data.strokes.push({tool:examDrawingTool,color:examDrawingTool==='highlighter'?'#f2c94c':examDrawingColor,size:examDrawingTool==='eraser'?Math.max(12,examDrawingSize*5):examDrawingSize,points:[point]});
+    const point=[
+      Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),
+      Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))
+    ];
+    data.strokes.push({
+      tool:examDrawingTool,
+      color:examDrawingTool==='highlighter'?'#f2c94c':examDrawingColor,
+      size:examDrawingTool==='eraser'?Math.max(12,examDrawingSize*5):examDrawingSize,
+      points:[point]
+    });
     canvas._activeStroke=data.strokes[data.strokes.length-1];
     drawExamAnnotations();
   };
   canvas.onpointermove=(e)=>{
-    if(pinchActive)return;
+    if(canvas._pinchActive)return;
     const stroke=canvas._activeStroke;
     if(!stroke||!examDrawingEnabled)return;
     e.preventDefault();
     const rect=canvas.getBoundingClientRect();
-    stroke.points.push([Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))]);
+    stroke.points.push([
+      Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),
+      Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))
+    ]);
     drawExamAnnotations();
   };
   const finish=(e)=>{
-    if(pinchActive){canvas._activeStroke=null;return;}
+    if(canvas._pinchActive){canvas._activeStroke=null;return;}
     if(canvas._activeStroke){canvas._activeStroke=null;saveActiveExam();}
   };
   canvas.onpointerup=finish;
   canvas.onpointercancel=finish;
   canvas.onpointerleave=(e)=>{if(e.pointerType!=='touch'&&e.buttons===0)finish(e);};
+
+  requestAnimationFrame(()=>{
+    measureBase();
+    applyZoom(zoomValue());
+  });
 }
+
 function setExamPenColor(color){
   examDrawingColor=color;
   document.querySelectorAll('.exam-pen-color').forEach(b=>b.classList.toggle('active',b.dataset.color===color));
@@ -2290,10 +2303,7 @@ function closeExamToolPanel(name){
   if(el)el.classList.remove('is-open');
 }
 function resetExamZoom(){
-  if(window._resetExamPageZoom)window._resetExamPageZoom();
-  else {
-    document.querySelectorAll('.exam-draw-surface').forEach(el=>el.style.transform='');
-  }
+  if(window._resetExamDrawingZoom)window._resetExamDrawingZoom();
 }
 function openExamNoteEditor(qid){
   if(!exam)return;
@@ -2394,8 +2404,6 @@ function renderQuiz(){
       <div class="exam-tool-panel" id="examFolderPanel">${examFolderPanelHTML(q.id,true)}</div>
       <div class="exam-annotation-note-wrap" id="examAnnotationNoteWrap"><label class="exam-annotation-note-label">Private note</label><textarea id="examAnnotationNote" class="exam-annotation-note" placeholder="Take a private note for this question…"></textarea></div>
     </div>
-    <div class="exam-annotation-stage">
-      <div class="exam-draw-surface">
     <div class="qhead"><span class="pill">${exam.index+1} / ${exam.list.length}</span><span class="mini">${esc(q.module)} · ${esc(q.subject)} · ${esc(q.lecture)}</span>${exam.minutes?`<span class="timer" id="timer">${formatTime(remaining)}</span>`:''}</div>
     <div class="bar"><i style="width:${pct(exam.index,exam.list.length-1)}%"></i></div>
     <div class="question-nav" aria-label="Question navigation">
@@ -2409,6 +2417,9 @@ function renderQuiz(){
         <span><i class="nav-dot current"></i>Current</span>
       </div>
     </div>
+    <div class="exam-annotation-viewport">
+    <div class="exam-annotation-surface">
+    <div class="exam-annotation-stage">
       <canvas id="examAnnotationCanvas" class="exam-annotation-canvas ${examDrawingEnabled?'drawing-enabled':''}" aria-label="Exam drawing canvas"></canvas>
       <div class="question" style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><span>${esc(q.question)}</span><div style="display:flex;gap:7px;flex:0 0 auto"><button type="button" class="btn" onclick="openQuestionReport()" title="Report this question" aria-label="Report this question">⚑</button><button type="button" class="btn" data-favorite-id="${attrJs(q.id)}" onclick='toggleFavorite(${JSON.stringify(q.id)})' title="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}" aria-label="${isFavorite(q)?'Remove from favourites':'Mark as favourite'}">${isFavorite(q)?'★':'☆'}</button></div></div>
       ${q.imageUrl ? `<img class="question-illustration" src="${esc(q.imageUrl)}" alt="Question illustration" loading="eager">` : ''}
@@ -2419,7 +2430,8 @@ function renderQuiz(){
     ${examAI.open?examAIHTML(q,answeredNow):`<div class="exam-ai-wrap"><div class="exam-ai-trigger"><div><strong>Need an explanation?</strong><div class="mini">Ask AI about this question before or after answering.</div></div><button class="btn primary" onclick="openExamAI()">✦ Ask AI</button></div></div>`}
     <div class="quiz-footer"><button class="btn" onclick="prevQ()" ${exam.index===0?'disabled':''}>Previous</button>
     <button class="btn primary" onclick="${exam.index===exam.list.length-1?'submitExam(false)':'nextQ()'}">${exam.index===exam.list.length-1?'Submit Exam':'Next'}</button></div>
-      </div>
+    </div>
+    </div>
     </div>
   </div></div>`;
   document.getElementById('app').innerHTML=layout('Exam','Use the numbered buttons to move between questions. You can open Ask AI at any time for a question-specific explanation.',body);
@@ -4677,7 +4689,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.31',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.30',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
