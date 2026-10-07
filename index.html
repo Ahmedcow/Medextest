@@ -363,6 +363,10 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .exam-page-zoom-viewport{position:relative;width:100%;overflow:visible;min-height:0}
 .exam-page-zoom{transform:translate3d(0,0,0) scale(1);transform-origin:0 0;will-change:transform}
 .exam-page-zoom.is-zoomed{transition:none}
+/* v41.30: the viewport behaves like a normal scrollable document while the
+   exam surface is magnified. No translated/corner-anchored transform. */
+.exam-page-zoom-viewport{overflow:auto;max-width:100%;touch-action:none;overscroll-behavior:contain;scroll-behavior:auto}
+.exam-page-zoom{transform-origin:0 0;transform:scale(1);margin-right:0;margin-bottom:0;will-change:transform}
 .exam-note-editor-backdrop{position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(5,9,12,.58);backdrop-filter:blur(6px)}
 .exam-note-editor{width:min(560px,calc(100vw - 32px));max-height:min(78vh,620px);display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);box-shadow:0 24px 70px rgba(0,0,0,.32);overflow:hidden}
 .exam-note-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--bg)}
@@ -2106,37 +2110,64 @@ function initExamDrawing(){
     examDrawingResizeObserver.observe(stage);
   }
 
-  // v41.29: ordinary page-style pinch magnification. The entire exam surface is
-  // scaled around the user's two-finger focal point, so it does not jump to a corner.
-  // The drawing canvas lives inside the same surface, therefore drawings stay aligned.
+  // v41.30: true document-style pinch zoom for the whole exam surface.
+  // IMPORTANT: no translate transform is used. The page stays anchored at its
+  // normal top-left position and the viewport scrolls to the pinch focal point.
+  // This keeps drawings locked to the exact question location while zooming.
   const pointers=new Map();
   let pinchStartDistance=0;
   let pinchStartZoom=1;
   let pinchStartMid={x:0,y:0};
   let pinchStartContent={x:0,y:0};
   let pinchActive=false;
-  let pageTranslate={x:0,y:0};
   const zoomValue=()=>Number(quiz.dataset.examZoom||1);
   const getZoomSurface=()=>document.querySelector('.exam-page-zoom');
   const getZoomViewport=()=>document.querySelector('.exam-page-zoom-viewport');
-  const setPageZoom=(z, tx=pageTranslate.x, ty=pageTranslate.y)=>{
+  let baseSurfaceSize=null;
+  const measureBaseSurface=()=>{
+    const surface=getZoomSurface();
+    if(!surface)return null;
+    const rect=surface.getBoundingClientRect();
+    const z=zoomValue();
+    const w=surface.offsetWidth||rect.width/z;
+    const h=surface.offsetHeight||rect.height/z;
+    baseSurfaceSize={w,h};
+    return baseSurfaceSize;
+  };
+  const setPageZoom=(z,focusX,focusY,focusContent)=>{
     const value=Math.max(1,Math.min(2.5,Number(z)||1));
     const surface=getZoomSurface();
     const viewport=getZoomViewport();
     if(!surface||!viewport)return;
+    const size=baseSurfaceSize||measureBaseSurface();
+    if(!size)return;
+    const rect=viewport.getBoundingClientRect();
+    const oldZoom=zoomValue();
+    const fx=Number.isFinite(focusX)?focusX-rect.left:rect.width/2;
+    const fy=Number.isFinite(focusY)?focusY-rect.top:rect.height/2;
+    const contentX=Number.isFinite(focusContent?.x)?focusContent.x:(viewport.scrollLeft+fx)/oldZoom;
+    const contentY=Number.isFinite(focusContent?.y)?focusContent.y:(viewport.scrollTop+fy)/oldZoom;
     quiz.dataset.examZoom=String(value);
-    pageTranslate={x:Number(tx)||0,y:Number(ty)||0};
-    surface.style.transform=`translate3d(${pageTranslate.x}px,${pageTranslate.y}px,0) scale(${value})`;
+    surface.style.transform=`scale(${value})`;
     surface.classList.toggle('is-zoomed',value!==1);
+    // The transform does not participate in layout. Add exactly the scaled
+    // overflow as margins so the viewport gets normal scrollable page space.
+    surface.style.marginRight=Math.max(0,size.w*(value-1))+'px';
+    surface.style.marginBottom=Math.max(0,size.h*(value-1))+'px';
+    if(value===1){
+      viewport.scrollLeft=0;
+      viewport.scrollTop=0;
+      return;
+    }
     requestAnimationFrame(()=>{
-      const baseW=surface.scrollWidth||surface.getBoundingClientRect().width/value;
-      const baseH=surface.scrollHeight||surface.getBoundingClientRect().height/value;
-      viewport.style.minHeight=Math.ceil(baseH*value+Math.max(0,pageTranslate.y))+'px';
-      viewport.style.minWidth=Math.ceil(baseW*value+Math.max(0,pageTranslate.x))+'px';
+      const targetLeft=Math.max(0,contentX*value-fx);
+      const targetTop=Math.max(0,contentY*value-fy);
+      viewport.scrollLeft=targetLeft;
+      viewport.scrollTop=targetTop;
     });
   };
-  window._setExamPageZoom=setPageZoom;
-  window._resetExamPageZoom=()=>{pageTranslate={x:0,y:0};setPageZoom(1,0,0);};
+  window._setExamPageZoom=(z,fx,fy,fc)=>setPageZoom(z,fx,fy,fc);
+  window._resetExamPageZoom=()=>setPageZoom(1);
   const distance=()=>{
     const pts=[...pointers.values()];
     if(pts.length<2)return 0;
@@ -2161,12 +2192,12 @@ function initExamDrawing(){
       pinchStartDistance=distance();
       pinchStartZoom=zoomValue();
       pinchStartMid=midpoint();
-      const surface=getZoomSurface();
-      if(surface){
-        const rect=surface.getBoundingClientRect();
+      const viewport=getZoomViewport();
+      if(viewport){
+        const rect=viewport.getBoundingClientRect();
         pinchStartContent={
-          x:(pinchStartMid.x-rect.left)/pinchStartZoom,
-          y:(pinchStartMid.y-rect.top)/pinchStartZoom
+          x:(viewport.scrollLeft+(pinchStartMid.x-rect.left))/pinchStartZoom,
+          y:(viewport.scrollTop+(pinchStartMid.y-rect.top))/pinchStartZoom
         };
       }
       cancelCanvasStroke();
@@ -2181,11 +2212,7 @@ function initExamDrawing(){
       const d=distance();
       const mid=midpoint();
       const nextZoom=Math.max(1,Math.min(2.5,pinchStartZoom*(d/pinchStartDistance)));
-      // Keep the exact content point under the fingers. This is the behavior users
-      // expect from normal document/photo pinch zoom rather than corner zoom.
-      const tx=mid.x-(pinchStartContent.x*nextZoom);
-      const ty=mid.y-(pinchStartContent.y*nextZoom);
-      setPageZoom(nextZoom,tx,ty);
+      setPageZoom(nextZoom,mid.x,mid.y,pinchStartContent);
       e.preventDefault();
     }
   };
@@ -2274,8 +2301,8 @@ function closeExamToolPanel(name){
 }
 function resetExamZoom(){
   if(window._resetExamPageZoom)window._resetExamPageZoom();
-  else document.querySelectorAll('.exam-page-zoom').forEach(el=>{el.style.transform='translate3d(0,0,0) scale(1)';el.classList.remove('is-zoomed');});
-  document.querySelectorAll('.exam-page-zoom-viewport').forEach(v=>{v.style.minHeight='';v.style.minWidth='';});
+  document.querySelectorAll('.exam-page-zoom').forEach(el=>{el.style.transform='scale(1)';el.style.marginRight='';el.style.marginBottom='';el.classList.remove('is-zoomed');});
+  document.querySelectorAll('.exam-page-zoom-viewport').forEach(v=>{v.scrollLeft=0;v.scrollTop=0;});
 }
 function openExamNoteEditor(qid){
   if(!exam)return;
@@ -4660,7 +4687,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.29',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.30',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
