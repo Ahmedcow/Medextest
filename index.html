@@ -342,7 +342,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .exam-tool-panel{display:none;position:fixed;right:82px;top:50%;transform:translateY(-50%);width:min(330px,calc(100vw - 100px));max-height:min(58vh,520px);overflow:auto;padding:12px;border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--text);box-shadow:0 18px 42px rgba(0,0,0,.24);z-index:119}
 .exam-tool-panel.is-open{display:block}
 .exam-tool-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid var(--line)}
-.exam-tool-panel-list{display:grid;gap:6px}
+.exam-tool-panel-list{display:grid;gap:6px}.phase2-note-row{display:flex;align-items:flex-start;gap:7px}.phase2-note-jump{display:flex;align-items:flex-start;gap:8px;flex:1;min-width:0;padding:0;border:0;background:transparent;color:var(--text);text-align:left;cursor:pointer}.phase2-note-jump span:last-child{overflow-wrap:anywhere}.progress-tree .bar{height:7px;margin:0}
 .exam-tool-panel .phase2-folder-row{padding:7px 0}
 .exam-tool-panel .phase2-note-row{padding:7px 0}
 .exam-tool-panel .btn{color:var(--text)}
@@ -1533,6 +1533,7 @@ function updateSupportUnreadDot(show){
 }
 function renderDashboard(){
   const modules=getModules();
+  setTimeout(async()=>{updateSupportUnreadDot(await refreshSupportUnreadIndicator());},0);
   const noticeHtml=(activeNotifications||[]).length ? activeNotifications.map(n=>`<div class="card" style="margin-bottom:16px;border-left:4px solid var(--primary)"><div class="category-head"><strong>${esc(n.title||'Announcement')}</strong><span class="mini">${n.created_at?new Date(n.created_at).toLocaleString():''}</span></div><div style="margin-top:8px;white-space:pre-wrap">${esc(n.message||'')}</div></div>`).join('') : '';
   const body=`
   ${noticeHtml}
@@ -2105,24 +2106,23 @@ function initExamDrawing(){
     examDrawingResizeObserver.observe(stage);
   }
 
-  // IMPORTANT: keep drawing and zoom completely local to this box.
-  // The drawing engine remains the normal pointer-based engine.
-  // Touch gestures are only used to detect a second finger and drive pinch zoom.
+  // Drawing/zoom is intentionally isolated to this box.
+  // One finger/pointer = draw. Two touch pointers = pinch + pan/zoom.
+  // Use one Pointer Events state machine so Safari/Chrome do not mix
+  // touch handlers with pointer handlers and accidentally draw during pinch.
   let zoom=1;
-  let pinch=false;
-  let startZoom=1;
-  let startDistance=0;
-  let startMid={x:0,y:0};
-  let startScroll={x:0,y:0};
-  let startContent={x:0,y:0};
+  const pointers=new Map();
+  let drawingPointerId=null;
+  let pinchState=null;
   const clampZoom=z=>Math.max(1,Math.min(3,Number(z)||1));
-  const distance=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
-  const midpoint=(a,b)=>({x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2});
+  const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  const midpoint=(a,b)=>({x:(a.x+b.x)/2,y:(a.y+b.y)/2});
 
   const cancelStroke=()=>{
     if(canvas._activeStroke){
       data.strokes.pop();
       canvas._activeStroke=null;
+      drawingPointerId=null;
       drawExamAnnotations();
     }
   };
@@ -2131,7 +2131,6 @@ function initExamDrawing(){
     zoom=clampZoom(z);
     const baseW=Math.max(1,stage.offsetWidth);
     const baseH=Math.max(1,stage.offsetHeight);
-    const vr=viewport.getBoundingClientRect();
     surface.style.width=baseW+'px';
     surface.style.height=baseH+'px';
     surface.style.transformOrigin='0 0';
@@ -2140,62 +2139,76 @@ function initExamDrawing(){
     surface.style.marginBottom=Math.max(0,baseH*(zoom-1))+'px';
     surface.dataset.zoom=String(zoom);
     if(zoom===1){viewport.scrollLeft=0;viewport.scrollTop=0;return;}
+    const vr=viewport.getBoundingClientRect();
+    const fx=focusX-vr.left;
+    const fy=focusY-vr.top;
+    const cx=contentPoint?.x ?? ((viewport.scrollLeft+fx)/zoom);
+    const cy=contentPoint?.y ?? ((viewport.scrollTop+fy)/zoom);
     requestAnimationFrame(()=>{
-      const fx=focusX-vr.left;
-      const fy=focusY-vr.top;
-      const cx=contentPoint?.x ?? ((viewport.scrollLeft+fx)/startZoom);
-      const cy=contentPoint?.y ?? ((viewport.scrollTop+fy)/startZoom);
       viewport.scrollLeft=Math.max(0,cx*zoom-fx);
       viewport.scrollTop=Math.max(0,cy*zoom-fy);
     });
   };
 
-  window._resetExamDrawingZoom=()=>applyZoom(1,0,0,null);
-
-  // Touch layer: first finger is left to the normal pointer drawing system.
-  // The moment a second finger appears, the current stroke is cancelled and
-  // the two fingers become an exclusive pinch/pan gesture.
-  const onTouchStart=e=>{
-    if(e.touches.length<2)return;
-    const a=e.touches[0],b=e.touches[1];
-    pinch=true;
-    canvas._pinchActive=true;
+  window._resetExamDrawingZoom=()=>{
+    pinchState=null;
+    pointers.clear();
     cancelStroke();
-    startZoom=zoom;
-    startDistance=Math.max(1,distance(a,b));
-    startMid=midpoint(a,b);
-    const r=viewport.getBoundingClientRect();
-    startContent={
-      x:(viewport.scrollLeft+(startMid.x-r.left))/startZoom,
-      y:(viewport.scrollTop+(startMid.y-r.top))/startZoom
+    zoom=1;
+    surface.style.transform='scale(1)';
+    surface.style.marginRight='0px';
+    surface.style.marginBottom='0px';
+    surface.dataset.zoom='1';
+    viewport.scrollLeft=0;
+    viewport.scrollTop=0;
+  };
+
+  const pointFromEvent=e=>({x:e.clientX,y:e.clientY});
+  const startPinch=()=>{
+    const pts=[...pointers.values()];
+    if(pts.length<2)return;
+    cancelStroke();
+    const a=pts[0],b=pts[1],mid=midpoint(a,b);
+    const vr=viewport.getBoundingClientRect();
+    pinchState={
+      startZoom:zoom,
+      startDistance:Math.max(1,distance(a,b)),
+      startMid:mid,
+      contentX:(viewport.scrollLeft+(mid.x-vr.left))/zoom,
+      contentY:(viewport.scrollTop+(mid.y-vr.top))/zoom
     };
-    startScroll={x:viewport.scrollLeft,y:viewport.scrollTop};
-    e.preventDefault();
   };
-  const onTouchMove=e=>{
-    if(!pinch||e.touches.length<2)return;
-    const a=e.touches[0],b=e.touches[1];
-    const mid=midpoint(a,b);
-    const next=startZoom*(distance(a,b)/startDistance);
-    applyZoom(next,mid.x,mid.y,startContent);
-    e.preventDefault();
+
+  const updatePinch=()=>{
+    if(!pinchState||pointers.size<2)return;
+    const pts=[...pointers.values()];
+    const a=pts[0],b=pts[1],mid=midpoint(a,b);
+    const next=pinchState.startZoom*(distance(a,b)/pinchState.startDistance);
+    applyZoom(next,mid.x,mid.y,{x:pinchState.contentX,y:pinchState.contentY});
   };
-  const onTouchEnd=e=>{
-    if(e.touches.length<2){
-      pinch=false;
-      canvas._pinchActive=false;
+
+  const finishStroke=()=>{
+    if(canvas._activeStroke){
+      canvas._activeStroke=null;
+      drawingPointerId=null;
+      saveActiveExam();
     }
   };
-  viewport.addEventListener('touchstart',onTouchStart,{capture:true,passive:false});
-  viewport.addEventListener('touchmove',onTouchMove,{capture:true,passive:false});
-  viewport.addEventListener('touchend',onTouchEnd,{capture:true,passive:true});
-  viewport.addEventListener('touchcancel',onTouchEnd,{capture:true,passive:true});
 
-  canvas.onpointerdown=e=>{
-    if(!examDrawingEnabled||pinch||canvas._pinchActive)return;
-    if(e.pointerType==='touch' && e.isPrimary===false)return;
+  const onPointerDown=e=>{
+    if(e.pointerType==='touch'){
+      pointers.set(e.pointerId,pointFromEvent(e));
+      if(pointers.size===2){
+        e.preventDefault();
+        startPinch();
+        return;
+      }
+      if(pointers.size>2){e.preventDefault();return;}
+    }
+    if(!examDrawingEnabled||pinchState||drawingPointerId!==null)return;
     e.preventDefault();
-    canvas.setPointerCapture?.(e.pointerId);
+    viewport.setPointerCapture?.(e.pointerId);
+    drawingPointerId=e.pointerId;
     const rect=canvas.getBoundingClientRect();
     const point=[
       Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),
@@ -2210,25 +2223,47 @@ function initExamDrawing(){
     canvas._activeStroke=data.strokes[data.strokes.length-1];
     drawExamAnnotations();
   };
-  canvas.onpointermove=e=>{
-    if(pinch||canvas._pinchActive)return;
-    const stroke=canvas._activeStroke;
-    if(!stroke||!examDrawingEnabled)return;
+
+  const onPointerMove=e=>{
+    if(e.pointerType==='touch'){
+      if(pointers.has(e.pointerId))pointers.set(e.pointerId,pointFromEvent(e));
+      if(pointers.size>=2){e.preventDefault();updatePinch();return;}
+    }
+    if(drawingPointerId!==e.pointerId||pinchState||!canvas._activeStroke||!examDrawingEnabled)return;
     e.preventDefault();
     const rect=canvas.getBoundingClientRect();
-    stroke.points.push([
+    canvas._activeStroke.points.push([
       Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),
       Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))
     ]);
     drawExamAnnotations();
   };
-  const finish=e=>{
-    if(pinch||canvas._pinchActive)return;
-    if(canvas._activeStroke){canvas._activeStroke=null;saveActiveExam();}
+
+  const onPointerUp=e=>{
+    if(e.pointerType==='touch'){
+      pointers.delete(e.pointerId);
+      if(pinchState){
+        if(pointers.size<2)pinchState=null;
+        return;
+      }
+    }
+    if(drawingPointerId===e.pointerId)finishStroke();
   };
-  canvas.onpointerup=finish;
-  canvas.onpointercancel=finish;
-  canvas.onpointerleave=e=>{if(e.pointerType!=='touch'&&e.buttons===0)finish(e);};
+  const onPointerCancel=e=>{
+    if(e.pointerType==='touch')pointers.delete(e.pointerId);
+    if(drawingPointerId===e.pointerId){
+      cancelStroke();
+    }
+    if(pointers.size<2)pinchState=null;
+  };
+
+  viewport.addEventListener('pointerdown',onPointerDown,{passive:false});
+  viewport.addEventListener('pointermove',onPointerMove,{passive:false});
+  viewport.addEventListener('pointerup',onPointerUp,{passive:false});
+  viewport.addEventListener('pointercancel',onPointerCancel,{passive:false});
+  viewport.addEventListener('lostpointercapture',onPointerCancel,{passive:false});
+  // The viewport must not hand these touches to page scrolling/viewport zoom.
+  viewport.style.touchAction='none';
 
   requestAnimationFrame(()=>{
     zoom=1;
@@ -2236,6 +2271,8 @@ function initExamDrawing(){
     surface.style.transform='scale(1)';
     surface.style.marginRight='0px';
     surface.style.marginBottom='0px';
+    viewport.scrollLeft=0;
+    viewport.scrollTop=0;
   });
 }
 function setExamPenColor(color){
@@ -2321,11 +2358,11 @@ function clearExamDrawing(){
 function setExamDrawingSize(v){examDrawingSize=Math.max(1,Math.min(8,Number(v)||3));}
 function cycleExamDrawingSize(){const sizes=[2,4,7];const i=sizes.indexOf(Number(examDrawingSize));setExamDrawingSize(sizes[(i+1)%sizes.length]);renderQuiz();}
 
-function examFolderPanelHTML(qid,inPanel=false){const folders=folderData();const id=String(qid);const rows=folders.map(f=>{const has=f.questionIds.includes(id);return `<div class="phase2-folder-row"><span>${esc(f.name)}</span><button type="button" class="btn ${has?'danger':''}" onclick="toggleQuestionFolder('${attrJs(id)}','${attrJs(f.id)}')">${has?'Remove':'Add'}</button></div>`;}).join('');if(inPanel)return `<div class="exam-tool-panel-head"><strong>📁 Add to folder</strong><button class="icon-btn" type="button" onclick="closeExamToolPanel('folder')" aria-label="Close add to folder" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>${rows||'<div class="mini">No folders yet.</div>'}<button type="button" class="btn" style="margin-top:8px" onclick="createQuestionFolder();renderQuiz()">+ New folder</button>`;return `<details><summary><strong>📁 Add to folder</strong><span class="mini">${folders.filter(f=>f.questionIds.includes(id)).length}/${folders.length}</span></summary><div class="phase2-folder-list">${rows}<button type="button" class="btn" style="margin-top:6px" onclick="createQuestionFolder();renderQuiz()">+ New folder</button></div></details>`;}
+function examFolderPanelHTML(qid,inPanel=false){const folders=folderData();const id=String(qid);const rows=folders.map(f=>{const has=f.questionIds.includes(id);return `<div class="phase2-folder-row"><span>${esc(f.name)}</span><button type="button" class="btn ${has?'danger':''}" onclick="toggleQuestionFolder('${attrJs(id)}','${attrJs(f.id)}')">${has?'Remove':'Add'}</button></div>`;}).join('');if(inPanel)return `<div class="exam-tool-panel-head"><strong>📁 Add to folder</strong><button class="icon-btn" type="button" onclick="closeExamToolPanel('folder')" aria-label="Close add to folder" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>${rows||'<div class="mini">No folders yet.</div>'}<button type="button" class="btn" style="margin-top:8px" onclick="createQuestionFolder()">+ New folder</button>`;return `<details><summary><strong>📁 Add to folder</strong><span class="mini">${folders.filter(f=>f.questionIds.includes(id)).length}/${folders.length}</span></summary><div class="phase2-folder-list">${rows}<button type="button" class="btn" style="margin-top:6px" onclick="createQuestionFolder()">+ New folder</button></div></details>`;}
 function examSavedNotesHTML(inPanel=false){
   if(!exam)return '';
   const rows=exam.list.map((q,i)=>({q,i,n:getQuestionNote(q.id)})).filter(x=>x.n.trim());
-  const list=rows.length?rows.map(x=>`<button type="button" class="phase2-note-row" onclick="jumpToQuestion(${x.i});toggleExamToolPanel('notes',false)"><span class="pill">Q${x.i+1}</span><span>${esc(x.n)}</span></button>`).join(''):'<div class="mini" style="padding:5px 0">No saved notes in this exam.</div>';
+  const list=rows.length?rows.map(x=>`<div class="phase2-note-row"><button type="button" class="phase2-note-jump" onclick="jumpToQuestion(${x.i});toggleExamToolPanel('notes',false)" title="Go to question ${x.i+1}"><span class="pill">Q${x.i+1}</span><span>${esc(x.n)}</span></button><button type="button" class="btn" onclick="openExamNoteEditor('${attrJs(x.q.id)}')" title="Edit note" aria-label="Edit note">Edit</button></div>`).join(''):'<div class="mini" style="padding:5px 0">No saved notes in this exam.</div>';
   if(inPanel)return `<div class="exam-tool-panel-head"><strong>📝 Saved notes · ${rows.length}</strong><button class="icon-btn" type="button" onclick="closeExamToolPanel('notes')" aria-label="Close saved notes" title="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><button type="button" class="btn primary" style="width:100%;margin-bottom:8px" onclick="openExamNoteEditor('${attrJs(exam.list[exam.index].id)}')">${getQuestionNote(exam.list[exam.index].id)?'Edit current note':'Add note to current question'}</button><div class="exam-tool-panel-list">${list}</div>`;
   return `<details><summary><strong>📝 Saved notes</strong><span class="mini">${rows.length} saved</span><button type="button" class="btn exam-phase2-note-add" onclick="event.preventDefault();event.stopPropagation();openExamNoteEditor('${attrJs(exam.list[exam.index].id)}')">${getQuestionNote(exam.list[exam.index].id)?'Edit note':'Add note'}</button></summary><div class="phase2-notes-list">${list}</div></details>`;
 }
@@ -2700,7 +2737,8 @@ function saveFolders(){localStorage.setItem(CONFIG.questionFoldersKey,JSON.strin
 function createQuestionFolder(){
   const name=prompt('Folder name, e.g. Final revision'); if(!name||!name.trim())return;
   const clean=name.trim(); if(folderData().some(f=>f.name.toLowerCase()===clean.toLowerCase())){toast('A folder with that name already exists.','error');return;}
-  const folder={id:'folder_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7),name:clean,questionIds:[]}; folderData().push(folder); activeLibraryFolder=folder.id; saveFolders(); renderStudyLibrary();
+  const folder={id:'folder_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7),name:clean,questionIds:[]}; folderData().push(folder); activeLibraryFolder=folder.id; saveFolders();
+  if(location.hash==='#library')renderStudyLibrary(); else if(location.hash==='#exam')renderQuiz();
 }
 function addQuestionToFolder(qid){
   const folders=folderData(); if(!folders.length){toast('Create a folder first.','error');return;}
@@ -2713,7 +2751,7 @@ function toggleQuestionFolder(qid,folderId){const f=folderData().find(x=>x.id===
 function editExamQuestionNote(qid){openExamNoteEditor(qid);}
 function deleteQuestionFolder(folderId){const f=folderData().find(x=>x.id===folderId);if(!f)return;if(!confirm(`Delete folder “${f.name}”? Questions will not be deleted.`))return;questionFolders.folders=folderData().filter(x=>x.id!==folderId);if(activeLibraryFolder===folderId)activeLibraryFolder='';saveFolders();renderStudyLibrary();}
 function practiceSingleQuestion(qid){const q=questionById(qid);if(!q)return;startExam([q],{answerMode:settings.showAnswerImmediately?'immediate':'finish',minutes:0});}
-function libraryFolderControlsHTML(qid){const folders=folderData();if(!folders.length)return `<div class="mini" style="margin-top:8px">No folders yet. <button class="btn" onclick="createQuestionFolder();renderStudyLibrary()">+ Create folder</button></div>`;return `<div class="phase2-library-folders" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${folders.map(f=>{const has=f.questionIds.includes(String(qid));return `<button class="btn ${has?'danger':'primary'}" type="button" onclick="toggleQuestionFolder('${attrJs(qid)}','${attrJs(f.id)}')">${has?'Remove from ': 'Add to '}${esc(f.name)}</button>`;}).join('')}</div>`;}
+function libraryFolderControlsHTML(qid){const folders=folderData();if(!folders.length)return `<div class="mini" style="margin-top:8px">No folders yet. <button class="btn" onclick="createQuestionFolder();renderStudyLibrary()">+ Create folder</button></div>`;const active=folders.find(f=>f.id===activeLibraryFolder);const current=active&&active.questionIds.includes(String(qid));return `<div class="phase2-library-folders" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${folders.map(f=>{const has=f.questionIds.includes(String(qid));return `<button class="btn ${has?'danger':'primary'}" type="button" onclick="toggleQuestionFolder('${attrJs(qid)}','${attrJs(f.id)}')">${has?'Remove from ': 'Add to '}${esc(f.name)}</button>`;}).join('')}${current?`<button class="btn danger" type="button" onclick="removeQuestionFromFolder('${attrJs(qid)}','${attrJs(active.id)}')">Remove from current folder</button>`:''}</div>`;}
 function normalizeLibrarySearchText(v){return String(v||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]+/gi,' ').replace(/\s+/g,' ').trim();}
 function librarySearchChanged(value){librarySearchTerm=String(value||'');clearTimeout(window.__librarySearchTimer);window.__librarySearchTimer=setTimeout(()=>{const host=document.getElementById('libraryResults');const count=document.getElementById('libraryResultCount');if(host){const results=librarySearchResults();host.innerHTML=renderLibraryResultsHTML(results);if(count)count.textContent=`${results.length} shown`;}else renderStudyLibrary();},80);}
 function libraryFilterChanged(value,which){if(which==='module'){librarySearchModule=String(value||'');librarySearchSubject='';}else librarySearchSubject=String(value||'');renderStudyLibrary();}
@@ -2739,7 +2777,7 @@ function renderHistory(){
   const avgAcc=hist.length?Math.round(hist.reduce((s,h)=>s+Number(h.accuracy||0),0)/hist.length):0;
   const bestAcc=hist.length?Math.max(...hist.map(h=>Number(h.accuracy||0))):0;
   const rows=hist.map(h=>`<div class="category-card"><div class="category-head"><div><b>${esc(h.label||'Exam')}</b><div class="mini">${new Date(h.date).toLocaleString()} · ${h.durationSec?formatTime(h.durationSec)+' taken':'no timer'}${h.auto?' · time expired':''}</div></div><span class="pill">${h.correct}/${h.total} correct · ${h.accuracy}%</span></div><div class="bar" style="margin-top:10px"><i style="width:${Math.min(100,Math.max(0,Number(h.accuracy)||0))}%"></i></div><div class="mini" style="margin-top:8px">${h.answered} answered · ${h.unanswered} unanswered</div><div class="actions" style="margin-top:10px"><button class="btn" onclick="viewHistoryResult('${attrJs(h.id)}')">Review this exam</button></div></div>`).join('');
-  const body=`${currentUser?`<div class="notice ok" style="margin-bottom:14px">Signed in: your history is loaded from Supabase and follows you to other devices.</div>`:`<div class="notice" style="margin-bottom:14px">History is stored locally in this browser.</div>`}<div class="grid stats"><div class="card stat"><div class="label">Exams taken</div><div class="value">${hist.length}</div></div><div class="card stat"><div class="label">Average accuracy</div><div class="value">${avgAcc}%</div></div><div class="card stat"><div class="label">Best accuracy</div><div class="value">${bestAcc}%</div></div><div class="card stat"><div class="label">Last exam</div><div class="value" style="font-size:16px">${hist.length?new Date(hist[0].date).toLocaleDateString():'—'}</div></div></div><h2 class="section-title">All exams</h2><div class="card">${rows||'<div class="empty">No exams completed yet.</div>'}${hist.length?`<div class="actions" style="margin-top:12px"><button class="btn danger" onclick="clearHistory()">Clear history</button></div>`:''}</div>`;
+  const body=`<div class="grid stats"><div class="card stat"><div class="label">Exams taken</div><div class="value">${hist.length}</div></div><div class="card stat"><div class="label">Average accuracy</div><div class="value">${avgAcc}%</div></div><div class="card stat"><div class="label">Best accuracy</div><div class="value">${bestAcc}%</div></div><div class="card stat"><div class="label">Last exam</div><div class="value" style="font-size:16px">${hist.length?new Date(hist[0].date).toLocaleDateString():'—'}</div></div></div><h2 class="section-title">All exams</h2><div class="card">${rows||'<div class="empty">No exams completed yet.</div>'}${hist.length?`<div class="actions" style="margin-top:12px"><button class="btn danger" onclick="clearHistory()">Clear history</button></div>`:''}</div>`;
   document.getElementById('app').innerHTML=layout('Exam History',currentUser?'Your exam history and performance.':'Your exam history and performance in this browser.',body);
 }
 
@@ -3064,13 +3102,15 @@ function detailedProgressTreeHTML(){
     const mqs=bank.filter(q=>String(q.module||'Uncategorized')===module);
     const mAttempts=mqs.reduce((n,q)=>n+Number(progress[key(q)]?.attempts||0),0);
     const mCorrect=mqs.reduce((n,q)=>n+Number(progress[key(q)]?.correct||0),0);
+    const mProgress=progressFor(mqs);
     const subjects=[...new Set(mqs.map(q=>String(q.subject||'Uncategorized')))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
-    return `<details class="progress-tree-module" ${mi===0?'open':''}><summary><div><b>${esc(module)}</b><div class="mini">${mqs.length} questions · ${mqs.filter(q=>Number(progress[key(q)]?.attempts||0)>0).length} practiced · ${mAttempts} attempts</div></div><div style="display:flex;align-items:center;gap:10px"><span class="pill">${mAttempts?pct(mCorrect,mAttempts):0}% accuracy</span><span class="progress-tree-arrow">›</span></div></summary><div class="progress-tree-subjects">${subjects.map((subject,si)=>{
+    return `<details class="progress-tree-module" ${mi===0?'open':''}><summary><div style="min-width:0;flex:1"><b>${esc(module)}</b><div class="mini">${mqs.length} questions · ${mqs.filter(q=>Number(progress[key(q)]?.attempts||0)>0).length} practiced · ${mAttempts} attempts</div><div class="bar" style="margin-top:8px"><i style="width:${mProgress}%"></i></div></div><div style="display:flex;align-items:center;gap:10px"><span class="pill">${mAttempts?pct(mCorrect,mAttempts):0}% accuracy</span><span class="progress-tree-arrow">›</span></div></summary><div class="progress-tree-subjects">${subjects.map((subject,si)=>{
       const sqs=mqs.filter(q=>String(q.subject||'Uncategorized')===subject);
       const sAttempts=sqs.reduce((n,q)=>n+Number(progress[key(q)]?.attempts||0),0);
       const sCorrect=sqs.reduce((n,q)=>n+Number(progress[key(q)]?.correct||0),0);
+      const sProgress=progressFor(sqs);
       const lectures=[...new Set(sqs.map(q=>String(q.lecture||'Uncategorized')))].filter(Boolean).sort((a,b)=>a.localeCompare(b));
-      return `<details class="progress-tree-subject" ${si===0?'open':''}><summary><div><b>${esc(subject)}</b><div class="mini">${sqs.length} questions · ${sAttempts} attempts</div></div><span class="pill">${sAttempts?pct(sCorrect,sAttempts):0}%</span></summary><div class="progress-tree-lectures">${lectures.map(lecture=>{
+      return `<details class="progress-tree-subject" ${si===0?'open':''}><summary><div style="min-width:0;flex:1"><b>${esc(subject)}</b><div class="mini">${sqs.length} questions · ${sqs.filter(q=>Number(progress[key(q)]?.attempts||0)>0).length} practiced · ${sAttempts} attempts</div><div class="bar" style="margin-top:7px"><i style="width:${sProgress}%"></i></div></div><span class="pill">${sAttempts?pct(sCorrect,sAttempts):0}%</span></summary><div class="progress-tree-lectures">${lectures.map(lecture=>{
         const lqs=sqs.filter(q=>String(q.lecture||'Uncategorized')===lecture);
         const attempts=lqs.reduce((n,q)=>n+Number(progress[key(q)]?.attempts||0),0);
         const correct=lqs.reduce((n,q)=>n+Number(progress[key(q)]?.correct||0),0);
@@ -3816,6 +3856,8 @@ function saveSupportLocal(){
   try{ localStorage.setItem(supportStorageKey(),JSON.stringify({conversationId:supportChatState.conversationId,messages:supportChatState.messages.slice(-200)})); }catch(e){ console.warn('Support chat local save failed:',e.message); }
 }
 function loadSupportLocal(){
+  supportChatState.conversationId=null;
+  supportChatState.messages=[];
   const saved=loadJSON(supportStorageKey(),null);
   if(saved){ supportChatState.conversationId=saved.conversationId||null; supportChatState.messages=Array.isArray(saved.messages)?saved.messages:[]; }
 }
@@ -4690,6 +4732,12 @@ document.addEventListener('DOMContentLoaded',()=>{
     const restored=restoreActiveExam();
     if(currentUser) await afterAuthChanged();
     else { await loadFavorites(); await loadGlobalAnalytics(); applyModuleVisibility(); if(!restored) render(); }
+    setTimeout(async()=>{ updateSupportUnreadDot(await refreshSupportUnreadIndicator()); },500);
+    clearInterval(window.__supportUnreadPoll);
+    window.__supportUnreadPoll=setInterval(async()=>{
+      if(supportChatState.open)return;
+      updateSupportUnreadDot(await refreshSupportUnreadIndicator());
+    },15000);
   });
 });
 </script>
