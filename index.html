@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.41-independent-weekly-notification-bell-fix">
+<meta name="medex-build" content="v41.40-independent-weekly-notifications">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -115,7 +115,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .topbar-notification-wrap{position:relative}
 .topbar-notification-btn{position:relative}
 .topbar-notification-btn .notification-unread-dot{right:4px;top:4px;width:8px;height:8px;box-shadow:0 0 0 2px var(--card)}
-.global-notification-popover{position:fixed;right:12px;top:calc(var(--topbar-h) + 9px);width:min(390px,calc(100vw - 24px));max-height:min(70vh,520px);overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:10px;z-index:2000}
+.global-notification-popover{position:fixed;right:18px;top:calc(var(--topbar-h) + 9px);width:min(390px,calc(100vw - 24px));max-height:min(70vh,520px);overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:10px;z-index:100}
 .global-notification-popover .weekly-notification-item{background:var(--bg)}
 .global-notification-popover .weekly-notifications-list{border:0;padding:0}
 .global-notification-popover .notification-popover-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 4px 10px}
@@ -125,7 +125,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .global-focus-timer .global-focus-timer-display{font-size:13px;font-weight:800;min-width:52px;text-align:center}
 .global-focus-timer .global-focus-control{width:26px;height:26px;padding:0;border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:7px;display:grid;place-items:center}
 .global-focus-timer .global-focus-control:hover{border-color:var(--primary);color:var(--primary)}
-@media(max-width:700px){.global-focus-timer{padding:0 6px 0 8px;gap:4px}.global-focus-timer .focus-global-label{display:none}.topbar{padding:0 10px}.topbar-actions{gap:6px}.global-notification-popover{right:8px}}
+@media(max-width:700px){.global-focus-timer{padding:0 6px 0 8px;gap:4px}.global-focus-timer .focus-global-label{display:none}.topbar{padding:0 10px}.topbar-actions{gap:6px}.global-notification-popover{right:12px;width:min(390px,calc(100vw - 24px))}}
 
 .topbar-brand small{display:block;font-family:var(--font-sans);font-weight:500;font-size:10.5px;color:var(--muted);letter-spacing:.02em;margin-top:-2px}
 .icon-btn{width:38px;height:38px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--card);border-radius:10px;transition:border-color .15s ease,background .15s ease}
@@ -1541,19 +1541,6 @@ function toggleSidebar(){ setSidebar(!document.querySelector('.app').classList.c
 document.getElementById('sidebarOpen').addEventListener('click',toggleSidebar);
 document.getElementById('sidebarClose').addEventListener('click',()=>setSidebar(false));
 document.getElementById('scrim').addEventListener('click',()=>setSidebar(false));
-
-// Global weekly-notification bell: use delegated events so the handler survives
-// top-bar re-renders. The popup is independent from Dashboard site notifications.
-document.addEventListener('click',e=>{
-  const bell=e.target.closest('[data-weekly-notification-toggle]');
-  if(bell){e.preventDefault();e.stopPropagation();toggleWeeklyNotifications();return;}
-  const pop=e.target.closest('#globalNotificationPopover');
-  if(pop)return;
-  if(notificationPanelOpen)toggleWeeklyNotifications(false);
-});
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape' && notificationPanelOpen){toggleWeeklyNotifications(false);}
-});
 setSidebar(window.innerWidth>880);
 
 function updateSidebarFoot(){
@@ -3665,7 +3652,19 @@ function siteNotificationsHTML(){
   const list=rows.length?rows.map(n=>{const isNew=(Date.parse(n.created_at||'')||0)>siteNotificationReadAt();return `<article class="site-notification-item ${isNew?'is-new':''}"><div class="site-notification-meta"><span>${esc(n.created_at?new Date(n.created_at).toLocaleString():'')}</span>${isNew?'<span class="site-notification-new">NEW</span>':''}</div><strong>${esc(n.title||'Announcement')}</strong><div class="site-notification-message">${esc(n.message||'')}</div></article>`;}).join(''):'<div class="empty">No site notifications.</div>';
   return `<section class="card site-notifications-card" aria-label="Site notifications"><div class="site-notifications-head"><div><div class="site-notifications-title"><span class="site-notifications-icon">${notificationBellSVG()}</span><strong>Site notifications</strong>${unread?`<span class="site-notification-count">${unread} new</span>`:''}</div><div class="mini" style="margin-top:4px">Announcements from the MedEx team.</div></div><button class="btn" onclick="markSiteNotificationsRead();renderDashboard()">${unread?'Mark as read':'Refresh'}</button></div><div class="site-notifications-list">${list}</div></section>`;
 }
-function toggleWeeklyNotifications(force){if(typeof force==='boolean')notificationPanelOpen=force;else notificationPanelOpen=!notificationPanelOpen;if(notificationPanelOpen){markWeeklyNotificationsRead();}updateTopbarControls();}
+function toggleWeeklyNotifications(){notificationPanelOpen=!notificationPanelOpen;if(notificationPanelOpen){markWeeklyNotificationsRead();}updateTopbarControls();}
+function closeWeeklyNotifications(){if(!notificationPanelOpen)return;notificationPanelOpen=false;updateTopbarControls();}
+function initWeeklyNotificationClickHandling(){
+  if(window.__weeklyNotificationClickHandler)return;
+  window.__weeklyNotificationClickHandler=true;
+  document.addEventListener('click',function(e){
+    const toggle=e.target.closest?.('[data-weekly-notification-toggle]');
+    const pop=e.target.closest?.('#globalNotificationPopover');
+    if(toggle){e.preventDefault();e.stopPropagation();toggleWeeklyNotifications();return;}
+    if(notificationPanelOpen && !pop) closeWeeklyNotifications();
+  },true);
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')closeWeeklyNotifications();});
+}
 async function refreshWeeklyNotifications(){await loadWeeklyNotifications();setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));updateTopbarControls();if(location.hash.replace('#','')==='dashboard')renderDashboard();}
 async function loadActiveNotifications(){
   activeNotifications=[];
@@ -3696,7 +3695,7 @@ function updateTopbarControls(){
   const themeHost=document.getElementById('globalThemeToggle');
   const focusHost=document.getElementById('globalFocusTimer');
   const unread=notificationUnreadCount(weeklyNotificationRows());
-  if(weeklyHost){weeklyHost.innerHTML=`<div class="topbar-notification-wrap"><button type="button" class="icon-btn topbar-notification-btn" data-weekly-notification-toggle aria-expanded="${notificationPanelOpen?'true':'false'}" title="Weekly notifications" aria-label="Weekly notifications">${notificationBellSVG()}${unread?'<span class="notification-unread-dot" aria-label="Unread weekly notification"></span>':''}</button>${notificationPanelOpen?weeklyNotificationsPopoverHTML():''}</div>`;}
+  if(weeklyHost){weeklyHost.innerHTML=`<div class="topbar-notification-wrap"><button class="icon-btn topbar-notification-btn" type="button" data-weekly-notification-toggle title="Weekly notifications" aria-label="Weekly notifications">${notificationBellSVG()}${unread?'<span class="notification-unread-dot" aria-label="Unread weekly notification"></span>':''}</button>${notificationPanelOpen?weeklyNotificationsPopoverHTML():''}</div>`;}
   if(themeHost)themeHost.innerHTML=dashboardThemeToggleHTML();
   if(focusHost)focusHost.innerHTML=globalFocusTimerHTML();
 }
@@ -4884,6 +4883,7 @@ if('serviceWorker' in navigator){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
+  initWeeklyNotificationClickHandling();
   applyTheme();
   if(SUPABASE_ENABLED){
     supabaseClient.auth.onAuthStateChange((event,session)=>{
