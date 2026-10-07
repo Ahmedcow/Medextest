@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.39-ui-notifications-focus">
+<meta name="medex-build" content="v41.40-independent-weekly-notifications">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -613,7 +613,8 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
       <button data-view="analytics" id="analyticsNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="17" x2="3" y2="3"/><line x1="3" y1="17" x2="18" y2="17"/><rect x="6" y="10" width="2.5" height="5" rx=".5"/><rect x="10.5" y="7" width="2.5" height="8" rx=".5"/><rect x="15" y="4" width="2.5" height="11" rx=".5"/></svg><span>Admin Analytics</span></button>
       <button data-view="reports" id="adminReportsNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5 17 5v4.7c0 4.2-2.8 6.6-7 7.8-4.2-1.2-7-3.6-7-7.8V5z"/><path d="M10 6.2v4.2"/><circle cx="10" cy="13.2" r=".7" fill="currentColor" stroke="none"/></svg><span>Question Reports</span></button>
       <button data-view="replies" id="adminRepliesNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h14v9H8l-4.5 3v-12z"/><path d="M6 8h8M6 11h5"/></svg><span>Replies</span></button>
-      <button data-view="notifications" id="adminNotificationsNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 14.5h9.6c-.9-1.2-1.4-2.5-1.4-4.5 0-2.3-1.3-4-3.4-4.5V4.7a.7.7 0 0 0-1.4 0v.8C6.5 6 5.2 7.7 5.2 10c0 2-.5 3.3-1.4 4.5Z"/><path d="M8 16.5h4"/></svg><span>Notifications</span></button>
+      <button data-view="notifications" id="adminNotificationsNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 14.5h9.6c-.9-1.2-1.4-2.5-1.4-4.5 0-2.3-1.3-4-3.4-4.5V4.7a.7.7 0 0 0-1.4 0v.8C6.5 6 5.2 7.7 5.2 10c0 2-.5 3.3-1.4 4.5Z"/><path d="M8 16.5h4"/></svg><span>Site Notifications</span></button>
+      <button data-view="weeklynotifications" id="adminWeeklyNotificationsNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5h12v9H9l-4 3v-12Z"/><path d="M7 8h6M7 11h4"/></svg><span>Weekly Notifications</span></button>
       <button data-view="settings"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round"><line x1="2" y1="5" x2="18" y2="5"/><circle cx="13" cy="5" r="2"/><line x1="2" y1="10" x2="18" y2="10"/><circle cx="7" cy="10" r="2"/><line x1="2" y1="15" x2="18" y2="15"/><circle cx="14" cy="15" r="2"/></svg><span>Settings</span></button>
       <button data-view="account"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="6.5" r="3.2"/><path d="M4 17c.8-3.2 2.8-4.8 6-4.8s5.2 1.6 6 4.8"/></svg><span>Account</span></button>
     </div>
@@ -681,6 +682,7 @@ const CONFIG = {
   questionNotesKey: 'med64_question_notes_v1',
   questionFoldersKey: 'med64_question_folders_v1',
   notificationReadKey: 'med64_notification_read_at_v1',
+  weeklyNotificationReadKey: 'med64_weekly_notification_read_at_v1',
   siteNotificationReadKey: 'med64_site_notification_read_at_v1',
   focusStateKey: 'med64_focus_timer_v1',
 };
@@ -733,6 +735,7 @@ let remoteHistoryLoaded = false;
 let moduleVisibility = {};
 let allQuestionBank = [];
 let activeNotifications = [];
+let weeklyNotifications = [];
 let notificationPanelOpen=false;
 let focusTimerId=null;
 let focusTimerState=loadJSON(CONFIG.focusStateKey,{remaining:1500,running:false,label:'Focused study'});
@@ -1478,7 +1481,7 @@ function render(){
   updateSidebarFoot();
   updateTopbarControls();
   const view=location.hash.replace('#','')||'dashboard';
-  const allowed=['dashboard','exam','progress','tools','library','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics','reports','replies','notifications'];
+  const allowed=['dashboard','exam','progress','tools','library','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics','reports','replies','notifications','weeklynotifications'];
   const v=allowed.includes(view)?view:'dashboard';
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   const adminNav=document.getElementById('adminNav'); if(adminNav) adminNav.style.display=isAdmin?'flex':'none';
@@ -1488,7 +1491,8 @@ function render(){
   const adminReportsNav=document.getElementById('adminReportsNav'); if(adminReportsNav) adminReportsNav.style.display=isAdmin?'flex':'none';
   const adminRepliesNav=document.getElementById('adminRepliesNav'); if(adminRepliesNav) adminRepliesNav.style.display=isAdmin?'flex':'none';
   const adminNotificationsNav=document.getElementById('adminNotificationsNav'); if(adminNotificationsNav) adminNotificationsNav.style.display=isAdmin?'flex':'none';
-  if((['bank','import','aiquestions','analytics','reports','replies','notifications'].includes(v)) && !isAdmin){ location.hash='dashboard'; return; }
+  const adminWeeklyNotificationsNav=document.getElementById('adminWeeklyNotificationsNav'); if(adminWeeklyNotificationsNav) adminWeeklyNotificationsNav.style.display=isAdmin?'flex':'none';
+  if((['bank','import','aiquestions','analytics','reports','replies','notifications','weeklynotifications'].includes(v)) && !isAdmin){ location.hash='dashboard'; return; }
   if(v==='dashboard') renderDashboard();
   else if(v==='exam') { if(exam && !exam.submitted) renderQuiz(); else renderExamSetup(); }
   else if(v==='progress') renderProgress();
@@ -1505,6 +1509,7 @@ function render(){
   else if(v==='reports') renderQuestionReports();
   else if(v==='replies') renderSupportReplies();
   else if(v==='notifications') renderAdminNotificationsPage();
+  else if(v==='weeklynotifications') renderAdminWeeklyNotificationsPage();
   else if(v==='settings') renderSettings();
   else if(v==='account') renderAccount();
   else renderResults();
@@ -3626,29 +3631,29 @@ function printAdminQuestionBankPDF(){
   }
 }
 
-function notificationReadAt(){return Number(localStorage.getItem(CONFIG.notificationReadKey)||0);}
+function weeklyNotificationReadAt(){return Number(localStorage.getItem(CONFIG.weeklyNotificationReadKey)||0);}
+function notificationReadAt(){return weeklyNotificationReadAt();}
 function siteNotificationReadAt(){return Number(localStorage.getItem(CONFIG.siteNotificationReadKey)||0);}
-function notificationUnreadCount(list=activeNotifications){const seen=notificationReadAt();return list.filter(n=>(Date.parse(n.created_at||'')||0)>seen).length;}
+function notificationUnreadCount(list=weeklyNotifications){const seen=weeklyNotificationReadAt();return list.filter(n=>(Date.parse(n.created_at||'')||0)>seen).length;}
 function siteNotificationUnreadCount(list=activeNotifications){const seen=siteNotificationReadAt();return list.filter(n=>(Date.parse(n.created_at||'')||0)>seen).length;}
-function setNotificationAppBadge(count){try{if(navigator.setAppBadge){if(count>0)navigator.setAppBadge(count);else if(navigator.clearAppBadge)navigator.clearAppBadge();}}catch(e){}}
-function markNotificationsRead(){const latest=(activeNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.notificationReadKey,String(latest));setNotificationAppBadge(0);}
+function markWeeklyNotificationsRead(){const latest=(weeklyNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.weeklyNotificationReadKey,String(latest));setNotificationAppBadge(0);}
+function markNotificationsRead(){markWeeklyNotificationsRead();}
 function markSiteNotificationsRead(){const latest=(activeNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.siteNotificationReadKey,String(latest));}
-function weeklyNotificationRows(){const cutoff=Date.now()-7*86400000;return (activeNotifications||[]).filter(n=>(Date.parse(n.created_at||'')||0)>=cutoff).slice(0,12);}
+function weeklyNotificationRows(){const cutoff=Date.now()-7*86400000;return (weeklyNotifications||[]).filter(n=>(Date.parse(n.created_at||'')||0)>=cutoff).slice(0,12);}
 function siteNotificationRows(){return (activeNotifications||[]).slice(0,3);}
 function notificationBellSVG(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5h12c-1-1.2-1.5-2.8-1.5-5.1 0-3.1-1.7-5.4-4.5-5.9V4.4a.7.7 0 0 0-1.4 0v1.1C7.7 6 6 8.3 6 11.4c0 2.3-.5 3.9-1.5 5.1Z"/><path d="M9.3 19h5.4"/></svg>';}
 function weeklyNotificationsPopoverHTML(){
-  const rows=weeklyNotificationRows(), unread=notificationUnreadCount(rows);
-  const list=rows.length?rows.map(n=>{const isNew=(Date.parse(n.created_at||'')||0)>notificationReadAt();return `<article class="weekly-notification-item ${isNew?'is-new':''}"><div class="weekly-notification-meta"><span>${esc(n.created_at?new Date(n.created_at).toLocaleString():'')}</span>${isNew?'<span class="weekly-notification-new">NEW</span>':''}</div><strong style="display:block;margin-top:5px">${esc(n.title||'Announcement')}</strong><div class="weekly-notification-message">${esc(n.message||'')}</div></article>`;}).join(''):'<div class="empty">No notifications from the last 7 days.</div>';
-  return `<div class="global-notification-popover" id="globalNotificationPopover" role="dialog" aria-label="Weekly notifications"><div class="notification-popover-head"><strong>Weekly notifications</strong><span class="mini">${unread?`${unread} unread`:rows.length?`${rows.length} this week`:'No new announcements'}</span></div><div class="weekly-notifications-list">${list}</div><div class="actions" style="justify-content:flex-end;margin-top:8px"><button class="btn" onclick="markWeeklyNotificationsRead();event.stopPropagation()">Mark all as read</button></div></div>`;
+  const rows=weeklyNotificationRows(),unread=notificationUnreadCount(rows);
+  const list=rows.length?rows.map(n=>{const isNew=(Date.parse(n.created_at||'')||0)>weeklyNotificationReadAt();return `<article class="weekly-notification-item ${isNew?'is-new':''}"><div class="weekly-notification-meta"><span>${esc(n.created_at?new Date(n.created_at).toLocaleString():'')}</span>${isNew?'<span class="weekly-notification-new">NEW</span>':''}</div><strong style="display:block;margin-top:5px">${esc(n.title||'Announcement')}</strong><div class="weekly-notification-message">${esc(n.message||'')}</div></article>`;}).join(''):'<div class="empty">No weekly notifications from the last 7 days.</div>';
+  return `<div class="global-notification-popover" id="globalNotificationPopover" role="dialog" aria-label="Weekly notifications"><div class="notification-popover-head"><strong>Weekly notifications</strong><span class="mini">${unread?`${unread} unread`:rows.length?`${rows.length} this week`:'No new announcements'}</span></div><div class="weekly-notifications-list">${list}</div><div class="actions" style="justify-content:flex-end;margin-top:8px"><button class="btn" onclick="markWeeklyNotificationsRead();event.stopPropagation();updateTopbarControls()">Mark all as read</button></div></div>`;
 }
 function siteNotificationsHTML(){
-  const rows=siteNotificationRows(), unread=siteNotificationUnreadCount(rows);
+  const rows=siteNotificationRows(),unread=siteNotificationUnreadCount(rows);
   const list=rows.length?rows.map(n=>{const isNew=(Date.parse(n.created_at||'')||0)>siteNotificationReadAt();return `<article class="site-notification-item ${isNew?'is-new':''}"><div class="site-notification-meta"><span>${esc(n.created_at?new Date(n.created_at).toLocaleString():'')}</span>${isNew?'<span class="site-notification-new">NEW</span>':''}</div><strong>${esc(n.title||'Announcement')}</strong><div class="site-notification-message">${esc(n.message||'')}</div></article>`;}).join(''):'<div class="empty">No site notifications.</div>';
   return `<section class="card site-notifications-card" aria-label="Site notifications"><div class="site-notifications-head"><div><div class="site-notifications-title"><span class="site-notifications-icon">${notificationBellSVG()}</span><strong>Site notifications</strong>${unread?`<span class="site-notification-count">${unread} new</span>`:''}</div><div class="mini" style="margin-top:4px">Announcements from the MedEx team.</div></div><button class="btn" onclick="markSiteNotificationsRead();renderDashboard()">${unread?'Mark as read':'Refresh'}</button></div><div class="site-notifications-list">${list}</div></section>`;
 }
-function toggleWeeklyNotifications(){notificationPanelOpen=!notificationPanelOpen;if(notificationPanelOpen)markNotificationsRead();updateTopbarControls();}
-function markWeeklyNotificationsRead(){markNotificationsRead();notificationPanelOpen=true;updateTopbarControls();}
-async function refreshWeeklyNotifications(){await loadActiveNotifications();setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));updateTopbarControls();if(location.hash.replace('#','')==='dashboard')renderDashboard();}
+function toggleWeeklyNotifications(){notificationPanelOpen=!notificationPanelOpen;if(notificationPanelOpen){markWeeklyNotificationsRead();}updateTopbarControls();}
+async function refreshWeeklyNotifications(){await loadWeeklyNotifications();setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));updateTopbarControls();if(location.hash.replace('#','')==='dashboard')renderDashboard();}
 async function loadActiveNotifications(){
   activeNotifications=[];
   if(!SUPABASE_ENABLED)return;
@@ -3656,7 +3661,17 @@ async function loadActiveNotifications(){
     const {data,error}=await supabaseClient.from('site_notifications').select('id,title,message,created_at,active').eq('active',true).order('created_at',{ascending:false}).limit(20);
     if(error)throw error;
     activeNotifications=data||[];
-  }catch(e){ console.warn('Notifications unavailable:',e.message); }
+  }catch(e){ console.warn('Site notifications unavailable:',e.message); }
+}
+async function loadWeeklyNotifications(){
+  weeklyNotifications=[];
+  if(!SUPABASE_ENABLED)return;
+  try{
+    const cutoff=new Date(Date.now()-7*86400000).toISOString();
+    const {data,error}=await supabaseClient.from('weekly_notifications').select('id,title,message,created_at,active,expires_at').eq('active',true).gte('created_at',cutoff).order('created_at',{ascending:false}).limit(20);
+    if(error)throw error;
+    weeklyNotifications=(data||[]).filter(n=>!n.expires_at || Date.parse(n.expires_at)>Date.now());
+  }catch(e){ console.warn('Weekly notifications unavailable:',e.message); }
 }
 function globalFocusTimerHTML(){
   const remain=Math.max(0,Number(focusTimerState.remaining||1500));
@@ -3668,7 +3683,7 @@ function updateTopbarControls(){
   const themeHost=document.getElementById('globalThemeToggle');
   const focusHost=document.getElementById('globalFocusTimer');
   const unread=notificationUnreadCount(weeklyNotificationRows());
-  if(weeklyHost){weeklyHost.innerHTML=`<div class="topbar-notification-wrap"><button class="icon-btn topbar-notification-btn" onclick="toggleWeeklyNotifications()" title="Weekly notifications" aria-label="Weekly notifications">${notificationBellSVG()}${unread?'<span class="notification-unread-dot" aria-label="Unread notification"></span>':''}</button>${notificationPanelOpen?weeklyNotificationsPopoverHTML():''}</div>`;}
+  if(weeklyHost){weeklyHost.innerHTML=`<div class="topbar-notification-wrap"><button class="icon-btn topbar-notification-btn" onclick="toggleWeeklyNotifications()" title="Weekly notifications" aria-label="Weekly notifications">${notificationBellSVG()}${unread?'<span class="notification-unread-dot" aria-label="Unread weekly notification"></span>':''}</button>${notificationPanelOpen?weeklyNotificationsPopoverHTML():''}</div>`;}
   if(themeHost)themeHost.innerHTML=dashboardThemeToggleHTML();
   if(focusHost)focusHost.innerHTML=globalFocusTimerHTML();
 }
@@ -3677,8 +3692,8 @@ async function loadAdminNotifications(){
   if(!(await requireAdmin()))return;
   if(!SUPABASE_ENABLED){el.innerHTML='<div class="notice error">Supabase is required for shared notifications.</div>';return;}
   const {data,error}=await supabaseClient.from('site_notifications').select('id,title,message,active,created_at').order('created_at',{ascending:false}).limit(30);
-  if(error){el.innerHTML='<div class="notice error">Could not load notifications: '+esc(error.message)+'</div>';return;}
-  el.innerHTML=(data||[]).length?(data||[]).map(n=>`<div class="category-card"><div class="category-head"><div><b>${esc(n.title||'Announcement')}</b><div class="mini">${n.created_at?new Date(n.created_at).toLocaleString():''} · ${n.active?'Visible to all users':'Hidden'}</div></div><button class="btn ${n.active?'danger':'primary'}" onclick="setNotificationActive('${attrJs(n.id)}',${!n.active})">${n.active?'Hide':'Show to all'}</button></div><div style="margin-top:7px;white-space:pre-wrap">${esc(n.message||'')}</div></div>`).join(''):'<div class="empty">No notifications yet.</div>';
+  if(error){el.innerHTML='<div class="notice error">Could not load site notifications: '+esc(error.message)+'</div>';return;}
+  el.innerHTML=(data||[]).length?(data||[]).map(n=>`<div class="category-card"><div class="category-head"><div><b>${esc(n.title||'Announcement')}</b><div class="mini">${n.created_at?new Date(n.created_at).toLocaleString():''} · ${n.active?'Visible to all users':'Hidden'}</div></div><button class="btn ${n.active?'danger':'primary'}" onclick="setNotificationActive('${attrJs(n.id)}',${!n.active})">${n.active?'Hide':'Show to all'}</button></div><div style="margin-top:7px;white-space:pre-wrap">${esc(n.message||'')}</div></div>`).join(''):'<div class="empty">No site notifications yet.</div>';
 }
 async function publishDashboardNotification(){
   if(!(await requireAdmin()))return;
@@ -3686,26 +3701,66 @@ async function publishDashboardNotification(){
   const message=(document.getElementById('adminNoticeMessage')?.value||'').trim();
   if(!title||!message){toast('Enter a notification title and message.','error');return;}
   const {error}=await supabaseClient.from('site_notifications').insert({title,message,active:true,created_by:currentUser.id});
-  if(error){toast('Could not publish notification: '+error.message,'error');return;}
+  if(error){toast('Could not publish site notification: '+error.message,'error');return;}
   document.getElementById('adminNoticeTitle').value='';
   document.getElementById('adminNoticeMessage').value='';
   await loadActiveNotifications();
   loadAdminNotifications();
-  toast('Notification sent to all users and visitors.','ok');
+  toast('Site notification sent to all users and visitors.','ok');
 }
 async function setNotificationActive(id,active){
   if(!(await requireAdmin()))return;
   const {error}=await supabaseClient.from('site_notifications').update({active}).eq('id',id);
-  if(error){toast('Could not update notification: '+error.message,'error');return;}
+  if(error){toast('Could not update site notification: '+error.message,'error');return;}
   await loadActiveNotifications();
   loadAdminNotifications();
   if(location.hash.replace('#','')==='dashboard')renderDashboard();
-  toast(active?'Notification shown to all users.':'Notification hidden from users.','ok');
+  toast(active?'Site notification shown to all users.':'Site notification hidden from users.','ok');
 }
 function renderAdminNotificationsPage(){
   if(!isAdmin){go('dashboard');return;}
-  const body=`<div class="card"><div class="category-head"><div><strong>Send a notification to everyone</strong><div class="mini">Visible on every user's Dashboard for 7 days. Visitors also see it.</div></div><span class="pill">All users</span></div><div class="grid two" style="margin-top:14px"><div class="field"><label>Notification title</label><input id="adminNoticeTitle" placeholder="e.g. New question bank update"></div><div class="field"><label>Message</label><textarea id="adminNoticeMessage" placeholder="Write the announcement…" style="min-height:110px;font-family:var(--font-sans);font-size:14px"></textarea></div></div><div class="actions" style="margin-top:14px"><button class="btn primary" onclick="publishDashboardNotification()">Send to all users</button><button class="btn" onclick="loadAdminNotifications()">Refresh</button></div></div><div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Notification history</strong><div class="mini">Hide a notification when you no longer want it shown.</div></div></div><div id="adminNotifications" style="margin-top:12px"></div></div>`;
-  document.getElementById('app').innerHTML=layout('Admin · Notifications','Send weekly announcements to all MedEx users and visitors.',body);loadAdminNotifications();
+  const body=`<div class="card"><div class="category-head"><div><strong>Site notifications</strong><div class="mini">Dashboard announcements managed independently from Weekly Notifications.</div></div><span class="pill">Site</span></div><div class="grid two" style="margin-top:14px"><div class="field"><label>Notification title</label><input id="adminNoticeTitle" placeholder="e.g. New question bank update"></div><div class="field"><label>Message</label><textarea id="adminNoticeMessage" placeholder="Write the site announcement…" style="min-height:110px;font-family:var(--font-sans);font-size:14px"></textarea></div></div><div class="actions" style="margin-top:14px"><button class="btn primary" onclick="publishDashboardNotification()">Send site notification</button><button class="btn" onclick="loadAdminNotifications()">Refresh</button></div></div><div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Site notification history</strong><div class="mini">Hide a site notification when you no longer want it shown.</div></div></div><div id="adminNotifications" style="margin-top:12px"></div></div>`;
+  document.getElementById('app').innerHTML=layout('Admin · Site Notifications','Manage the Dashboard site-notification feed independently.',body);loadAdminNotifications();
+}
+async function loadAdminWeeklyNotifications(){
+  const el=document.getElementById('adminWeeklyNotifications');if(!el)return;
+  if(!(await requireAdmin()))return;
+  if(!SUPABASE_ENABLED){el.innerHTML='<div class="notice error">Supabase is required for Weekly Notifications.</div>';return;}
+  const {data,error}=await supabaseClient.from('weekly_notifications').select('id,title,message,active,created_at,expires_at').order('created_at',{ascending:false}).limit(40);
+  if(error){el.innerHTML='<div class="notice error">Could not load Weekly Notifications: '+esc(error.message)+'</div>';return;}
+  el.innerHTML=(data||[]).length?(data||[]).map(n=>`<div class="category-card"><div class="category-head"><div><b>${esc(n.title||'Weekly notification')}</b><div class="mini">${n.created_at?new Date(n.created_at).toLocaleString():''} · ${n.active?'Visible':'Hidden'}${n.expires_at?' · expires '+new Date(n.expires_at).toLocaleDateString():''}</div></div><button class="btn ${n.active?'danger':'primary'}" onclick="setWeeklyNotificationActive('${attrJs(n.id)}',${!n.active})">${n.active?'Hide':'Show'}</button></div><div style="margin-top:7px;white-space:pre-wrap">${esc(n.message||'')}</div></div>`).join(''):'<div class="empty">No Weekly Notifications yet.</div>';
+}
+async function publishWeeklyNotification(){
+  if(!(await requireAdmin()))return;
+  if(!SUPABASE_ENABLED){toast('Supabase is required for Weekly Notifications.','error');return;}
+  const title=(document.getElementById('adminWeeklyNoticeTitle')?.value||'').trim();
+  const message=(document.getElementById('adminWeeklyNoticeMessage')?.value||'').trim();
+  if(!title||!message){toast('Enter a Weekly Notification title and message.','error');return;}
+  const expiresAt=new Date(Date.now()+7*86400000).toISOString();
+  const {error}=await supabaseClient.from('weekly_notifications').insert({title,message,active:true,created_by:currentUser.id,expires_at:expiresAt});
+  if(error){toast('Could not publish Weekly Notification: '+error.message,'error');return;}
+  document.getElementById('adminWeeklyNoticeTitle').value='';
+  document.getElementById('adminWeeklyNoticeMessage').value='';
+  await loadWeeklyNotifications();
+  setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));
+  updateTopbarControls();
+  loadAdminWeeklyNotifications();
+  toast('Weekly Notification published independently.','ok');
+}
+async function setWeeklyNotificationActive(id,active){
+  if(!(await requireAdmin()))return;
+  const {error}=await supabaseClient.from('weekly_notifications').update({active}).eq('id',id);
+  if(error){toast('Could not update Weekly Notification: '+error.message,'error');return;}
+  await loadWeeklyNotifications();
+  loadAdminWeeklyNotifications();
+  setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));
+  updateTopbarControls();
+  toast(active?'Weekly Notification shown to users.':'Weekly Notification hidden from users.','ok');
+}
+function renderAdminWeeklyNotificationsPage(){
+  if(!isAdmin){go('dashboard');return;}
+  const body=`<div class="card"><div class="category-head"><div><strong>Publish a Weekly Notification</strong><div class="mini">This is a completely separate feed from Site Notifications. It appears only in the global weekly-notification bell and automatically expires after 7 days.</div></div><span class="pill">Weekly</span></div><div class="grid two" style="margin-top:14px"><div class="field"><label>Weekly notification title</label><input id="adminWeeklyNoticeTitle" placeholder="e.g. New lecture material available"></div><div class="field"><label>Message</label><textarea id="adminWeeklyNoticeMessage" placeholder="Write the weekly notification…" style="min-height:110px;font-family:var(--font-sans);font-size:14px"></textarea></div></div><div class="actions" style="margin-top:14px"><button class="btn primary" onclick="publishWeeklyNotification()">Publish weekly notification</button><button class="btn" onclick="loadAdminWeeklyNotifications()">Refresh</button></div></div><div class="card" style="margin-top:16px"><div class="category-head"><div><strong>Weekly notification history</strong><div class="mini">Each published item is stored independently in Supabase and can be hidden without affecting Site Notifications.</div></div></div><div id="adminWeeklyNotifications" style="margin-top:12px"></div></div>`;
+  document.getElementById('app').innerHTML=layout('Admin · Weekly Notifications','Publish and manage the independent weekly-notification feed.',body);loadAdminWeeklyNotifications();
 }
 
 function renderModuleVisibility(){
@@ -4808,7 +4863,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.39',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.40',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
@@ -4830,6 +4885,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   refreshAuthUser().then(async()=>{
     await loadModuleVisibility();
     await loadActiveNotifications();
+    await loadWeeklyNotifications();
     await loadQuestions();
     const restored=restoreActiveExam();
     if(currentUser) await afterAuthChanged();
