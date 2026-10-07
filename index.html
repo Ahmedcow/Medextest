@@ -2093,10 +2093,11 @@ function initExamDrawing(){
   const viewport=document.querySelector('.exam-annotation-viewport');
   const surface=document.querySelector('.exam-annotation-surface');
   if(!canvas||!exam||!stage||!viewport||!surface)return;
+
   const data=annotationData(exam.list[exam.index]);
   if(note){
     note.value=data?.note||'';
-    note.oninput=()=>{ if(data){data.note=note.value; saveActiveExam();} };
+    note.oninput=()=>{if(data){data.note=note.value;saveActiveExam();}};
   }
   drawExamAnnotations();
   if(examDrawingResizeObserver)examDrawingResizeObserver.disconnect();
@@ -2105,43 +2106,47 @@ function initExamDrawing(){
     examDrawingResizeObserver.observe(stage);
   }
 
-  // Stable rebuild: zoom belongs ONLY to the drawing/question box.
-  // One finger/touch is exclusively a drawing gesture when drawing is enabled.
-  // Two touches are exclusively a pinch + pan gesture. No page-level transform.
-  const pointers=new Map();
-  let pinchActive=false;
-  let pinchStartDistance=0;
-  let pinchStartZoom=1;
-  let pinchStartMid={x:0,y:0};
-  let pinchStartContent={x:0,y:0};
+  /*
+    Drawing-box interaction rebuilt from zero.
+    - Touch: 1 finger = draw, 2 fingers = pinch + pan.
+    - Mouse / stylus: normal pointer drawing.
+    - No transform is ever applied to the exam page itself.
+    - Strokes are stored as normalized coordinates, so zoom never moves them.
+  */
+  const oldZoom=Number(surface.dataset.zoom||1);
   let baseSize=null;
-  const zoomValue=()=>Number(surface.dataset.zoom||1);
+  let touchMode='none';
+  let touchStartDistance=0;
+  let touchStartZoom=1;
+  let touchStartMid={x:0,y:0};
+  let touchStartContent={x:0,y:0};
+  let touchPoints=new Map();
 
+  const zoomValue=()=>Number(surface.dataset.zoom||1);
   const measureBase=()=>{
-    const w=stage.offsetWidth||stage.getBoundingClientRect().width;
-    const h=stage.offsetHeight||stage.getBoundingClientRect().height;
-    if(w>0&&h>0)baseSize={w,h};
+    const r=stage.getBoundingClientRect();
+    if(r.width>0&&r.height>0)baseSize={w:r.width/Math.max(1,zoomValue()),h:r.height/Math.max(1,zoomValue())};
     return baseSize;
   };
+  const getBaseSize=()=>baseSize||measureBase()||{w:stage.offsetWidth||1,h:stage.offsetHeight||1};
 
-  const applyZoom=(z,focusX,focusY,focusContent)=>{
+  const applyZoom=(z,focusClientX,focusClientY,contentPoint)=>{
     const value=Math.max(1,Math.min(3,Number(z)||1));
-    const size=baseSize||measureBase();
-    if(!size)return;
-    const rect=viewport.getBoundingClientRect();
+    const size=getBaseSize();
+    const vr=viewport.getBoundingClientRect();
     const old=zoomValue();
-    const fx=Number.isFinite(focusX)?focusX-rect.left:rect.width/2;
-    const fy=Number.isFinite(focusY)?focusY-rect.top:rect.height/2;
-    const cx=Number.isFinite(focusContent?.x)?focusContent.x:(viewport.scrollLeft+fx)/old;
-    const cy=Number.isFinite(focusContent?.y)?focusContent.y:(viewport.scrollTop+fy)/old;
+    const fx=Number.isFinite(focusClientX)?focusClientX-vr.left:vr.width/2;
+    const fy=Number.isFinite(focusClientY)?focusClientY-vr.top:vr.height/2;
+    const cx=Number.isFinite(contentPoint?.x)?contentPoint.x:(viewport.scrollLeft+fx)/old;
+    const cy=Number.isFinite(contentPoint?.y)?contentPoint.y:(viewport.scrollTop+fy)/old;
 
     surface.dataset.zoom=String(value);
     surface.style.width=size.w+'px';
     surface.style.height=size.h+'px';
+    surface.style.transformOrigin='0 0';
     surface.style.transform=`scale(${value})`;
     surface.style.marginRight=Math.max(0,size.w*(value-1))+'px';
     surface.style.marginBottom=Math.max(0,size.h*(value-1))+'px';
-    surface.classList.toggle('is-zoomed',value!==1);
 
     if(value===1){
       viewport.scrollLeft=0;
@@ -2157,109 +2162,158 @@ function initExamDrawing(){
   window._resetExamDrawingZoom=()=>applyZoom(1);
 
   const distance=()=>{
-    const pts=[...pointers.values()];
-    if(pts.length<2)return 0;
-    return Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
+    const a=[...touchPoints.values()];
+    if(a.length<2)return 0;
+    return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);
   };
   const midpoint=()=>{
-    const pts=[...pointers.values()];
-    return {x:(pts[0].x+pts[1].x)/2,y:(pts[0].y+pts[1].y)/2};
+    const a=[...touchPoints.values()];
+    return {x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2};
   };
-  const cancelCanvasStroke=()=>{
+  const cancelStroke=()=>{
     if(canvas._activeStroke){
       data.strokes.pop();
       canvas._activeStroke=null;
       drawExamAnnotations();
     }
   };
-
-  // All gesture recognition is on the viewport. A second finger immediately
-  // cancels the active stroke and takes exclusive control of the gesture.
-  const onDown=(e)=>{
-    if(e.pointerType!=='touch')return;
-    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(pointers.size===2){
-      pinchActive=true;
-      pinchStartDistance=distance();
-      pinchStartZoom=zoomValue();
-      pinchStartMid=midpoint();
-      const r=viewport.getBoundingClientRect();
-      pinchStartContent={
-        x:(viewport.scrollLeft+(pinchStartMid.x-r.left))/pinchStartZoom,
-        y:(viewport.scrollTop+(pinchStartMid.y-r.top))/pinchStartZoom
-      };
-      cancelCanvasStroke();
-      canvas._pinchActive=true;
-      e.preventDefault();
-    }
-  };
-  const onMove=(e)=>{
-    if(e.pointerType!=='touch'||!pointers.has(e.pointerId))return;
-    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
-    if(pointers.size>=2&&pinchActive&&pinchStartDistance>0){
-      const d=distance();
-      const mid=midpoint();
-      const next=pinchStartZoom*(d/pinchStartDistance);
-      applyZoom(next,mid.x,mid.y,pinchStartContent);
-      e.preventDefault();
-    }
-  };
-  const onUp=(e)=>{
-    if(e.pointerType!=='touch')return;
-    pointers.delete(e.pointerId);
-    if(pointers.size<2){
-      pinchActive=false;
-      pinchStartDistance=0;
-      canvas._pinchActive=false;
-    }
-  };
-  viewport.addEventListener('pointerdown',onDown,{capture:true,passive:false});
-  viewport.addEventListener('pointermove',onMove,{capture:true,passive:false});
-  viewport.addEventListener('pointerup',onUp,{capture:true,passive:true});
-  viewport.addEventListener('pointercancel',onUp,{capture:true,passive:true});
-
-  canvas.onpointerdown=(e)=>{
-    if(!examDrawingEnabled||canvas._pinchActive)return;
-    if(e.pointerType==='touch'&&pointers.size!==1)return;
-    e.preventDefault();
-    canvas.setPointerCapture?.(e.pointerId);
-    const rect=canvas.getBoundingClientRect();
-    const point=[
-      Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),
-      Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))
+  const pointFromClient=(clientX,clientY)=>{
+    const r=canvas.getBoundingClientRect();
+    return [
+      Math.max(0,Math.min(1,(clientX-r.left)/Math.max(1,r.width))),
+      Math.max(0,Math.min(1,(clientY-r.top)/Math.max(1,r.height)))
     ];
+  };
+  const beginStroke=(clientX,clientY)=>{
+    if(!examDrawingEnabled||touchMode==='pinch')return;
+    const pt=pointFromClient(clientX,clientY);
     data.strokes.push({
       tool:examDrawingTool,
       color:examDrawingTool==='highlighter'?'#f2c94c':examDrawingColor,
       size:examDrawingTool==='eraser'?Math.max(12,examDrawingSize*5):examDrawingSize,
-      points:[point]
+      points:[pt]
     });
     canvas._activeStroke=data.strokes[data.strokes.length-1];
     drawExamAnnotations();
   };
-  canvas.onpointermove=(e)=>{
-    if(canvas._pinchActive)return;
+  const extendStroke=(clientX,clientY)=>{
     const stroke=canvas._activeStroke;
-    if(!stroke||!examDrawingEnabled)return;
-    e.preventDefault();
-    const rect=canvas.getBoundingClientRect();
-    stroke.points.push([
-      Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)),
-      Math.max(0,Math.min(1,(e.clientY-rect.top)/rect.height))
-    ]);
+    if(!stroke||!examDrawingEnabled||touchMode==='pinch')return;
+    stroke.points.push(pointFromClient(clientX,clientY));
     drawExamAnnotations();
   };
-  const finish=(e)=>{
-    if(canvas._pinchActive){canvas._activeStroke=null;return;}
-    if(canvas._activeStroke){canvas._activeStroke=null;saveActiveExam();}
+  const finishStroke=(save=true)=>{
+    if(canvas._activeStroke){
+      canvas._activeStroke=null;
+      if(save)saveActiveExam();
+    }
   };
-  canvas.onpointerup=finish;
-  canvas.onpointercancel=finish;
-  canvas.onpointerleave=(e)=>{if(e.pointerType!=='touch'&&e.buttons===0)finish(e);};
+
+  /* Native touch events are deliberately used for touch gestures. This avoids
+     Safari's pointer-capture ordering problems and keeps the page outside the
+     drawing box completely untouched. */
+  const onTouchStart=e=>{
+    if(!examDrawingEnabled)return;
+    const touches=[...e.touches];
+    if(touches.length===1){
+      touchMode='draw';
+      const t=touches[0];
+      beginStroke(t.clientX,t.clientY);
+      e.preventDefault();
+      return;
+    }
+    if(touches.length>=2){
+      touchPoints=new Map(touches.slice(0,2).map(t=>[t.identifier,{x:t.clientX,y:t.clientY}]));
+      touchMode='pinch';
+      cancelStroke();
+      const mid=midpoint();
+      touchStartDistance=Math.max(1,distance());
+      touchStartZoom=zoomValue();
+      touchStartMid=mid;
+      const r=viewport.getBoundingClientRect();
+      touchStartContent={
+        x:(viewport.scrollLeft+(mid.x-r.left))/touchStartZoom,
+        y:(viewport.scrollTop+(mid.y-r.top))/touchStartZoom
+      };
+      e.preventDefault();
+    }
+  };
+  const onTouchMove=e=>{
+    const touches=[...e.touches];
+    if(touches.length>=2){
+      touchPoints=new Map(touches.slice(0,2).map(t=>[t.identifier,{x:t.clientX,y:t.clientY}]));
+      if(touchMode!=='pinch'){
+        touchMode='pinch';
+        cancelStroke();
+        touchStartDistance=Math.max(1,distance());
+        touchStartZoom=zoomValue();
+        const mid=midpoint();
+        touchStartMid=mid;
+        const r=viewport.getBoundingClientRect();
+        touchStartContent={
+          x:(viewport.scrollLeft+(mid.x-r.left))/touchStartZoom,
+          y:(viewport.scrollTop+(mid.y-r.top))/touchStartZoom
+        };
+      }
+      const d=Math.max(1,distance());
+      const mid=midpoint();
+      applyZoom(touchStartZoom*(d/touchStartDistance),mid.x,mid.y,touchStartContent);
+      e.preventDefault();
+      return;
+    }
+    if(touches.length===1&&touchMode==='draw'){
+      const t=touches[0];
+      extendStroke(t.clientX,t.clientY);
+      e.preventDefault();
+    }
+  };
+  const onTouchEnd=e=>{
+    if(e.touches.length>=2){
+      touchPoints=new Map([...e.touches].slice(0,2).map(t=>[t.identifier,{x:t.clientX,y:t.clientY}]));
+      return;
+    }
+    if(touchMode==='draw')finishStroke(true);
+    touchPoints.clear();
+    touchMode='none';
+    touchStartDistance=0;
+  };
+  const onTouchCancel=()=>{
+    cancelStroke();
+    touchPoints.clear();
+    touchMode='none';
+    touchStartDistance=0;
+  };
+
+  viewport.addEventListener('touchstart',onTouchStart,{passive:false});
+  viewport.addEventListener('touchmove',onTouchMove,{passive:false});
+  viewport.addEventListener('touchend',onTouchEnd,{passive:false});
+  viewport.addEventListener('touchcancel',onTouchCancel,{passive:false});
+
+  /* Mouse / pen / stylus drawing only. Touch is handled above. */
+  canvas.onpointerdown=e=>{
+    if(e.pointerType==='touch'||!examDrawingEnabled)return;
+    e.preventDefault();
+    canvas.setPointerCapture?.(e.pointerId);
+    beginStroke(e.clientX,e.clientY);
+  };
+  canvas.onpointermove=e=>{
+    if(e.pointerType==='touch')return;
+    if(!canvas._activeStroke)return;
+    e.preventDefault();
+    extendStroke(e.clientX,e.clientY);
+  };
+  const finishPointer=e=>{
+    if(e.pointerType==='touch')return;
+    finishStroke(true);
+  };
+  canvas.onpointerup=finishPointer;
+  canvas.onpointercancel=finishPointer;
+  canvas.onpointerleave=e=>{if(e.pointerType!=='touch'&&e.buttons===0)finishStroke(true);};
 
   requestAnimationFrame(()=>{
+    baseSize=null;
     measureBase();
-    applyZoom(zoomValue());
+    applyZoom(oldZoom);
   });
 }
 
