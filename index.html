@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.45-weekly-bell-final">
+<meta name="medex-build" content="v41.46-weekly-bell-final">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -109,14 +109,13 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;height:var(--topbar-h);padding:0 18px;background:var(--card);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
 .topbar-brand{font-family:var(--font-serif);font-size:17px;font-weight:600}
 .topbar-spacer{flex:1;min-width:0}
-.topbar-actions{display:flex;align-items:center;gap:8px;position:relative;flex:0 0 auto}
-.topbar-notification-wrap{position:relative;width:38px;height:38px;flex:0 0 38px;z-index:120}.topbar-notification-btn{position:relative!important;width:38px!important;height:38px!important;min-width:38px;min-height:38px;padding:0;z-index:121;pointer-events:auto;cursor:pointer}.topbar-notification-btn svg,.topbar-notification-btn .notification-unread-dot{pointer-events:none}.topbar-notification-btn .notification-unread-dot{right:4px;top:4px;width:8px;height:8px;box-shadow:0 0 0 2px var(--card)}.weekly-notifications-list{display:flex;flex-direction:column;gap:8px}
+.topbar-actions{display:flex;align-items:center;gap:10px;position:relative;flex:0 0 auto;isolation:isolate}.topbar-actions>#globalFocusTimer,.topbar-actions>#globalWeeklyNotification,.topbar-actions>#globalThemeToggle{position:relative;flex:0 0 auto}.topbar-notification-wrap{position:relative;width:42px;height:42px;flex:0 0 42px;display:block;z-index:5000;isolation:isolate}.topbar-notification-btn{position:absolute!important;left:2px;top:2px;width:38px!important;height:38px!important;min-width:38px;min-height:38px;padding:0;z-index:5001!important;display:flex!important;align-items:center;justify-content:center;pointer-events:auto!important;cursor:pointer!important;touch-action:manipulation}.topbar-notification-btn svg,.topbar-notification-btn .notification-unread-dot{pointer-events:none}.topbar-notification-btn .notification-unread-dot{right:4px;top:4px;width:8px;height:8px;box-shadow:0 0 0 2px var(--card)}.weekly-notifications-list{display:flex;flex-direction:column;gap:8px}
 .global-notification-popover{position:fixed;right:18px;top:calc(var(--topbar-h) + 9px);width:min(390px,calc(100vw - 24px));max-height:min(70vh,520px);overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:10px;z-index:1000}
 .global-notification-popover .weekly-notification-item{background:var(--bg)}
 .global-notification-popover .weekly-notifications-list{border:0;padding:0}
 .global-notification-popover .notification-popover-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:5px 4px 10px}
 .global-notification-popover .notification-popover-head strong{font-size:13px}
-.global-focus-timer{height:38px;display:flex;align-items:center;gap:7px;padding:0 9px 0 11px;border:1px solid var(--line);background:var(--card);border-radius:10px;color:var(--text);font-family:var(--font-mono);font-size:12px;white-space:nowrap;box-shadow:var(--shadow-sm)}
+.global-focus-timer{height:38px;display:flex;align-items:center;gap:7px;width:max-content;max-width:100%;position:relative;z-index:1;padding:0 9px 0 11px;border:1px solid var(--line);background:var(--card);border-radius:10px;color:var(--text);font-family:var(--font-mono);font-size:12px;white-space:nowrap;box-shadow:var(--shadow-sm)}
 .global-focus-timer .focus-global-label{font-family:var(--font-sans);font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--primary);text-transform:uppercase}
 .global-focus-timer .global-focus-timer-display{font-size:13px;font-weight:800;min-width:52px;text-align:center}
 .global-focus-timer .global-focus-control{width:26px;height:26px;padding:0;border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:7px;display:grid;place-items:center}
@@ -625,7 +624,7 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
     <div class="topbar-actions">
       <div id="globalFocusTimer"></div>
       <div class="topbar-notification-wrap" id="globalWeeklyNotification">
-        <button class="icon-btn topbar-notification-btn" id="weeklyNotificationButton" type="button" title="Weekly notifications" aria-label="Weekly notifications" aria-expanded="false" onclick="event.preventDefault();event.stopImmediatePropagation();toggleWeeklyNotifications()"></button>
+        <button class="icon-btn topbar-notification-btn" id="weeklyNotificationButton" type="button" title="Weekly notifications" aria-label="Weekly notifications" aria-expanded="false"></button>
         <div id="globalNotificationPopoverHost"></div>
       </div>
       <div id="globalThemeToggle"></div>
@@ -3680,14 +3679,24 @@ function closeWeeklyNotifications(){if(!notificationPanelOpen)return;notificatio
 function initWeeklyNotificationClickHandling(){
   if(window.__weeklyNotificationClickHandler)return;
   window.__weeklyNotificationClickHandler=true;
-  document.addEventListener('click',function(e){
-    const target=e.target instanceof Element?e.target:null;
-    if(target?.closest?.('#globalNotificationPopover'))return;
-    if(target?.closest?.('#weeklyNotificationButton'))return;
-    if(notificationPanelOpen)closeWeeklyNotifications();
-  });
+  const bind=()=>{
+    const btn=document.getElementById('weeklyNotificationButton');
+    if(!btn || btn.__weeklyBound)return;
+    btn.__weeklyBound=true;
+    btn.addEventListener('click',function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      toggleWeeklyNotifications();
+    });
+    btn.addEventListener('keydown',function(e){
+      if(e.key==='Enter' || e.key===' '){e.preventDefault();e.stopPropagation();toggleWeeklyNotifications();}
+    });
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});
+  else bind();
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeWeeklyNotifications();});
 }
+
 async function refreshWeeklyNotifications(){await loadWeeklyNotifications();setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));updateTopbarControls();if(location.hash.replace('#','')==='dashboard')renderDashboard();}
 async function loadActiveNotifications(){
   activeNotifications=[];
@@ -4903,7 +4912,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.45',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.46',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
