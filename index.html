@@ -360,9 +360,9 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .exam-zoom-reset{font-size:11px!important;min-width:38px!important}
 /* v41.28: magnify the whole exam page without CSS zoom/reflow. The page keeps its
    original layout dimensions; only the rendered exam surface is scaled. */
-.exam-page-zoom-viewport{position:relative;width:100%;overflow:visible}
-.exam-page-zoom{transform:scale(1);transform-origin:top left;will-change:transform}
-.exam-page-zoom.is-zoomed{transition:transform .08s linear}
+.exam-page-zoom-viewport{position:relative;width:100%;overflow:visible;min-height:0}
+.exam-page-zoom{transform:translate3d(0,0,0) scale(1);transform-origin:0 0;will-change:transform}
+.exam-page-zoom.is-zoomed{transition:none}
 .exam-note-editor-backdrop{position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(5,9,12,.58);backdrop-filter:blur(6px)}
 .exam-note-editor{width:min(560px,calc(100vw - 32px));max-height:min(78vh,620px);display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);box-shadow:0 24px 70px rgba(0,0,0,.32);overflow:hidden}
 .exam-note-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--bg)}
@@ -2106,35 +2106,45 @@ function initExamDrawing(){
     examDrawingResizeObserver.observe(stage);
   }
 
-  // One finger on the canvas draws. Two fingers anywhere on the exam content pinch-zoom
-  // the complete exam content (question, options, AI panel, navigation, etc.).
+  // v41.29: ordinary page-style pinch magnification. The entire exam surface is
+  // scaled around the user's two-finger focal point, so it does not jump to a corner.
+  // The drawing canvas lives inside the same surface, therefore drawings stay aligned.
   const pointers=new Map();
   let pinchStartDistance=0;
   let pinchStartZoom=1;
+  let pinchStartMid={x:0,y:0};
+  let pinchStartContent={x:0,y:0};
   let pinchActive=false;
+  let pageTranslate={x:0,y:0};
   const zoomValue=()=>Number(quiz.dataset.examZoom||1);
-  const setPageZoom=(z)=>{
-    const value=Math.max(1,Math.min(2.25,Number(z)||1));
+  const getZoomSurface=()=>document.querySelector('.exam-page-zoom');
+  const getZoomViewport=()=>document.querySelector('.exam-page-zoom-viewport');
+  const setPageZoom=(z, tx=pageTranslate.x, ty=pageTranslate.y)=>{
+    const value=Math.max(1,Math.min(2.5,Number(z)||1));
+    const surface=getZoomSurface();
+    const viewport=getZoomViewport();
+    if(!surface||!viewport)return;
     quiz.dataset.examZoom=String(value);
-    document.querySelectorAll('.exam-page-zoom').forEach(el=>{
-      el.style.transform=`scale(${value})`;
-      el.classList.toggle('is-zoomed',value!==1);
-    });
-    document.querySelectorAll('.exam-page-zoom-viewport').forEach(v=>{
-      const inner=v.querySelector('.exam-page-zoom');
-      if(!inner)return;
-      requestAnimationFrame(()=>{
-        const base=inner.scrollHeight||inner.getBoundingClientRect().height/value;
-        v.style.minHeight=Math.ceil(base*value)+'px';
-      });
+    pageTranslate={x:Number(tx)||0,y:Number(ty)||0};
+    surface.style.transform=`translate3d(${pageTranslate.x}px,${pageTranslate.y}px,0) scale(${value})`;
+    surface.classList.toggle('is-zoomed',value!==1);
+    requestAnimationFrame(()=>{
+      const baseW=surface.scrollWidth||surface.getBoundingClientRect().width/value;
+      const baseH=surface.scrollHeight||surface.getBoundingClientRect().height/value;
+      viewport.style.minHeight=Math.ceil(baseH*value+Math.max(0,pageTranslate.y))+'px';
+      viewport.style.minWidth=Math.ceil(baseW*value+Math.max(0,pageTranslate.x))+'px';
     });
   };
   window._setExamPageZoom=setPageZoom;
-  window._resetExamPageZoom=()=>setPageZoom(1);
+  window._resetExamPageZoom=()=>{pageTranslate={x:0,y:0};setPageZoom(1,0,0);};
   const distance=()=>{
     const pts=[...pointers.values()];
     if(pts.length<2)return 0;
     return Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
+  };
+  const midpoint=()=>{
+    const pts=[...pointers.values()];
+    return {x:(pts[0].x+pts[1].x)/2,y:(pts[0].y+pts[1].y)/2};
   };
   const cancelCanvasStroke=()=>{
     if(canvas._activeStroke){
@@ -2150,6 +2160,15 @@ function initExamDrawing(){
       pinchActive=true;
       pinchStartDistance=distance();
       pinchStartZoom=zoomValue();
+      pinchStartMid=midpoint();
+      const surface=getZoomSurface();
+      if(surface){
+        const rect=surface.getBoundingClientRect();
+        pinchStartContent={
+          x:(pinchStartMid.x-rect.left)/pinchStartZoom,
+          y:(pinchStartMid.y-rect.top)/pinchStartZoom
+        };
+      }
       cancelCanvasStroke();
       canvas._pinchActive=true;
       e.preventDefault();
@@ -2160,7 +2179,13 @@ function initExamDrawing(){
     pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
     if(pointers.size>=2&&pinchActive&&pinchStartDistance>0){
       const d=distance();
-      setPageZoom(pinchStartZoom*(d/pinchStartDistance));
+      const mid=midpoint();
+      const nextZoom=Math.max(1,Math.min(2.5,pinchStartZoom*(d/pinchStartDistance)));
+      // Keep the exact content point under the fingers. This is the behavior users
+      // expect from normal document/photo pinch zoom rather than corner zoom.
+      const tx=mid.x-(pinchStartContent.x*nextZoom);
+      const ty=mid.y-(pinchStartContent.y*nextZoom);
+      setPageZoom(nextZoom,tx,ty);
       e.preventDefault();
     }
   };
@@ -2249,8 +2274,8 @@ function closeExamToolPanel(name){
 }
 function resetExamZoom(){
   if(window._resetExamPageZoom)window._resetExamPageZoom();
-  else document.querySelectorAll('.exam-page-zoom').forEach(el=>{el.style.transform='scale(1)';el.classList.remove('is-zoomed');});
-  document.querySelectorAll('.exam-page-zoom-viewport').forEach(v=>v.style.minHeight='');
+  else document.querySelectorAll('.exam-page-zoom').forEach(el=>{el.style.transform='translate3d(0,0,0) scale(1)';el.classList.remove('is-zoomed');});
+  document.querySelectorAll('.exam-page-zoom-viewport').forEach(v=>{v.style.minHeight='';v.style.minWidth='';});
 }
 function openExamNoteEditor(qid){
   if(!exam)return;
@@ -4635,7 +4660,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.28',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.29',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
