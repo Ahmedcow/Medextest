@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.50-weekly-bell-click-fix">
+<meta name="medex-build" content="v41.51-weekly-bell-ipad-touch-fix">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -3688,13 +3688,26 @@ function initWeeklyNotificationClickHandling(){
   const btn=document.getElementById('weeklyNotificationButton');
   if(!btn || btn.dataset.bound==='1')return;
   btn.dataset.bound='1';
-  btn.addEventListener('click',function(e){
-    e.preventDefault();
-    e.stopImmediatePropagation();
+  btn.style.webkitTapHighlightColor='transparent';
+  btn.style.touchAction='manipulation';
+  let lastActivation=0;
+  const activate=(e)=>{
+    const now=Date.now();
+    // iPad/iPhone Safari can synthesize a compatibility click after touchend.
+    // Handle the native touch/pointer activation once, then ignore the duplicate click.
+    if(now-lastActivation<650)return;
+    lastActivation=now;
+    if(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();}
     notificationPanelOpen=!notificationPanelOpen;
     if(notificationPanelOpen)markWeeklyNotificationsRead();
     updateTopbarControls();
+  };
+  btn.addEventListener('touchend',activate,{capture:true,passive:false});
+  btn.addEventListener('pointerup',function(e){
+    if(e.pointerType==='touch')return;
+    activate(e);
   },{capture:true});
+  btn.addEventListener('click',activate,{capture:true});
   document.addEventListener('click',function(e){
     const target=e.target instanceof Element?e.target:null;
     if(target?.closest?.('#globalNotificationPopover') || target?.closest?.('#weeklyNotificationButton'))return;
