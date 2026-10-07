@@ -109,10 +109,10 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;height:var(--topbar-h);padding:0 18px;background:var(--card);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
 .topbar-brand{font-family:var(--font-serif);font-size:17px;font-weight:600}
 .topbar-spacer{flex:1;min-width:0}
-.topbar-actions{display:flex;align-items:center;gap:8px;position:relative;flex:0 0 auto;z-index:35}
+.topbar-actions{display:grid;grid-template-columns:max-content 44px 44px;align-items:center;column-gap:8px;position:relative;flex:0 0 auto;z-index:35}
 .topbar-focus-cell{flex:0 1 auto;min-width:0;display:flex;align-items:center;justify-content:flex-end;position:relative;z-index:1}
-.topbar-notification-wrap{position:relative;flex:0 0 44px;width:44px;height:44px;z-index:2;display:grid;place-items:center;pointer-events:none}
-.topbar-notification-btn{position:relative!important;display:grid!important;place-items:center!important;width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;margin:0!important;padding:0!important;z-index:3!important;pointer-events:auto!important;cursor:pointer!important;touch-action:manipulation!important}
+.topbar-notification-wrap{position:relative;width:44px;height:44px;z-index:500;display:grid;place-items:center;pointer-events:auto}
+.topbar-notification-btn{position:absolute!important;inset:2px!important;display:grid!important;place-items:center!important;width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;margin:0!important;padding:0!important;z-index:1000!important;pointer-events:auto!important;cursor:pointer!important;touch-action:manipulation!important}
 .topbar-theme-cell{flex:0 0 44px;width:44px;height:44px;display:grid;place-items:center;position:relative;z-index:1}
 .topbar-notification-btn svg,.topbar-notification-btn .notification-unread-dot{pointer-events:none!important}
 .topbar-notification-btn .notification-unread-dot{right:4px;top:4px;width:8px;height:8px;box-shadow:0 0 0 2px var(--card)}
@@ -632,7 +632,7 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
     <div class="topbar-actions">
       <div class="topbar-focus-cell" id="globalFocusTimer"></div>
       <div class="topbar-notification-wrap" id="globalWeeklyNotification">
-        <button class="icon-btn topbar-notification-btn" id="weeklyNotificationButton" type="button" title="Weekly notifications" aria-label="Weekly notifications" aria-expanded="false"></button>
+        <button class="icon-btn topbar-notification-btn" id="weeklyNotificationButton" type="button" title="Weekly notifications" aria-label="Weekly notifications" aria-expanded="false" onclick="toggleWeeklyNotifications();event.stopPropagation();return false;"></button>
       </div>
       <div class="topbar-theme-cell" id="globalThemeToggle"></div>
     </div>
@@ -3685,21 +3685,19 @@ function siteNotificationsHTML(){
 function toggleWeeklyNotifications(){notificationPanelOpen=!notificationPanelOpen;if(notificationPanelOpen){markWeeklyNotificationsRead();}updateTopbarControls();}
 function closeWeeklyNotifications(){if(!notificationPanelOpen)return;notificationPanelOpen=false;updateTopbarControls();}
 function initWeeklyNotificationClickHandling(){
-  if(window.__weeklyNotificationClickHandler)return;
   const btn=document.getElementById('weeklyNotificationButton');
-  if(!btn)return;
-  window.__weeklyNotificationClickHandler=true;
-  btn.onclick=function(e){
+  if(!btn || btn.dataset.bound==='1')return;
+  btn.dataset.bound='1';
+  btn.addEventListener('click',function(e){
     e.preventDefault();
-    e.stopPropagation();
+    e.stopImmediatePropagation();
     notificationPanelOpen=!notificationPanelOpen;
     if(notificationPanelOpen)markWeeklyNotificationsRead();
     updateTopbarControls();
-  };
+  },{capture:true});
   document.addEventListener('click',function(e){
     const target=e.target instanceof Element?e.target:null;
-    if(target?.closest?.('#globalNotificationPopover'))return;
-    if(target?.closest?.('#weeklyNotificationButton'))return;
+    if(target?.closest?.('#globalNotificationPopover') || target?.closest?.('#weeklyNotificationButton'))return;
     if(notificationPanelOpen)closeWeeklyNotifications();
   });
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeWeeklyNotifications();});
@@ -4919,7 +4917,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.48',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.49',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
@@ -4927,7 +4925,6 @@ if('serviceWorker' in navigator){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  initWeeklyNotificationClickHandling();
   applyTheme();
   if(SUPABASE_ENABLED){
     supabaseClient.auth.onAuthStateChange((event,session)=>{
