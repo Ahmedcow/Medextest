@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.42-retake-bell-fix">
+<meta name="medex-build" content="v41.43-weekly-bell-cleanup">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -91,10 +91,8 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 @page{size:A4 portrait;margin:0}
 
 
-/* v41.38 Phase 2 learning + weekly notification system */
-.weekly-notifications-card{position:relative;overflow:hidden;margin-bottom:16px;border:1px solid var(--line);background:linear-gradient(135deg,var(--card),var(--primary-soft));}
-.weekly-notifications-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px;cursor:pointer}
-.weekly-notifications-title{display:flex;align-items:center;gap:11px;min-width:0}.notification-bell{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary);border:1px solid rgba(var(--primary-rgb),.22);position:relative;flex:0 0 auto}.notification-bell svg{width:21px;height:21px}.notification-unread-dot{position:absolute;right:-2px;top:-2px;width:10px;height:10px;border-radius:50%;background:#e53935;box-shadow:0 0 0 3px var(--card);animation:mePulse 1.8s ease-in-out infinite}.weekly-notifications-summary{min-width:0}.weekly-notifications-summary strong{display:block}.weekly-notifications-summary .mini{margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.weekly-notifications-list{border-top:1px solid var(--line);padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px}.weekly-notification-item{padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}.weekly-notification-item.is-new{border-color:rgba(var(--primary-rgb),.42);box-shadow:0 0 0 1px rgba(var(--primary-rgb),.08)}.weekly-notification-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted)}.weekly-notification-new{color:var(--primary);font-weight:800}.weekly-notification-message{white-space:pre-wrap;line-height:1.55;margin-top:6px;font-size:13px}
+/* Phase 2 learning + weekly notification system */
+.weekly-notification-item{padding:12px 13px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}.weekly-notification-item.is-new{border-color:rgba(var(--primary-rgb),.42);box-shadow:0 0 0 1px rgba(var(--primary-rgb),.08)}.weekly-notification-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--muted)}.weekly-notification-new{color:var(--primary);font-weight:800}.weekly-notification-message{white-space:pre-wrap;line-height:1.55;margin-top:6px;font-size:13px}
 .site-notifications-card{margin-bottom:16px;background:var(--card);border:1px solid var(--line);color:var(--text)}
 .site-notifications-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 16px;border-bottom:1px solid var(--line)}
 .site-notifications-title{display:flex;align-items:center;gap:8px;font-size:14px}.site-notifications-icon{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:var(--primary-soft);color:var(--primary)}.site-notifications-icon svg{width:17px;height:17px}.site-notification-count{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;background:var(--danger-soft);color:var(--danger);font-size:10px;font-weight:800}.site-notifications-list{display:flex;flex-direction:column;gap:8px;padding:10px 12px 12px}.site-notification-item{padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--bg);color:var(--text)}.site-notification-item.is-new{border-color:rgba(var(--primary-rgb),.42)}.site-notification-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--muted);font-size:10.5px;margin-bottom:4px}.site-notification-new{color:var(--primary);font-weight:800}.site-notification-message{white-space:pre-wrap;line-height:1.5;font-size:12.5px;margin-top:5px;color:var(--text)}
@@ -3656,12 +3654,10 @@ function printAdminQuestionBankPDF(){
 }
 
 function weeklyNotificationReadAt(){return Number(localStorage.getItem(CONFIG.weeklyNotificationReadKey)||0);}
-function notificationReadAt(){return weeklyNotificationReadAt();}
 function siteNotificationReadAt(){return Number(localStorage.getItem(CONFIG.siteNotificationReadKey)||0);}
 function notificationUnreadCount(list=weeklyNotifications){const seen=weeklyNotificationReadAt();return list.filter(n=>(Date.parse(n.created_at||'')||0)>seen).length;}
 function siteNotificationUnreadCount(list=activeNotifications){const seen=siteNotificationReadAt();return list.filter(n=>(Date.parse(n.created_at||'')||0)>seen).length;}
 function markWeeklyNotificationsRead(){const latest=(weeklyNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.weeklyNotificationReadKey,String(latest));setNotificationAppBadge(0);}
-function markNotificationsRead(){markWeeklyNotificationsRead();}
 function markSiteNotificationsRead(){const latest=(activeNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.siteNotificationReadKey,String(latest));}
 function weeklyNotificationRows(){const cutoff=Date.now()-7*86400000;return (weeklyNotifications||[]).filter(n=>(Date.parse(n.created_at||'')||0)>=cutoff).slice(0,12);}
 function siteNotificationRows(){return (activeNotifications||[]).slice(0,3);}
@@ -3681,10 +3677,21 @@ function closeWeeklyNotifications(){if(!notificationPanelOpen)return;notificatio
 function initWeeklyNotificationClickHandling(){
   if(window.__weeklyNotificationClickHandler)return;
   window.__weeklyNotificationClickHandler=true;
+  // One delegated capture handler owns the bell. The old build attached an
+  // onclick to a button that is destroyed/recreated by updateTopbarControls(),
+  // which made the visible bell unreliable to click. Handle the stable selector
+  // at document level instead, before any other click handler can close it.
   document.addEventListener('click',function(e){
-    const toggle=e.target.closest?.('[data-weekly-notification-toggle]');
-    const pop=e.target.closest?.('#globalNotificationPopover');
-    if(toggle || pop)return;
+    const target=e.target instanceof Element?e.target:null;
+    const toggle=target?.closest?.('[data-weekly-notification-toggle]');
+    const pop=target?.closest?.('#globalNotificationPopover');
+    if(toggle){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      toggleWeeklyNotifications();
+      return;
+    }
+    if(pop)return;
     if(notificationPanelOpen) closeWeeklyNotifications();
   },true);
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeWeeklyNotifications();});
@@ -3721,11 +3728,6 @@ function updateTopbarControls(){
   const unread=notificationUnreadCount(weeklyNotificationRows());
   if(weeklyHost){
     weeklyHost.innerHTML=`<div class="topbar-notification-wrap"><button class="icon-btn topbar-notification-btn" type="button" data-weekly-notification-toggle title="Weekly notifications" aria-label="Weekly notifications">${notificationBellSVG()}${unread?'<span class="notification-unread-dot" aria-label="Unread weekly notification"></span>':''}</button>${notificationPanelOpen?weeklyNotificationsPopoverHTML():''}</div>`;
-    const weeklyBtn=weeklyHost.querySelector('[data-weekly-notification-toggle]');
-    if(weeklyBtn){
-      weeklyBtn.onclick=(e)=>{e.preventDefault();e.stopPropagation();toggleWeeklyNotifications();};
-      weeklyBtn.addEventListener('pointerdown',(e)=>{e.stopPropagation();},{passive:true});
-    }
   }
   if(themeHost)themeHost.innerHTML=dashboardThemeToggleHTML();
   if(focusHost)focusHost.innerHTML=globalFocusTimerHTML();
@@ -4906,7 +4908,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.42',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.43',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
