@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.52-bell-fix">
+<meta name="medex-build" content="v41.18-public-flashcards-notifications">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -115,7 +115,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .topbar-notification-btn{position:absolute!important;inset:2px!important;display:grid!important;place-items:center!important;width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;margin:0!important;padding:0!important;z-index:1000!important;pointer-events:auto!important;cursor:pointer!important;touch-action:manipulation!important}
 .topbar-theme-cell{flex:0 0 44px;width:44px;height:44px;display:grid;place-items:center;position:relative;z-index:1}
 .topbar-notification-btn svg,.topbar-notification-btn .notification-unread-dot{pointer-events:none!important}
-.topbar-notification-btn .notification-unread-dot{right:4px;top:4px;width:8px;height:8px;box-shadow:0 0 0 2px var(--card)}
+.topbar-notification-btn .notification-unread-dot{position:absolute;right:4px;top:4px;width:9px;height:9px;border-radius:50%;background:#ef4444;box-shadow:0 0 0 2px var(--card);z-index:2}
 .topbar-theme-cell>*{position:relative;z-index:1}
 .weekly-notifications-list{display:flex;flex-direction:column;gap:8px}
 .global-notification-popover{position:fixed;right:18px;top:calc(var(--topbar-h) + 9px);width:min(390px,calc(100vw - 24px));max-height:min(70vh,520px);overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:10px;z-index:10000}
@@ -888,6 +888,7 @@ async function afterAuthChanged(){
   await loadSupabaseHistory();
   await loadFavorites();
   await loadPublicFlashcards();
+  startPublicFlashcardRefresh();
   await loadGlobalAnalytics();
   render();
 }
@@ -2927,17 +2928,17 @@ function retakeExamFromResult(){
 
 function startPublicFlashcardRefresh(){
   if(publicFlashcardRefreshTimer)clearInterval(publicFlashcardRefreshTimer);
-  if(!currentUser||!SUPABASE_ENABLED)return;
+  if(!SUPABASE_ENABLED)return;
   publicFlashcardRefreshTimer=setInterval(()=>{if(document.visibilityState!=='hidden')refreshPublicFlashcardsSilently();},30000);
 }
 async function refreshPublicFlashcardsSilently(){
-  if(!currentUser||!SUPABASE_ENABLED)return;
+  if(!SUPABASE_ENABLED)return;
   publicFlashcardsLoaded=false;
   await loadPublicFlashcards(true);
 }
 async function loadPublicFlashcards(force=false){
   if(!force && publicFlashcardsLoaded)return;
-  if(!SUPABASE_ENABLED || !currentUser)return;
+  if(!SUPABASE_ENABLED)return;
   const {data,error}=await supabaseClient.from('flashcards_public').select('id,front,back,module,subject,lecture,tags,deck,created_at,updated_at').eq('active',true).order('created_at',{ascending:true});
   if(error){console.warn('Public flashcards load failed:',error.message);return;}
   const remote=(data||[]).map(c=>({id:String(c.id),front:String(c.front||''),back:String(c.back||''),module:String(c.module||''),subject:String(c.subject||''),lecture:String(c.lecture||''),tags:Array.isArray(c.tags)?c.tags.join(', '):String(c.tags||''),deck:String(c.deck||''),source:'public',createdAt:c.created_at?Date.parse(c.created_at):Date.now(),updatedAt:c.updated_at?Date.parse(c.updated_at):Date.now()})).filter(c=>c.front&&c.back);
@@ -3694,7 +3695,7 @@ function setNotificationAppBadge(count){
     else if(navigator.clearAppBadge)navigator.clearAppBadge().catch(()=>{});
   }catch(e){}
 }
-function markWeeklyNotificationsRead(){const latest=(weeklyNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.weeklyNotificationReadKey,String(latest));setNotificationAppBadge(0);}
+function markWeeklyNotificationsRead(){const rows=weeklyNotificationRows();const latest=rows.reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.weeklyNotificationReadKey,String(latest));setNotificationAppBadge(0);updateTopbarControls();}
 function markSiteNotificationsRead(){const latest=(activeNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.siteNotificationReadKey,String(latest));}
 function weeklyNotificationRows(){const cutoff=Date.now()-7*86400000;return (weeklyNotifications||[]).filter(n=>(Date.parse(n.created_at||'')||0)>=cutoff).slice(0,12);}
 function siteNotificationRows(){return (activeNotifications||[]).slice(0,3);}
@@ -3709,7 +3710,7 @@ function siteNotificationsHTML(){
   const list=rows.length?rows.map(n=>{const isNew=(Date.parse(n.created_at||'')||0)>siteNotificationReadAt();return `<article class="site-notification-item ${isNew?'is-new':''}"><div class="site-notification-meta"><span>${esc(n.created_at?new Date(n.created_at).toLocaleString():'')}</span>${isNew?'<span class="site-notification-new">NEW</span>':''}</div><strong>${esc(n.title||'Announcement')}</strong><div class="site-notification-message">${esc(n.message||'')}</div></article>`;}).join(''):'<div class="empty">No site notifications.</div>';
   return `<section class="card site-notifications-card" aria-label="Site notifications"><div class="site-notifications-head"><div><div class="site-notifications-title"><span class="site-notifications-icon">${notificationBellSVG()}</span><strong>Site notifications</strong>${unread?`<span class="site-notification-count">${unread} new</span>`:''}</div><div class="mini" style="margin-top:4px">Announcements from the MedEx team.</div></div><button class="btn" onclick="markSiteNotificationsRead();renderDashboard()">${unread?'Mark as read':'Refresh'}</button></div><div class="site-notifications-list">${list}</div></section>`;
 }
-function toggleWeeklyNotifications(){notificationPanelOpen=!notificationPanelOpen;if(notificationPanelOpen){markWeeklyNotificationsRead();}updateTopbarControls();}
+function toggleWeeklyNotifications(){notificationPanelOpen=!notificationPanelOpen;updateTopbarControls();}
 function closeWeeklyNotifications(){if(!notificationPanelOpen)return;notificationPanelOpen=false;updateTopbarControls();}
 function initWeeklyNotificationClickHandling(){
   // v41.52: single delegated handler. The old version re-rendered the bell (innerHTML) on open,
@@ -3727,7 +3728,6 @@ function initWeeklyNotificationClickHandling(){
     if(onBtn){
       e.preventDefault();e.stopPropagation();
       notificationPanelOpen=!notificationPanelOpen;
-      if(notificationPanelOpen)markWeeklyNotificationsRead();
       updateTopbarControls();
       return;
     }
@@ -4977,7 +4977,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     await loadQuestions();
     const restored=restoreActiveExam();
     if(currentUser) await afterAuthChanged();
-    else { await loadFavorites(); await loadGlobalAnalytics(); applyModuleVisibility(); if(!restored) render(); }
+    else { await loadFavorites(); await loadPublicFlashcards(true); startPublicFlashcardRefresh(); await loadGlobalAnalytics(); applyModuleVisibility(); if(!restored) render(); }
     setTimeout(async()=>{ updateSupportUnreadDot(await refreshSupportUnreadIndicator()); },500);
     clearInterval(window.__supportUnreadPoll);
     window.__supportUnreadPoll=setInterval(async()=>{
