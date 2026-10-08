@@ -17,6 +17,7 @@
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
   window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+window.addEventListener('load',async()=>{try{await loadPublicFlashcards(true);subscribeToPublicFlashcardChanges();if(typeof renderStudyTools==='function'&&currentView==='study')renderStudyTools();}catch(e){console.warn('Initial public flashcard load failed:',e.message);}});
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -984,7 +985,8 @@ async function afterAuthChanged(){
   await loadReviewScheduleFromSupabase();
   await loadSupabaseHistory();
   await loadFavorites();
-  await loadPublicFlashcards();
+  await loadPublicFlashcards(true);
+  subscribeToPublicFlashcardChanges();
   await loadGlobalAnalytics();
   render();
 }
@@ -3072,16 +3074,29 @@ function retakeExamFromResult(){
 }
 
 
-async function loadPublicFlashcards(){
-  if(publicFlashcardsLoaded || !SUPABASE_ENABLED || !currentUser)return;
-  const {data,error}=await supabaseClient.from('flashcards_public').select('id,front,back,module,subject,lecture,tags,deck,created_at,updated_at').eq('active',true).order('created_at',{ascending:true});
-  if(error){console.warn('Public flashcards load failed:',error.message);return;}
-  const remote=(data||[]).map(c=>({id:String(c.id),front:String(c.front||''),back:String(c.back||''),module:String(c.module||''),subject:String(c.subject||''),lecture:String(c.lecture||''),tags:Array.isArray(c.tags)?c.tags.join(', '):String(c.tags||''),deck:String(c.deck||''),source:'public',createdAt:c.created_at?Date.parse(c.created_at):Date.now(),updatedAt:c.updated_at?Date.parse(c.updated_at):Date.now()})).filter(c=>c.front&&c.back);
-  const locals=flashcardCards.filter(c=>c.source!=='public');
-  const byId=new Map(remote.map(c=>[c.id,c]));
-  locals.forEach(c=>byId.has(String(c.id))&&byId.delete(String(c.id)));
-  flashcardCards=[...locals,...byId.values()];
-  saveFlashcardCards(); publicFlashcardsLoaded=true;
+async function loadPublicFlashcards(force=false){
+  // Public cards must load for visitors as well as signed-in users.
+  if((publicFlashcardsLoaded && !force) || !SUPABASE_ENABLED)return false;
+  try{
+    const {data,error}=await supabaseClient.from('flashcards_public')
+      .select('id,front,back,module,subject,lecture,tags,deck,created_at,updated_at')
+      .eq('active',true).order('created_at',{ascending:true});
+    if(error){console.warn('Public flashcards load failed:',error.message);return false;}
+    const remote=(data||[]).map(c=>({id:String(c.id),front:String(c.front||''),back:String(c.back||''),module:String(c.module||''),subject:String(c.subject||''),lecture:String(c.lecture||''),tags:Array.isArray(c.tags)?c.tags.join(', '):String(c.tags||''),deck:String(c.deck||''),source:'public',createdAt:c.created_at?Date.parse(c.created_at):Date.now(),updatedAt:c.updated_at?Date.parse(c.updated_at):Date.now()})).filter(c=>c.front&&c.back);
+    const locals=flashcardCards.filter(c=>c.source!=='public');
+    const byId=new Map(remote.map(c=>[c.id,c]));
+    locals.forEach(c=>byId.has(String(c.id))&&byId.delete(String(c.id)));
+    flashcardCards=[...locals,...byId.values()]; saveFlashcardCards(); publicFlashcardsLoaded=true; return true;
+  }catch(e){console.warn('Public flashcards load failed:',e.message);return false;}
+}
+let publicFlashcardRealtimeChannel=null;
+function subscribeToPublicFlashcardChanges(){
+  if(!SUPABASE_ENABLED||publicFlashcardRealtimeChannel)return;
+  publicFlashcardRealtimeChannel=supabaseClient.channel('medex-public-flashcards-live')
+    .on('postgres_changes',{event:'*',schema:'public',table:'flashcards_public'},async()=>{
+      publicFlashcardsLoaded=false; await loadPublicFlashcards(true);
+      if(typeof renderStudyTools==='function'&&currentView==='study')renderStudyTools();
+    }).subscribe((status)=>console.log('MedEx flashcard realtime:',status));
 }
 function saveFlashcardAdminDrafts(){try{localStorage.setItem(CONFIG.flashcardAdminDraftsKey,JSON.stringify(flashcardAdminDrafts));}catch(e){console.warn('Could not save flashcard drafts:',e.message);}}
 function parseCSVLine(line){const out=[];let cur='',quote=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(quote&&line[i+1]==='"'){cur+='"';i++;}else quote=!quote;}else if(ch===','&&!quote){out.push(cur);cur='';}else cur+=ch;}out.push(cur);return out;}
@@ -3176,9 +3191,9 @@ async function publishSelectedFlashcards(){
   const selected=flashcardAdminDrafts.filter(c=>c.selected);if(!selected.length)return toast('Select cards to publish after reviewing them.','error');
   const rows=selected.map(c=>({id:c.id,front:c.front,back:c.back,module:c.module||null,subject:c.subject||null,lecture:c.lecture||null,tags:c.tags?c.tags.split(',').map(x=>x.trim()).filter(Boolean):[],deck:c.deck||null,created_by:currentUser.id,active:true,updated_at:new Date().toISOString()}));
   const {error}=await supabaseClient.from('flashcards_public').insert(rows);if(error)return toast(`Publish failed: ${error.message}`,'error');
-  flashcardAdminDrafts=flashcardAdminDrafts.filter(c=>!c.selected);saveFlashcardAdminDrafts();publicFlashcardsLoaded=false;await loadPublicFlashcards();renderFlashcardAdmin();toast(`Published ${selected.length} flashcard${selected.length===1?'':'s'} for all users.`,'ok');
+  flashcardAdminDrafts=flashcardAdminDrafts.filter(c=>!c.selected);saveFlashcardAdminDrafts();publicFlashcardsLoaded=false;await loadPublicFlashcards(true);renderFlashcardAdmin();toast(`Published ${selected.length} flashcard${selected.length===1?'':'s'} for all users.`,'ok');
 }
-async function deletePublicFlashcard(id){if(!isAdmin)return toast('Admin access required.','error');if(!confirm('Remove this published flashcard for all users?'))return;const {error}=await supabaseClient.from('flashcards_public').update({active:false,updated_at:new Date().toISOString()}).eq('id',id);if(error)return toast(error.message,'error');flashcardCards=flashcardCards.filter(c=>String(c.id)!==String(id));saveFlashcardCards();publicFlashcardsLoaded=false;await loadPublicFlashcards();renderFlashcardAdmin();}
+async function deletePublicFlashcard(id){if(!isAdmin)return toast('Admin access required.','error');if(!confirm('Remove this published flashcard for all users?'))return;const {error}=await supabaseClient.from('flashcards_public').update({active:false,updated_at:new Date().toISOString()}).eq('id',id);if(error)return toast(error.message,'error');flashcardCards=flashcardCards.filter(c=>String(c.id)!==String(id));saveFlashcardCards();publicFlashcardsLoaded=false;await loadPublicFlashcards(true);renderFlashcardAdmin();}
 async function renderFlashcardAdmin(){if(!isAdmin){location.hash='dashboard';return;}await loadPublicFlashcards();const publicCards=flashcardCards.filter(c=>c.source==='public');const drafts=flashcardAdminDrafts;const body=`<div class="flashcard-admin-grid"><section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">ADMIN · REVIEW & PUBLISH</span><h3>Flashcard drafts</h3><p>Review cards here first. Only cards you explicitly select are uploaded to Supabase and become available to all users.</p></div><span class="study-count-badge"><b>${drafts.length}</b><span>drafts</span></span></div><div class="card" style="margin-top:14px"><div class="field"><label>Import CSV for review</label><input id="adminFlashcardCSV" type="file" accept=".csv,text/csv" onchange="importAdminFlashcardsCSV()"></div><div class="grid two" style="margin-top:8px"><div class="field"><label>Front</label><textarea id="adminDraftFront" placeholder="Front"></textarea></div><div class="field"><label>Back</label><textarea id="adminDraftBack" placeholder="Back"></textarea></div></div><div class="grid four" style="margin-top:8px"><input id="adminDraftModule" placeholder="Module"><input id="adminDraftSubject" placeholder="Subject"><input id="adminDraftLecture" placeholder="Lecture"><input id="adminDraftTags" placeholder="Tags"></div><input id="adminDraftDeck" placeholder="Deck" style="margin-top:8px"><button class="btn primary" style="margin-top:10px" onclick="adminDraftAddCard()">Add draft</button></div><div class="flashcard-admin-list" style="margin-top:12px">${drafts.length?drafts.map(c=>`<div class="flashcard-admin-row ${c.selected?'selected':''}"><label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" ${c.selected?'checked':''} onchange="toggleAdminDraft('${attrJs(c.id)}')"><span><b>${esc(c.front)}</b><div class="mini" style="margin-top:5px">${esc(c.back)}</div><div class="fc-meta"><span class="flashcard-chip">${esc(c.deck||'Draft')}</span>${c.tags?`<span class="flashcard-chip">${esc(c.tags)}</span>`:''}</div></span></label><div class="actions" style="margin-top:8px"><button class="btn danger" onclick="removeAdminDraft('${attrJs(c.id)}')">Remove</button></div></div>`).join(''):'<div class="tutor-empty">No drafts yet. Import CSV or add cards above.</div>'}</div><button class="btn primary" style="margin-top:12px" onclick="publishSelectedFlashcards()">Publish selected for all users</button></section><section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">PUBLISHED LIBRARY</span><h3>Cards available to all users</h3><p>These are stored in Supabase. User-created/imported cards are never shown here.</p></div><span class="study-count-badge"><b>${publicCards.length}</b><span>published</span></span></div><div class="flashcard-admin-list" style="margin-top:14px">${publicCards.length?publicCards.map(c=>`<div class="flashcard-admin-row"><b>${esc(c.front)}</b><div class="mini" style="margin-top:5px">${esc(c.back)}</div><div class="fc-meta"><span class="flashcard-chip">${esc(c.module||'General')}</span>${c.subject?`<span class="flashcard-chip">${esc(c.subject)}</span>`:''}${c.lecture?`<span class="flashcard-chip">${esc(c.lecture)}</span>`:''}</div><button class="btn danger" style="margin-top:8px" onclick="deletePublicFlashcard('${attrJs(c.id)}')">Unpublish</button></div>`).join(''):'<div class="tutor-empty">No published flashcards yet.</div>'}</div></section></div>`;document.getElementById('app').innerHTML=layout('Flashcard Manager','Review and publish flashcards for the whole MedEx community.',body);}
 function saveFlashcardCards(){try{localStorage.setItem(CONFIG.flashcardCardsKey,JSON.stringify(flashcardCards));}catch(e){console.warn('Could not save flashcard cards:',e.message);}}
 function flashcardCardId(){return 'fc_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9);}
@@ -3249,7 +3264,7 @@ async function uploadFlashcardToSupabase(id){
   if(!row.front||!row.back)return toast('Flashcard front and back are required.','error');
   const {error}=await supabaseClient.from('flashcards_public').upsert(row,{onConflict:'id'});
   if(error){toast(`Upload failed: ${error.message}`,'error');return;}
-  c.source='public'; c.updatedAt=Date.now(); saveFlashcardCards(); publicFlashcardsLoaded=false; await loadPublicFlashcards(); renderStudyTools(); toast('Flashcard uploaded to Supabase and published for all users.','ok');
+  c.source='public'; c.updatedAt=Date.now(); saveFlashcardCards(); publicFlashcardsLoaded=false; await loadPublicFlashcards(true); renderStudyTools(); toast('Flashcard uploaded to Supabase and published for all users.','ok');
 }
 function createManualFlashcard(){const front=document.getElementById('fcFront')?.value||'',back=document.getElementById('fcBack')?.value||'',module=document.getElementById('fcModule')?.value||'',subject=document.getElementById('fcSubject')?.value||'',lecture=document.getElementById('fcLecture')?.value||'',tags=document.getElementById('fcTags')?.value||'';if(createFlashcard(front,back,module,subject,lecture,tags)){['fcFront','fcBack','fcTags'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderStudyTools();toast('Flashcard created independently from the question bank.','ok');}}
 function createFlashcardsFromBank(){const module=document.getElementById('flashImportModule')?.value||'',subject=document.getElementById('flashImportSubject')?.value||'',lecture=document.getElementById('flashImportLecture')?.value||'';let qs=bank.filter(q=>q.question&&Array.isArray(q.options)&&q.options.length);if(module)qs=qs.filter(q=>String(q.module)===module);if(subject)qs=qs.filter(q=>String(q.subject)===subject);if(lecture)qs=qs.filter(q=>String(q.lecture)===lecture);let added=0;qs.forEach(q=>{const back=q.options[q.correctIndex]||'';const extra=q.explanation?`\n\n${q.explanation}`:'';if(createFlashcard(q.question,back,q.module,q.subject,q.lecture,'Imported from Question Bank'))added++;});renderStudyTools();toast(added?`Created ${added} independent flashcard${added===1?'':'s'} from the selected questions.`:'No new flashcards were created.','ok');}
