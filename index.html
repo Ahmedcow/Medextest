@@ -115,7 +115,8 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .topbar-notification-btn{position:absolute!important;inset:2px!important;display:grid!important;place-items:center!important;width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;margin:0!important;padding:0!important;z-index:1000!important;pointer-events:auto!important;cursor:pointer!important;touch-action:manipulation!important}
 .topbar-theme-cell{flex:0 0 44px;width:44px;height:44px;display:grid;place-items:center;position:relative;z-index:1}
 .topbar-notification-btn svg,.topbar-notification-btn .notification-unread-dot{pointer-events:none!important}
-.topbar-notification-btn .notification-unread-dot{right:4px;top:4px;width:8px;height:8px;box-shadow:0 0 0 2px var(--card)}
+.topbar-notification-btn .notification-unread-dot{right:4px;top:4px;width:8px;height:8px;box-shadow:0 0 0 2px var(--card)}.topbar-notification-btn .notification-unread-dot{position:absolute!important;border-radius:50%!important;background:#e53935!important;display:block!important;animation:medexNotificationDotPulse 1.8s ease-in-out infinite!important}
+@keyframes medexNotificationDotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.18);opacity:.78}}
 .topbar-theme-cell>*{position:relative;z-index:1}
 .weekly-notifications-list{display:flex;flex-direction:column;gap:8px}
 .global-notification-popover{position:fixed;right:18px;top:calc(var(--topbar-h) + 9px);width:min(390px,calc(100vw - 24px));max-height:min(70vh,520px);overflow:auto;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:10px;z-index:10000}
@@ -3810,7 +3811,7 @@ function setNotificationAppBadge(count){
     else if(navigator.clearAppBadge)navigator.clearAppBadge().catch(()=>{});
   }catch(e){}
 }
-function markWeeklyNotificationsRead(){const latest=(weeklyNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.weeklyNotificationReadKey,String(latest));setNotificationAppBadge(0);}
+function markWeeklyNotificationsRead(){const latest=(weeklyNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.weeklyNotificationReadKey,String(latest));setNotificationAppBadge(0);updateTopbarControls();}
 function markSiteNotificationsRead(){const latest=(activeNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.siteNotificationReadKey,String(latest));}
 function weeklyNotificationRows(){const cutoff=Date.now()-7*86400000;return (weeklyNotifications||[]).filter(n=>(Date.parse(n.created_at||'')||0)>=cutoff).slice(0,12);}
 function siteNotificationRows(){return (activeNotifications||[]).slice(0,3);}
@@ -3863,13 +3864,15 @@ async function loadActiveNotifications(){
 }
 async function loadWeeklyNotifications(){
   weeklyNotifications=[];
-  if(!SUPABASE_ENABLED)return;
+  if(!SUPABASE_ENABLED){updateTopbarControls();return;}
   try{
     const cutoff=new Date(Date.now()-7*86400000).toISOString();
     const {data,error}=await supabaseClient.from('weekly_notifications').select('id,title,message,created_at,active,expires_at').eq('active',true).gte('created_at',cutoff).order('created_at',{ascending:false}).limit(20);
     if(error)throw error;
     weeklyNotifications=(data||[]).filter(n=>!n.expires_at || Date.parse(n.expires_at)>Date.now());
   }catch(e){ console.warn('Weekly notifications unavailable:',e.message); }
+  updateTopbarControls();
+  setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));
 }
 function globalFocusTimerHTML(){
   const remain=Math.max(0,Number(focusTimerState.remaining||1500));
