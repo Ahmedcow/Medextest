@@ -1,4 +1,4 @@
-const CACHE='medex-v41.15-independent-flashcards-ai-tutor';
+const CACHE='medex-v41.16-independent-flashcards-ai-tutor';
 const APP_SHELL=['./','./index.html','./manifest.webmanifest'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(async c=>{for(const asset of APP_SHELL){try{await c.add(asset)}catch(e){console.warn('Cache asset skipped:',asset,e)}}}).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
