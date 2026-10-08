@@ -597,6 +597,25 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
 .visitor-welcome{border:1px solid rgba(var(--primary-rgb),.35);background:linear-gradient(135deg,var(--primary-soft),var(--card));}.visitor-name-form{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap}.visitor-name-form .field{flex:1;min-width:220px}.dashboard-leaderboard-shortcut{display:flex;align-items:center;gap:13px}.dashboard-leaderboard-icon{width:40px;height:40px;border-radius:12px;background:var(--primary-soft);display:grid;place-items:center;color:var(--primary);font-size:20px;flex:0 0 auto}
 @media(max-width:700px){.leaderboard-row{grid-template-columns:42px 1fr 88px}.leaderboard-accuracy{display:none}}
 </style>
+
+<style>
+/* v41.54 simple layout cleanup */
+/* Keep the full platform name in the sidebar only; the upper bar stays compact. */
+.topbar-brand{font-weight:800}
+
+/* Study Library: compact the page without removing any functionality/content. */
+.phase2-library-grid{gap:10px}
+.phase2-library-side{padding:12px}
+.phase2-library-main>.card{padding:12px}
+.phase2-folder{padding:8px 10px;margin-top:6px}
+.phase2-search-row{gap:8px;margin-top:8px!important}
+.phase2-library-main #libraryResults{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px!important}
+.phase2-library-main .phase2-result{padding:10px;margin-top:0}
+.phase2-library-main .phase2-result-meta{font-size:10.5px}
+.phase2-library-main .phase2-source{margin-top:7px;padding:7px 9px;font-size:11.5px}
+.phase2-library-main .phase2-note{min-height:48px}
+@media(max-width:850px){.phase2-library-main #libraryResults{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
 <div class="app">
@@ -635,7 +654,7 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
 <div class="appshell">
   <header class="topbar">
     <button class="icon-btn" id="sidebarOpen" aria-label="Toggle menu"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round"><line x1="2.5" y1="5.5" x2="17.5" y2="5.5"/><line x1="2.5" y1="10" x2="17.5" y2="10"/><line x1="2.5" y1="14.5" x2="17.5" y2="14.5"/></svg></button>
-    <div class="topbar-brand">MedEx<small>Medical Examination Platform</small></div>
+    <div class="topbar-brand">MedEx</div>
     <div class="topbar-spacer"></div>
     <div class="topbar-actions">
       <div class="topbar-focus-cell" id="globalFocusTimer"></div>
