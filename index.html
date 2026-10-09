@@ -710,7 +710,6 @@ let isAdmin=false;
 let adminCheckLoaded=false;
 
 const CONFIG = {
-  manifest: './questions/index.json',
   cacheKey: 'med64_github_bank_v1',
   progressKey: 'med64_progress_v3',
   settingsKey: 'med64_settings_v3',
@@ -1516,9 +1515,9 @@ async function loadQuestionsFromSupabase(){
     }
     const data=allRows;
     // An empty Supabase result is not a successful question-bank load.
-    // Return false so loadQuestions() can fall back to the GitHub manifest.
+    // Return false so loadQuestions() can show a Supabase loading error.
     if(data.length===0){
-      console.warn('Supabase question table returned zero rows; trying GitHub question bank.');
+      console.warn('Supabase question table returned zero rows.');
       return false;
     }
     const all=data.map(q=>normalizeQuestion({
@@ -1545,79 +1544,38 @@ async function loadQuestionsFromSupabase(){
 }
 
 async function loadQuestions(){
-  // Show the last saved bank immediately, while the live source refreshes in the background.
-  // This avoids making returning users wait for Supabase/GitHub before they can study.
-  const cached=loadJSON(CONFIG.cacheKey,null);
-  if(cached && Array.isArray(cached.bank) && cached.bank.length){
-    const cachedBank=cached.bank.map(q=>normalizeQuestion(q,q.source||'Cache'));
-    allQuestionBank=cachedBank;
-    applyModuleVisibility();
-    sourceFiles=cached.sourceFiles||[];
-    lastSync=cached.updatedAt ? new Date(cached.updatedAt) : null;
+  // Render a saved copy immediately for faster startup, then refresh from Supabase only.
+  try{
+    const cached=localStorage.getItem(CONFIG.cacheKey);
+    if(cached){
+      const parsed=JSON.parse(cached);
+      const bank=Array.isArray(parsed)?parsed:(parsed.questions||parsed.data||[]);
+      if(Array.isArray(bank)&&bank.length){
+        allQuestionBank=bank.map(normalizeQuestion).filter(Boolean);
+        applyModuleVisibility();
+        if(parsed.sourceFiles)sourceFiles=parsed.sourceFiles;
+        if(parsed.lastSync)lastSync=parsed.lastSync;
+        render();
+        const status=document.getElementById('syncStatus');
+        if(status)status.textContent='Showing saved questions while checking Supabase…';
+      }
+    }
+  }catch(e){console.warn('Could not restore cached questions:',e);}
+  const ok=await loadQuestionsFromSupabase();
+  if(ok){
     render();
     const status=document.getElementById('syncStatus');
-    if(status) status.textContent='Showing saved questions while checking for updates…';
-  }
-  const loaded=await loadQuestionsFromSupabase();
-  if(loaded){
-    render();
-    const status=document.getElementById('syncStatus');
-    if(status) status.textContent=`Loaded ${bank.length} questions from Supabase.`;
+    if(status)status.textContent=`Loaded ${allQuestionBank.length} questions from Supabase.`;
     return;
   }
-  await loadFromGitHub();
-}
-
-
-async function loadFromGitHub(){
-  const status = document.getElementById('syncStatus');
-  if(status) status.textContent='Loading latest questions…';
-  try{
-    const manifest = await fetchJSON(CONFIG.manifest);
-    let files = Array.isArray(manifest) ? manifest : manifest.files;
-    if(!Array.isArray(files)) throw new Error('questions/index.json must contain a "files" array.');
-    sourceFiles = files.map(x => typeof x === 'string' ? x : x.file).filter(Boolean);
-    if(!sourceFiles.length) throw new Error('No question files are listed in questions/index.json.');
-
-    // Fetch all listed question files concurrently instead of waiting for each file in sequence.
-    const fileResults=await Promise.all(sourceFiles.map(async file=>{
-      const data=await fetchJSON('./questions/'+file);
-      const list=Array.isArray(data) ? data : data.questions;
-      if(!Array.isArray(list)) throw new Error(`${file} must contain an array or { "questions": [...] }`);
-      return list.map(q=>normalizeQuestion(q,file));
-    }));
-    const all=fileResults.flat();
-    const errors=validateBank(all);
-    if(errors.length) throw new Error(errors.slice(0,8).join('\\n'));
-    const githubIds = new Set(all.map(q=>q.id));
-    const retainedLocal = localQuestions.filter(q=>!githubIds.has(q.id));
-    allQuestionBank=[...all,...retainedLocal];
-    localQuestions=retainedLocal;
+  // No GitHub fallback: question bank is Supabase-only.
+  if(!allQuestionBank.length){
+    allQuestionBank=[];
     applyModuleVisibility();
-    localStorage.setItem(CONFIG.localQuestionsKey, JSON.stringify(localQuestions));
-    localStorage.setItem(CONFIG.cacheKey, JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
-    lastSync=new Date();
     render();
-    toast(`Loaded ${all.length} GitHub questions${retainedLocal.length?` + ${retainedLocal.length} local questions`:''}.`, 'ok');
-  }catch(e){
-    const cached=loadJSON(CONFIG.cacheKey,null);
-    if(cached && Array.isArray(cached.bank)){
-      const cachedIds = new Set(cached.bank.map(q=>q.id));
-      const retainedLocal = localQuestions.filter(q=>!cachedIds.has(q.id));
-      allQuestionBank=[...cached.bank,...retainedLocal];
-      localQuestions=retainedLocal;
-      applyModuleVisibility();
-      localStorage.setItem(CONFIG.localQuestionsKey, JSON.stringify(localQuestions));
-      sourceFiles=cached.sourceFiles||[];
-      lastSync=cached.updatedAt ? new Date(cached.updatedAt) : null;
-      render();
-      toast(`GitHub update failed. Using last saved bank. ${e.message}`, 'error');
-    }else{
-      bank=[];
-      render();
-      toast(`Could not load questions: ${e.message}`, 'error');
-    }
   }
+  const status=document.getElementById('syncStatus');
+  if(status)status.textContent='Could not load questions from Supabase. Check your connection and Supabase permissions.';
 }
 
 function getModules(){ return [...new Set(bank.map(q=>q.module))].sort((a,b)=>a.localeCompare(b)); }
@@ -1852,10 +1810,10 @@ function renderDashboard(){
   <div class="card">${renderRecentExamsList(3)}
     <div class="actions" style="margin-top:12px"><button class="btn" onclick="go('history')">View full history</button></div>
   </div>
-  <h2 class="section-title">GitHub question bank</h2>
+  <h2 class="section-title">Question bank sync</h2>
   <div class="card">
-    <div id="syncStatus">Source: <b>questions/index.json</b>${lastSync?` · Last successful sync: ${lastSync.toLocaleString()}`:''}</div>
-    <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="loadFromGitHub()">Refresh from GitHub</button><button class="btn" onclick="go('import')">Upload / Update Questions</button><button class="btn primary btn-lg" onclick="go('exam')">Start an Exam</button></div>
+    <div id="syncStatus">Source: <b>Supabase</b>${lastSync?` · Last successful sync: ${lastSync.toLocaleString()}`:''}</div>
+    <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="loadQuestions()">Refresh from Supabase</button><button class="btn" onclick="go('import')">Upload / Update Questions</button><button class="btn primary btn-lg" onclick="go('exam')">Start an Exam</button></div>
   </div>`;
   document.getElementById('app').innerHTML=layout(welcomeTitle,currentUser?'Your personal progress and performance.':'Your visitor progress is synced to this device and Supabase when connected.',body);
 }
@@ -2153,7 +2111,7 @@ function startExamFromSetup(){
 }
 
 function startExam(customList=null, overrides=null, customLabel=null, setupAnswerMode=null){
-  if(!customList && !bank.length){toast('No questions are loaded. Refresh from GitHub first.','error');return;}
+  if(!customList && !bank.length){toast('No questions are loaded from Supabase. Check your connection and database permissions.','error');return;}
   if(customList && !customList.length){toast('No questions to practice.','error');return;}
 
   let list=customList||[...bank];
@@ -3602,7 +3560,7 @@ function renderImport(){
 
   <div class="card" style="margin-top:16px">
     <h3 style="margin-top:0">How to update everyone</h3>
-    <ol><li>Edit or upload your JSON file into the repository's <b>questions/</b> folder on GitHub.</li><li>Make sure <b>questions/index.json</b> lists the filename.</li><li>Commit the change.</li><li>Users click <b>Refresh from GitHub</b>.</li></ol>
+    <ol><li>Use the admin Question Bank or Upload / Update Questions tools to add or update the shared question bank.</li><li>Confirm the questions are saved in the Supabase <b>questions</b> table.</li><li>Users can refresh the question bank from Supabase.</li></ol>
     <div class="notice">Only this admin page can change the shared question bank. Students can read questions but cannot upload, edit, or delete them.</div>
   </div>`;
   document.getElementById('app').innerHTML=layout('Admin · Question Bank','Upload, update, add, and remove questions for all students.',body);
