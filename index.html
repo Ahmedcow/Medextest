@@ -1471,7 +1471,9 @@ function validateBank(list){
 }
 
 async function fetchJSON(url){
-  const r = await fetch(url + (url.includes('?')?'&':'?') + 'v=' + Date.now(), {cache:'no-store'});
+  // Let the browser reuse/revalidate responses instead of forcing a unique URL
+  // and disabling HTTP cache on every request.
+  const r = await fetch(url, {cache:'default'});
   if(!r.ok) throw new Error(`HTTP ${r.status} while loading ${url}`);
   return await r.json();
 }
@@ -1479,18 +1481,38 @@ async function loadQuestionsFromSupabase(){
   if(!SUPABASE_ENABLED)return false;
   try{
     const PAGE_SIZE=1000;
+    const BATCH_PAGES=4;
     const allRows=[];
-    for(let from=0;;from+=PAGE_SIZE){
-      const to=from+PAGE_SIZE-1;
-      const {data,error}=await supabaseClient
-        .from('questions')
-        .select('id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference,image_url')
-        .order('id',{ascending:true})
-        .range(from,to);
-      if(error)throw error;
-      if(!Array.isArray(data))throw new Error('Invalid questions response.');
-      allRows.push(...data);
-      if(data.length<PAGE_SIZE)break;
+    // Fetch the first page, then fetch remaining pages in small parallel batches.
+    // This avoids a long serial round-trip for banks with thousands of questions.
+    const first = await supabaseClient
+      .from('questions')
+      .select('id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference,image_url')
+      .order('id',{ascending:true})
+      .range(0,PAGE_SIZE-1);
+    if(first.error)throw first.error;
+    if(!Array.isArray(first.data))throw new Error('Invalid questions response.');
+    allRows.push(...first.data);
+    let nextFrom=PAGE_SIZE;
+    let keepGoing=first.data.length===PAGE_SIZE;
+    while(keepGoing){
+      const starts=Array.from({length:BATCH_PAGES},(_,i)=>nextFrom+i*PAGE_SIZE);
+      const pages=await Promise.all(starts.map(async from=>{
+        const {data,error}=await supabaseClient
+          .from('questions')
+          .select('id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference,image_url')
+          .order('id',{ascending:true})
+          .range(from,from+PAGE_SIZE-1);
+        if(error)throw error;
+        if(!Array.isArray(data))throw new Error('Invalid questions response.');
+        return {from,data};
+      }));
+      pages.sort((a,b)=>a.from-b.from);
+      for(const page of pages){
+        allRows.push(...page.data);
+        if(page.data.length<PAGE_SIZE){keepGoing=false;break;}
+      }
+      nextFrom+=BATCH_PAGES*PAGE_SIZE;
     }
     const data=allRows;
     // An empty Supabase result is not a successful question-bank load.
