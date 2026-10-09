@@ -388,8 +388,9 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 @media(max-width:700px){
   .exam-tool-panel{right:62px;top:auto;bottom:14px;transform:none;width:min(300px,calc(100vw - 78px));max-height:48vh}
 }
+/* Android fix: allow vertical page scrolling through the annotation area while drawing is off. Drawing mode disables browser touch gestures only while active. */
 /* v41.37: simple one-finger drawing. No drawing-box zoom/pan. */
-.exam-annotation-viewport{position:relative;width:100%;overflow:hidden;max-width:100%;border-radius:var(--radius-sm);touch-action:none;overscroll-behavior:contain;}
+.exam-annotation-viewport{position:relative;width:100%;overflow:hidden;max-width:100%;border-radius:var(--radius-sm);touch-action:pan-y;overscroll-behavior:auto;}
 .exam-annotation-surface{position:relative;width:100%;transform:none!important;transform-origin:initial;will-change:auto;}
 .exam-annotation-stage{position:relative;overflow:hidden;}
 .exam-annotation-canvas{touch-action:none;}
@@ -2368,7 +2369,7 @@ function initExamDrawing(){
     // While drawing is enabled, keep the browser from turning the single
     // finger stroke into page scrolling/zooming. The drawing box itself has
     // no custom zoom gesture.
-    viewport.style.touchAction=examDrawingEnabled?'none':'auto';
+    viewport.style.touchAction=examDrawingEnabled?'none':'pan-y';
   };
 
   const cancelStroke=()=>{
@@ -2525,7 +2526,7 @@ function toggleExamDrawing(){
   const canvas=document.getElementById('examAnnotationCanvas');
   const viewport=document.querySelector('.exam-annotation-viewport');
   if(canvas)canvas.classList.toggle('drawing-enabled',examDrawingEnabled);
-  if(viewport)viewport.style.touchAction=examDrawingEnabled?'none':'auto';
+  if(viewport)viewport.style.touchAction=examDrawingEnabled?'none':'pan-y';
   const btn=document.getElementById('examDrawingToggle');
   if(btn)btn.classList.toggle('tool-active',examDrawingEnabled);
   const rail=document.getElementById('examDrawingTools');
