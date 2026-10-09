@@ -1493,6 +1493,12 @@ async function loadQuestionsFromSupabase(){
       if(data.length<PAGE_SIZE)break;
     }
     const data=allRows;
+    // An empty Supabase result is not a successful question-bank load.
+    // Return false so loadQuestions() can fall back to the GitHub manifest.
+    if(data.length===0){
+      console.warn('Supabase question table returned zero rows; trying GitHub question bank.');
+      return false;
+    }
     const all=data.map(q=>normalizeQuestion({
       id:q.id,module:q.module,subject:q.subject,lecture:q.lecture,question:q.question,
       options:q.options,correctIndex:q.correct_index,explanation:q.explanation,
@@ -1517,8 +1523,27 @@ async function loadQuestionsFromSupabase(){
 }
 
 async function loadQuestions(){
+  // Show the last saved bank immediately, while the live source refreshes in the background.
+  // This avoids making returning users wait for Supabase/GitHub before they can study.
+  const cached=loadJSON(CONFIG.cacheKey,null);
+  if(cached && Array.isArray(cached.bank) && cached.bank.length){
+    const cachedBank=cached.bank.map(q=>normalizeQuestion(q,q.source||'Cache'));
+    allQuestionBank=cachedBank;
+    applyModuleVisibility();
+    sourceFiles=cached.sourceFiles||[];
+    lastSync=cached.updatedAt ? new Date(cached.updatedAt) : null;
+    render();
+    const status=document.getElementById('syncStatus');
+    if(status) status.textContent='Showing saved questions while checking for updates…';
+  }
   const loaded=await loadQuestionsFromSupabase();
-  if(!loaded) await loadFromGitHub();
+  if(loaded){
+    render();
+    const status=document.getElementById('syncStatus');
+    if(status) status.textContent=`Loaded ${bank.length} questions from Supabase.`;
+    return;
+  }
+  await loadFromGitHub();
 }
 
 
@@ -1532,13 +1557,14 @@ async function loadFromGitHub(){
     sourceFiles = files.map(x => typeof x === 'string' ? x : x.file).filter(Boolean);
     if(!sourceFiles.length) throw new Error('No question files are listed in questions/index.json.');
 
-    const all=[];
-    for(const file of sourceFiles){
+    // Fetch all listed question files concurrently instead of waiting for each file in sequence.
+    const fileResults=await Promise.all(sourceFiles.map(async file=>{
       const data=await fetchJSON('./questions/'+file);
       const list=Array.isArray(data) ? data : data.questions;
       if(!Array.isArray(list)) throw new Error(`${file} must contain an array or { "questions": [...] }`);
-      list.forEach(q=>all.push(normalizeQuestion(q,file)));
-    }
+      return list.map(q=>normalizeQuestion(q,file));
+    }));
+    const all=fileResults.flat();
     const errors=validateBank(all);
     if(errors.length) throw new Error(errors.slice(0,8).join('\\n'));
     const githubIds = new Set(all.map(q=>q.id));
