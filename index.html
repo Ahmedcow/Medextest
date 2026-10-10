@@ -388,9 +388,8 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 @media(max-width:700px){
   .exam-tool-panel{right:62px;top:auto;bottom:14px;transform:none;width:min(300px,calc(100vw - 78px));max-height:48vh}
 }
-/* Android fix: allow vertical page scrolling through the annotation area while drawing is off. Drawing mode disables browser touch gestures only while active. */
 /* v41.37: simple one-finger drawing. No drawing-box zoom/pan. */
-.exam-annotation-viewport{position:relative;width:100%;overflow:hidden;max-width:100%;border-radius:var(--radius-sm);touch-action:pan-y;overscroll-behavior:auto;}
+.exam-annotation-viewport{position:relative;width:100%;overflow:hidden;max-width:100%;border-radius:var(--radius-sm);touch-action:none;overscroll-behavior:contain;}
 .exam-annotation-surface{position:relative;width:100%;transform:none!important;transform-origin:initial;will-change:auto;}
 .exam-annotation-stage{position:relative;overflow:hidden;}
 .exam-annotation-canvas{touch-action:none;}
@@ -841,26 +840,39 @@ async function loadVisitorCloudData(){
   }catch(e){console.warn('Visitor progress load failed:',e.message);}
 }
 async function syncVisitorAnswerToSupabase(q,isCorrect,examId){
-  if(!SUPABASE_ENABLED || currentUser || !q)return;
+  if(!SUPABASE_ENABLED || currentUser || !q)return false;
   const vid=getVisitorId();
+  const common={p_visitor_id:vid,p_question_id:String(q.id),p_is_correct:!!isCorrect};
   try{
-    // Keep visitor leaderboard/progress in sync with the SQL migration.
-    // save_visitor_question_result is the canonical RPC; examId is retained
-    // by the caller for compatibility but is not needed by this RPC.
-    const {error}=await supabaseClient.rpc('save_visitor_question_result',{
-      p_visitor_id:vid,
-      p_question_id:String(q.id),
-      p_is_correct:!!isCorrect
+    // Newer migration name.
+    const primary=await supabaseClient.rpc('save_visitor_question_result',common);
+    if(!primary.error)return true;
+    console.warn('save_visitor_question_result unavailable; trying compatibility RPC:',primary.error.message);
+    // Older installations used this name and require visitor name + exam ID.
+    const fallback=await supabaseClient.rpc('record_visitor_question_answer',{
+      p_visitor_id:vid,p_visitor_name:visitorDisplayName(),p_question_id:String(q.id),
+      p_is_correct:!!isCorrect,p_exam_id:examId||null
     });
-    if(error) console.warn('Visitor answer sync failed:',error.message);
-  }catch(e){console.warn('Visitor answer sync failed:',e.message);}
+    if(fallback.error)throw fallback.error;
+    return true;
+  }catch(e){console.warn('Visitor answer sync failed:',e.message);return false;}
 }
 async function syncVisitorExamToSupabase(result){
-  if(!SUPABASE_ENABLED || currentUser || !result)return;
+  if(!SUPABASE_ENABLED || currentUser || !result)return false;
+  const args={p_visitor_id:getVisitorId(),p_visitor_name:visitorDisplayName(),p_exam_id:result.id,
+    p_total:Number(result.total||0),p_answered:Number(result.answered||0),p_correct:Number(result.correct||0),
+    p_unanswered:Number(result.unanswered||0),p_accuracy:Number(result.accuracy||0),
+    p_duration_seconds:Number(result.durationSec||0),p_label:result.label||'Exam',
+    p_exam_data:{list:result.list,answers:result.answers,auto:!!result.auto,examMinutes:Number(result.examMinutes||0)}};
   try{
-    const {error}=await supabaseClient.rpc('record_visitor_exam',{p_visitor_id:getVisitorId(),p_visitor_name:visitorDisplayName(),p_exam_id:result.id,p_total:Number(result.total||0),p_answered:Number(result.answered||0),p_correct:Number(result.correct||0),p_unanswered:Number(result.unanswered||0),p_accuracy:Number(result.accuracy||0),p_duration_seconds:Number(result.durationSec||0),p_label:result.label||'Exam',p_exam_data:{list:result.list,answers:result.answers,auto:!!result.auto,examMinutes:Number(result.examMinutes||0)}});
-    if(error) console.warn('Visitor exam sync failed:',error.message);
-  }catch(e){console.warn('Visitor exam sync failed:',e.message);}
+    // Support both SQL migration versions: older projects used record_visitor_exam,
+    // while the unified leaderboard migration uses save_visitor_exam.
+    const primary=await supabaseClient.rpc('record_visitor_exam',args);
+    if(!primary.error)return true;
+    const fallback=await supabaseClient.rpc('save_visitor_exam',args);
+    if(fallback.error)throw fallback.error;
+    return true;
+  }catch(e){console.warn('Visitor exam sync failed:',e.message);return false;}
 }
 async function loadVisitorHistoryFromSupabase(){
   if(!SUPABASE_ENABLED || currentUser)return;
@@ -880,7 +892,21 @@ async function loadLeaderboard(){
   try{
     const {data,error}=await supabaseClient.rpc('get_public_leaderboard');
     if(error)throw error;
-    leaderboardCache=data||{participants:[],updatedAt:new Date().toISOString()};
+    const payload=data||{};
+    let participants=Array.isArray(payload.participants)?payload.participants:[];
+    // Compatibility with the earlier SQL function, which returned separate
+    // `users` and `visitors` arrays instead of a unified `participants` array.
+    if(!participants.length){
+      const users=Array.isArray(payload.users)?payload.users:[];
+      const visitors=Array.isArray(payload.visitors)?payload.visitors:[];
+      participants=[
+        ...users.map(r=>({...r,participant_type:'user',participant_id:r.participant_id||r.user_id||r.id})),
+        ...visitors.map(r=>({...r,participant_type:'visitor',participant_id:r.participant_id||r.visitor_id||r.id}))
+      ].filter(r=>r.participant_id);
+      participants.sort((a,b)=>Number(b.correct_count||0)-Number(a.correct_count||0)||Number(b.answered_count||0)-Number(a.answered_count||0)||String(a.display_name||'').localeCompare(String(b.display_name||'')));
+      participants=participants.map((r,i)=>({...r,rank:Number(r.rank||i+1)}));
+    }
+    leaderboardCache={...payload,participants,updatedAt:payload.updatedAt||new Date().toISOString()};
   }catch(e){
     console.warn('Leaderboard unavailable:',e.message);
     leaderboardCache={participants:[],updatedAt:new Date().toISOString(),error:e.message};
@@ -1728,16 +1754,28 @@ function updateSupportUnreadDot(show){
   const host=document.querySelector('[data-contact-medex]');
   if(host){const dot=document.createElement('span');dot.className='support-unread-dot';dot.title='New message from MedEx team';dot.setAttribute('aria-label','New message from MedEx team');host.appendChild(dot);}
 }
+let leaderboardRefreshTimer=null;
 function renderLeaderboard(){
-  const body=`<div class="card"><div class="category-head"><div><strong>Top Users</strong><div class="mini">One unified ranking for signed-in users and visitors. Everyone competes together.</div></div><button class="btn" onclick="refreshUnifiedLeaderboard()">Refresh</button></div><div id="leaderboardContent" style="margin-top:14px"><div class="empty">Loading leaderboard…</div></div></div>`;
+  document.removeEventListener('visibilitychange',handleLeaderboardVisibility);
+  if(leaderboardRefreshTimer){clearInterval(leaderboardRefreshTimer);leaderboardRefreshTimer=null;}
+  const body=`<div class="card"><div class="category-head"><div><strong>Top Users</strong><div class="mini">One unified ranking for signed-in users and visitors. Everyone competes together. Updates automatically while this page is open.</div></div><button class="btn" onclick="refreshUnifiedLeaderboard()">Refresh</button></div><div id="leaderboardContent" style="margin-top:14px"><div class="empty">Loading leaderboard…</div></div></div>`;
   document.getElementById('app').innerHTML=layout('Top Users','All MedEx participants ranked together by correct answers.',body);
   refreshUnifiedLeaderboard();
+  // The leaderboard RPC aggregates data and is not itself a realtime table feed.
+  // Poll while the page is visible so scores submitted by other visitors appear.
+  leaderboardRefreshTimer=setInterval(()=>{
+    if(document.visibilityState==='visible' && document.getElementById('leaderboardContent')) refreshUnifiedLeaderboard(true);
+  },15000);
+  document.addEventListener('visibilitychange',handleLeaderboardVisibility);
+}
+function handleLeaderboardVisibility(){
+  if(document.visibilityState==='visible' && document.getElementById('leaderboardContent')) refreshUnifiedLeaderboard(true);
 }
 
-async function refreshUnifiedLeaderboard(){
+async function refreshUnifiedLeaderboard(silent=false){
   const host=document.getElementById('leaderboardContent');
   if(!host)return;
-  host.innerHTML='<div class="empty">Updating leaderboard…</div>';
+  if(!silent)host.innerHTML='<div class="empty">Updating leaderboard…</div>';
   const data=await loadLeaderboard();
   if(data?.error){
     host.innerHTML=`<div class="notice error">Could not load leaderboard: ${esc(data.error)}</div>`;
@@ -2369,7 +2407,7 @@ function initExamDrawing(){
     // While drawing is enabled, keep the browser from turning the single
     // finger stroke into page scrolling/zooming. The drawing box itself has
     // no custom zoom gesture.
-    viewport.style.touchAction=examDrawingEnabled?'none':'pan-y';
+    viewport.style.touchAction=examDrawingEnabled?'none':'auto';
   };
 
   const cancelStroke=()=>{
@@ -2526,7 +2564,7 @@ function toggleExamDrawing(){
   const canvas=document.getElementById('examAnnotationCanvas');
   const viewport=document.querySelector('.exam-annotation-viewport');
   if(canvas)canvas.classList.toggle('drawing-enabled',examDrawingEnabled);
-  if(viewport)viewport.style.touchAction=examDrawingEnabled?'none':'pan-y';
+  if(viewport)viewport.style.touchAction=examDrawingEnabled?'none':'auto';
   const btn=document.getElementById('examDrawingToggle');
   if(btn)btn.classList.toggle('tool-active',examDrawingEnabled);
   const rail=document.getElementById('examDrawingTools');
