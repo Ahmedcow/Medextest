@@ -373,6 +373,7 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
 .exam-annotation-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:8;touch-action:none;pointer-events:none}
 .exam-annotation-canvas.drawing-enabled{pointer-events:auto;cursor:crosshair}
 .exam-annotation-note-label{display:block;font-weight:700;font-size:12px;margin-bottom:7px;color:var(--text)}
+/* Android scroll regression fix: the annotation viewport must use pan-y when drawing is off; only active drawing mode may set touch-action:none. */
 /* v41.26: exam utility panels live inside the floating drawing rail */
 .exam-tool-panel{display:none;position:fixed;right:82px;top:50%;transform:translateY(-50%);width:min(330px,calc(100vw - 100px));max-height:min(58vh,520px);overflow:auto;padding:12px;border:1px solid var(--line);border-radius:16px;background:var(--card);color:var(--text);box-shadow:0 18px 42px rgba(0,0,0,.24);z-index:119}
 .exam-tool-panel.is-open{display:block}
@@ -389,10 +390,11 @@ h1,h2,h3{font-family:var(--font-serif);font-weight:600;letter-spacing:-.01em;mar
   .exam-tool-panel{right:62px;top:auto;bottom:14px;transform:none;width:min(300px,calc(100vw - 78px));max-height:48vh}
 }
 /* v41.37: simple one-finger drawing. No drawing-box zoom/pan. */
-.exam-annotation-viewport{position:relative;width:100%;overflow:hidden;max-width:100%;border-radius:var(--radius-sm);touch-action:none;overscroll-behavior:contain;}
+.exam-annotation-viewport{position:relative;width:100%;overflow:hidden;max-width:100%;border-radius:var(--radius-sm);touch-action:pan-y;overscroll-behavior:auto;}
 .exam-annotation-surface{position:relative;width:100%;transform:none!important;transform-origin:initial;will-change:auto;}
 .exam-annotation-stage{position:relative;overflow:hidden;}
-.exam-annotation-canvas{touch-action:none;}
+.exam-annotation-canvas{touch-action:pan-y;}
+.exam-annotation-canvas.drawing-enabled{touch-action:none;}
 .exam-note-editor-backdrop{position:fixed;inset:0;z-index:260;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(5,9,12,.58);backdrop-filter:blur(6px)}
 .exam-note-editor{width:min(560px,calc(100vw - 32px));max-height:min(78vh,620px);display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);box-shadow:0 24px 70px rgba(0,0,0,.32);overflow:hidden}
 .exam-note-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--bg)}
@@ -840,39 +842,26 @@ async function loadVisitorCloudData(){
   }catch(e){console.warn('Visitor progress load failed:',e.message);}
 }
 async function syncVisitorAnswerToSupabase(q,isCorrect,examId){
-  if(!SUPABASE_ENABLED || currentUser || !q)return false;
+  if(!SUPABASE_ENABLED || currentUser || !q)return;
   const vid=getVisitorId();
-  const common={p_visitor_id:vid,p_question_id:String(q.id),p_is_correct:!!isCorrect};
   try{
-    // Newer migration name.
-    const primary=await supabaseClient.rpc('save_visitor_question_result',common);
-    if(!primary.error)return true;
-    console.warn('save_visitor_question_result unavailable; trying compatibility RPC:',primary.error.message);
-    // Older installations used this name and require visitor name + exam ID.
-    const fallback=await supabaseClient.rpc('record_visitor_question_answer',{
-      p_visitor_id:vid,p_visitor_name:visitorDisplayName(),p_question_id:String(q.id),
-      p_is_correct:!!isCorrect,p_exam_id:examId||null
+    // Keep visitor leaderboard/progress in sync with the SQL migration.
+    // save_visitor_question_result is the canonical RPC; examId is retained
+    // by the caller for compatibility but is not needed by this RPC.
+    const {error}=await supabaseClient.rpc('save_visitor_question_result',{
+      p_visitor_id:vid,
+      p_question_id:String(q.id),
+      p_is_correct:!!isCorrect
     });
-    if(fallback.error)throw fallback.error;
-    return true;
-  }catch(e){console.warn('Visitor answer sync failed:',e.message);return false;}
+    if(error) console.warn('Visitor answer sync failed:',error.message);
+  }catch(e){console.warn('Visitor answer sync failed:',e.message);}
 }
 async function syncVisitorExamToSupabase(result){
-  if(!SUPABASE_ENABLED || currentUser || !result)return false;
-  const args={p_visitor_id:getVisitorId(),p_visitor_name:visitorDisplayName(),p_exam_id:result.id,
-    p_total:Number(result.total||0),p_answered:Number(result.answered||0),p_correct:Number(result.correct||0),
-    p_unanswered:Number(result.unanswered||0),p_accuracy:Number(result.accuracy||0),
-    p_duration_seconds:Number(result.durationSec||0),p_label:result.label||'Exam',
-    p_exam_data:{list:result.list,answers:result.answers,auto:!!result.auto,examMinutes:Number(result.examMinutes||0)}};
+  if(!SUPABASE_ENABLED || currentUser || !result)return;
   try{
-    // Support both SQL migration versions: older projects used record_visitor_exam,
-    // while the unified leaderboard migration uses save_visitor_exam.
-    const primary=await supabaseClient.rpc('record_visitor_exam',args);
-    if(!primary.error)return true;
-    const fallback=await supabaseClient.rpc('save_visitor_exam',args);
-    if(fallback.error)throw fallback.error;
-    return true;
-  }catch(e){console.warn('Visitor exam sync failed:',e.message);return false;}
+    const {error}=await supabaseClient.rpc('record_visitor_exam',{p_visitor_id:getVisitorId(),p_visitor_name:visitorDisplayName(),p_exam_id:result.id,p_total:Number(result.total||0),p_answered:Number(result.answered||0),p_correct:Number(result.correct||0),p_unanswered:Number(result.unanswered||0),p_accuracy:Number(result.accuracy||0),p_duration_seconds:Number(result.durationSec||0),p_label:result.label||'Exam',p_exam_data:{list:result.list,answers:result.answers,auto:!!result.auto,examMinutes:Number(result.examMinutes||0)}});
+    if(error) console.warn('Visitor exam sync failed:',error.message);
+  }catch(e){console.warn('Visitor exam sync failed:',e.message);}
 }
 async function loadVisitorHistoryFromSupabase(){
   if(!SUPABASE_ENABLED || currentUser)return;
@@ -892,21 +881,7 @@ async function loadLeaderboard(){
   try{
     const {data,error}=await supabaseClient.rpc('get_public_leaderboard');
     if(error)throw error;
-    const payload=data||{};
-    let participants=Array.isArray(payload.participants)?payload.participants:[];
-    // Compatibility with the earlier SQL function, which returned separate
-    // `users` and `visitors` arrays instead of a unified `participants` array.
-    if(!participants.length){
-      const users=Array.isArray(payload.users)?payload.users:[];
-      const visitors=Array.isArray(payload.visitors)?payload.visitors:[];
-      participants=[
-        ...users.map(r=>({...r,participant_type:'user',participant_id:r.participant_id||r.user_id||r.id})),
-        ...visitors.map(r=>({...r,participant_type:'visitor',participant_id:r.participant_id||r.visitor_id||r.id}))
-      ].filter(r=>r.participant_id);
-      participants.sort((a,b)=>Number(b.correct_count||0)-Number(a.correct_count||0)||Number(b.answered_count||0)-Number(a.answered_count||0)||String(a.display_name||'').localeCompare(String(b.display_name||'')));
-      participants=participants.map((r,i)=>({...r,rank:Number(r.rank||i+1)}));
-    }
-    leaderboardCache={...payload,participants,updatedAt:payload.updatedAt||new Date().toISOString()};
+    leaderboardCache=data||{participants:[],updatedAt:new Date().toISOString()};
   }catch(e){
     console.warn('Leaderboard unavailable:',e.message);
     leaderboardCache={participants:[],updatedAt:new Date().toISOString(),error:e.message};
@@ -1754,57 +1729,66 @@ function updateSupportUnreadDot(show){
   const host=document.querySelector('[data-contact-medex]');
   if(host){const dot=document.createElement('span');dot.className='support-unread-dot';dot.title='New message from MedEx team';dot.setAttribute('aria-label','New message from MedEx team');host.appendChild(dot);}
 }
-let leaderboardRefreshTimer=null;
-function renderLeaderboard(){
-  document.removeEventListener('visibilitychange',handleLeaderboardVisibility);
-  if(leaderboardRefreshTimer){clearInterval(leaderboardRefreshTimer);leaderboardRefreshTimer=null;}
-  const body=`<div class="card"><div class="category-head"><div><strong>Top Users</strong><div class="mini">One unified ranking for signed-in users and visitors. Everyone competes together. Updates automatically while this page is open.</div></div><button class="btn" onclick="refreshUnifiedLeaderboard()">Refresh</button></div><div id="leaderboardContent" style="margin-top:14px"><div class="empty">Loading leaderboard…</div></div></div>`;
-  document.getElementById('app').innerHTML=layout('Top Users','All MedEx participants ranked together by correct answers.',body);
-  refreshUnifiedLeaderboard();
-  // The leaderboard RPC aggregates data and is not itself a realtime table feed.
-  // Poll while the page is visible so scores submitted by other visitors appear.
-  leaderboardRefreshTimer=setInterval(()=>{
-    if(document.visibilityState==='visible' && document.getElementById('leaderboardContent')) refreshUnifiedLeaderboard(true);
-  },15000);
-  document.addEventListener('visibilitychange',handleLeaderboardVisibility);
+function leaderboardIsCurrentParticipant(r){
+  const type=String(r.participant_type||'user');
+  const id=String(r.participant_id||'');
+  return type==='visitor'
+    ? (!currentUser && !!getVisitorId() && id===String(getVisitorId()))
+    : (!!currentUser && id===String(currentUser.id));
 }
-function handleLeaderboardVisibility(){
-  if(document.visibilityState==='visible' && document.getElementById('leaderboardContent')) refreshUnifiedLeaderboard(true);
+function leaderboardRowHTML(r,index){
+  const me=leaderboardIsCurrentParticipant(r);
+  const type=String(r.participant_type||'user');
+  const answered=Number(r.answered_count||0);
+  const correct=Number(r.correct_count||0);
+  const acc=answered?pct(correct,answered):0;
+  const label=type==='visitor'?'Visitor':'Student';
+  const rank=Number(r.rank||index+1);
+  return `<div class="leaderboard-row ${me?'leaderboard-me':''}">
+    <div class="leaderboard-rank">#${rank}</div>
+    <div><div class="leaderboard-name">${esc(r.display_name||'Anonymous')} ${me?'<span class="pill" style="margin-left:6px">You</span>':''}</div><div class="mini">${label} · ${answered} answered</div></div>
+    <div class="leaderboard-score">${correct} true</div>
+    <div class="leaderboard-accuracy">${acc}% accuracy</div>
+  </div>`;
+}
+function renderLeaderboard(){
+  const body=`<div class="card"><div class="category-head"><div><strong>Top Students</strong><div class="mini">Top 10 students and visitors, plus your own rank if you are outside the top 10.</div></div><button class="btn" onclick="refreshUnifiedLeaderboard()">Refresh</button></div><div id="leaderboardContent" style="margin-top:14px"><div class="empty">Loading leaderboard…</div></div></div>`;
+  document.getElementById('app').innerHTML=layout('Top Students','One unified ranking for signed-in students and visitors, ranked by correct answers.',body);
+  refreshUnifiedLeaderboard();
 }
 
-async function refreshUnifiedLeaderboard(silent=false){
+async function refreshUnifiedLeaderboard(){
   const host=document.getElementById('leaderboardContent');
   if(!host)return;
-  if(!silent)host.innerHTML='<div class="empty">Updating leaderboard…</div>';
+  host.innerHTML='<div class="empty">Updating leaderboard…</div>';
   const data=await loadLeaderboard();
-  if(data?.error){
-    host.innerHTML=`<div class="notice error">Could not load leaderboard: ${esc(data.error)}</div>`;
-    return;
-  }
-  const rows=Array.isArray(data?.participants)?data.participants:[];
-  if(!rows.length){
-    host.innerHTML='<div class="empty">No ranked participants yet.</div>';
-    return;
-  }
-  const html=rows.map((r,i)=>{
-    const type=String(r.participant_type||'user');
-    const id=String(r.participant_id||'');
-    const me=type==='visitor'
-      ? (!currentUser && id===String(getVisitorId()))
-      : (!!currentUser && id===String(currentUser.id));
-    const answered=Number(r.answered_count||0);
-    const correct=Number(r.correct_count||0);
-    const acc=answered?pct(correct,answered):0;
-    const label=type==='visitor'?'Visitor':'User';
-    const rank=Number(r.rank||i+1);
-    return `<div class="leaderboard-row ${me?'leaderboard-me':''}">
-      <div class="leaderboard-rank">#${rank}</div>
-      <div><div class="leaderboard-name">${esc(r.display_name||'Anonymous')} ${me?'<span class="pill" style="margin-left:6px">You</span>':''}</div><div class="mini">${label} · ${answered} answered</div></div>
-      <div class="leaderboard-score">${correct} true</div>
-      <div class="leaderboard-accuracy">${acc}% accuracy</div>
-    </div>`;
-  }).join('');
-  host.innerHTML=`<div class="category-card"><div class="category-head"><strong>All Participants</strong><span class="pill">${rows.length}</span></div>${html}</div><div class="mini" style="margin-top:10px">Users and visitors are ranked together. Ranking: correct answers → answered questions → name. Updated ${data.updatedAt?new Date(data.updatedAt).toLocaleString():'now'}.</div>`;
+  if(!document.getElementById('leaderboardContent'))return;
+  if(data?.error){host.innerHTML=`<div class="notice error">Could not load leaderboard: ${esc(data.error)}</div>`;return;}
+  const rows=(Array.isArray(data?.participants)?data.participants:[]).slice().sort((a,b)=>Number(a.rank||0)-Number(b.rank||0));
+  if(!rows.length){host.innerHTML='<div class="empty">No ranked participants yet.</div>';return;}
+  const topTen=rows.slice(0,10);
+  const me=rows.find(leaderboardIsCurrentParticipant);
+  const currentOutsideTopTen=me&&!topTen.some(r=>leaderboardIsCurrentParticipant(r));
+  const shown=[...topTen];
+  if(currentOutsideTopTen)shown.push(me);
+  const html=shown.map((r,i)=>leaderboardRowHTML(r,rows.indexOf(r))).join('');
+  host.innerHTML=`<div class="category-card"><div class="category-head"><strong>Top 10 Students</strong><span class="pill">${Math.min(10,rows.length)}</span></div>${html}</div>${currentOutsideTopTen?'<div class="mini" style="margin-top:12px">Your rank is shown below the top 10.</div>':''}<div class="mini" style="margin-top:10px">Students and visitors are ranked together by correct answers, then answered questions, then name. Updated ${data.updatedAt?new Date(data.updatedAt).toLocaleString():'now'}.</div>`;
+}
+async function refreshDashboardLeaderboardPreview(){
+  const host=document.getElementById('dashboardLeaderboardPreview');
+  if(!host)return;
+  host.innerHTML='<div class="mini" style="margin-top:10px">Loading top students…</div>';
+  const data=await loadLeaderboard();
+  if(!document.getElementById('dashboardLeaderboardPreview'))return;
+  if(data?.error){host.innerHTML='<div class="mini" style="margin-top:10px">Leaderboard is temporarily unavailable.</div>';return;}
+  const rows=(Array.isArray(data?.participants)?data.participants:[]).slice().sort((a,b)=>Number(a.rank||0)-Number(b.rank||0));
+  if(!rows.length){host.innerHTML='<div class="mini" style="margin-top:10px">No ranked students yet.</div>';return;}
+  const topThree=rows.slice(0,3);
+  const me=rows.find(leaderboardIsCurrentParticipant);
+  const meOutsideTopThree=me&&!topThree.some(r=>leaderboardIsCurrentParticipant(r));
+  const shown=[...topThree];
+  if(meOutsideTopThree)shown.push(me);
+  host.innerHTML=`<div style="margin-top:12px;border-top:1px solid var(--line)">${shown.map(r=>leaderboardRowHTML(r,rows.indexOf(r))).join('')}</div>${meOutsideTopThree?'<div class="mini" style="margin-top:7px">Your current rank is included below the top 3.</div>':''}`;
 }
 
 function renderDashboard(){
@@ -1816,7 +1800,7 @@ function renderDashboard(){
   ${siteNotificationsHTML()}
   ${visitorIdentity}
   ${dailyGoalStreakHTML()}
-  <div class="card dashboard-leaderboard-shortcut dashboard-progress-shortcut" style="margin-bottom:12px;cursor:pointer" onclick="go('leaderboard')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')go('leaderboard')"><div class="dashboard-leaderboard-icon">🏆</div><div style="flex:1"><strong>Top Users</strong><div class="mini" style="margin-top:4px">See all users and visitors ranked together by true answers.</div></div><span class="shortcut-arrow" aria-hidden="true">→</span></div>
+  <div class="card dashboard-leaderboard-shortcut dashboard-progress-shortcut" style="margin-bottom:12px;cursor:pointer" onclick="go('leaderboard')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')go('leaderboard')"><div class="dashboard-leaderboard-icon">🏆</div><div style="flex:1;min-width:0"><strong>Top Students</strong><div class="mini" style="margin-top:4px">Top 3 students and your current rank.</div><div id="dashboardLeaderboardPreview" onclick="event.stopPropagation()"><div class="mini" style="margin-top:10px">Loading top students…</div></div></div><span class="shortcut-arrow" aria-hidden="true">→</span></div>
   <div class="card dashboard-progress-shortcut" style="margin-bottom:16px;cursor:pointer" onclick="go('progress')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')go('progress')">
     <div class="dashboard-progress-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,17 8,11 12,14 21,5"/><polyline points="15,5 21,5 21,11"/><line x1="3" y1="20" x2="21" y2="20"/></svg></div>
     <div style="flex:1"><strong>Progress & Accuracy</strong><div class="mini" style="margin-top:4px">View your daily solved, true and false questions.</div></div>
@@ -1855,6 +1839,7 @@ function renderDashboard(){
     <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="loadQuestions()">Refresh from Supabase</button><button class="btn" onclick="go('import')">Upload / Update Questions</button><button class="btn primary btn-lg" onclick="go('exam')">Start an Exam</button></div>
   </div>`;
   document.getElementById('app').innerHTML=layout(welcomeTitle,currentUser?'Your personal progress and performance.':'Your visitor progress is synced to this device and Supabase when connected.',body);
+  refreshDashboardLeaderboardPreview();
 }
 
 function examPathKey(type,module='',subject='',lecture=''){
@@ -2556,15 +2541,20 @@ function setExamDrawingTool(tool){
   const rail=document.getElementById('examDrawingTools');
   if(rail)rail.classList.add('is-open');
   const canvas=document.getElementById('examAnnotationCanvas');
-  if(canvas)canvas.classList.add('drawing-enabled');
+  if(canvas){canvas.classList.add('drawing-enabled');canvas.style.touchAction='none';}
+  const viewport=document.querySelector('.exam-annotation-viewport');
+  if(viewport)viewport.style.touchAction='none';
   document.querySelectorAll('.exam-annotation-toolbar .tool-btn').forEach(b=>b.classList.toggle('tool-active',b.dataset.tool===tool));
 }
 function toggleExamDrawing(){
   examDrawingEnabled=!examDrawingEnabled;
   const canvas=document.getElementById('examAnnotationCanvas');
   const viewport=document.querySelector('.exam-annotation-viewport');
-  if(canvas)canvas.classList.toggle('drawing-enabled',examDrawingEnabled);
-  if(viewport)viewport.style.touchAction=examDrawingEnabled?'none':'auto';
+  if(canvas){
+    canvas.classList.toggle('drawing-enabled',examDrawingEnabled);
+    canvas.style.touchAction=examDrawingEnabled?'none':'pan-y';
+  }
+  if(viewport)viewport.style.touchAction=examDrawingEnabled?'none':'pan-y';
   const btn=document.getElementById('examDrawingToggle');
   if(btn)btn.classList.toggle('tool-active',examDrawingEnabled);
   const rail=document.getElementById('examDrawingTools');
