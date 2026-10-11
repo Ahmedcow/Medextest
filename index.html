@@ -604,6 +604,22 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
 </style>
 
 <style>
+/* Dashboard polish: compact visitor name form and use clear study icons. */
+.visitor-welcome{padding:12px 14px!important}
+.visitor-welcome .category-head{gap:10px;align-items:center}
+.visitor-welcome .category-head>div{min-width:0}
+.visitor-welcome .category-head strong{font-size:13px}
+.visitor-welcome .category-head .mini{font-size:10.5px;line-height:1.4;max-width:560px}
+.visitor-name-form{margin-top:9px!important;gap:7px;align-items:flex-end}
+.visitor-name-form .field{flex:0 1 250px;min-width:150px;max-width:280px;gap:4px}
+.visitor-name-form .field label{font-size:10.5px;margin-bottom:2px}
+.visitor-name-form input{min-height:36px;padding:8px 10px;font-size:12px}
+.visitor-name-form .btn{min-height:36px;padding:8px 12px;font-size:11px}
+.dashboard-action-icon svg{display:block;width:23px;height:23px}
+.dashboard-action.exam .dashboard-action-icon{background:var(--primary-soft);color:var(--primary)}
+.dashboard-action.cards .dashboard-action-icon{background:rgba(111,83,174,.12);color:#7960b1}
+@media(max-width:600px){.visitor-welcome{padding:10px 11px!important}.visitor-name-form .field{flex:1 1 165px;max-width:none;min-width:0}.visitor-name-form .btn{flex:0 0 auto}}
+
 /* v41.54 simple layout cleanup */
 /* Keep the full platform name in the sidebar only; the upper bar stays compact. */
 .topbar-brand{font-weight:800}
@@ -1806,8 +1822,8 @@ function renderDashboard(){
   const weakModules=modules.map(m=>{const list=bank.filter(q=>q.module===m);const a=accuracyStats(list);return {name:m,list,accuracy:a.pct,attempts:a.attempts,practiced:practicedCount(list)};}).filter(x=>x.list.length).sort((a,b)=>{if(!!a.attempts!==!!b.attempts)return a.attempts?-1:1;if(a.attempts&&b.attempts&&a.accuracy!==b.accuracy)return a.accuracy-b.accuracy;return a.name.localeCompare(b.name);}).slice(0,3);
   const mistakeCount=bank.filter(q=>Number(progress[key(q)]?.wrong||0)>0).length;
   const quickActions=[
-    {icon:'▤',title:'Start an exam',desc:'Build a focused practice session',view:'exam',tone:'exam'},
-    {icon:'▧',title:'Study flashcards',desc:'New cards and revision cards',view:'tools',tone:'cards'},
+    {icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2"/><path d="M9 3.5V2h6v1.5M8.5 9h7M8.5 13h7M8.5 17h4"/></svg>',title:'Start an exam',desc:'Build a focused practice session',view:'exam',tone:'exam'},
+    {icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="13" height="16" rx="2"/><path d="M4 7v12a2 2 0 0 0 2 2h10M10 8h7M10 12h7"/></svg>',title:'Study flashcards',desc:'New cards and revision cards',view:'tools',tone:'cards'},
     {icon:'↻',title:'Review mistakes',desc:`${mistakeCount} questions to revisit`,view:'mistakes',tone:'mistakes'},
     {icon:'⌕',title:'Study library',desc:'Find questions by topic or lecture',view:'library',tone:'library'}
   ];
