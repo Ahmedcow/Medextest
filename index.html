@@ -2964,8 +2964,9 @@ function chooseAnswer(i){
 function nextQ(){if(exam.index<exam.list.length-1){reportPanelOpen=false;exam.index++;saveActiveExam();renderQuiz();}}
 function prevQ(){if(exam.index>0){reportPanelOpen=false;exam.index--;saveActiveExam();renderQuiz();}}
 async function submitExam(auto){
-  if(!exam)return;
+  if(!exam || exam.submitted)return;
   if(!auto && !confirm('Submit this exam now?'))return;
+  exam.submitted=true;
   clearInterval(timerId);
   let correct=0;
   const answeredQuestionsForReview=[];
@@ -2982,7 +2983,6 @@ async function submitExam(auto){
     recordStudyAnswer(q.id, a===q.correctIndex);
   });
   saveState();
-  await syncReviewSchedulesToSupabase(answeredQuestionsForReview);
   const unanswered=exam.list.filter(q=>exam.answers[q.id]===undefined).length;
   const durationSec=Math.round((Date.now()-exam.started)/1000);
   const result={
@@ -3005,23 +3005,40 @@ async function submitExam(auto){
     auto
   };
 
-  if(!currentUser){
-    await syncVisitorExamToSupabase(result);
-    for(const q of answeredQuestionsForReview){ const a=exam.answers[q.id]; await syncVisitorAnswerToSupabase(q,a===q.correctIndex,result.id); }
-  }
-  if(SUPABASE_ENABLED){
-    await recordExamForAnalytics(result);
-  }
-  if(SUPABASE_ENABLED && currentUser){
-    await saveExamToSupabase(result);
-    for(const q of exam.list){
-      const a=exam.answers[q.id];
-      if(a===undefined)continue;
-      await recordAttemptToSupabase(q,a,a===q.correctIndex,result.id);
+  // Save and show the result locally first. Supabase requests must never hold
+  // the Submit Exam action hostage if the network or an RPC is slow/failing.
+  const submittedQuestions=exam.list.slice();
+  const submittedAnswers={...exam.answers};
+  const submittedWasVisitor=!currentUser;
+  const submittedUserId=currentUser?.id||null;
+  const syncAfterSubmit=async()=>{
+    if(!SUPABASE_ENABLED)return;
+    const jobs=[];
+    jobs.push(syncReviewSchedulesToSupabase(answeredQuestionsForReview));
+    if(submittedWasVisitor){
+      jobs.push(syncVisitorExamToSupabase(result));
+      for(const q of answeredQuestionsForReview){
+        const a=submittedAnswers[q.id];
+        jobs.push(syncVisitorAnswerToSupabase(q,a===q.correctIndex,result.id));
+      }
     }
-    await syncLocalProgressToSupabase();
-    await loadGlobalAnalytics();
-  }
+    jobs.push(recordExamForAnalytics(result));
+    if(submittedUserId){
+      jobs.push(saveExamToSupabase(result));
+      for(const q of submittedQuestions){
+        const a=submittedAnswers[q.id];
+        if(a===undefined)continue;
+        jobs.push(recordAttemptToSupabase(q,a,a===q.correctIndex,result.id));
+      }
+      jobs.push(syncLocalProgressToSupabase());
+      jobs.push(loadGlobalAnalytics());
+    }
+    const settled=await Promise.allSettled(jobs);
+    const failed=settled.filter(x=>x.status==='rejected').length;
+    if(failed)console.warn(`MedEx: ${failed} post-submit sync task(s) failed; local exam result was saved.`);
+  };
+  // Fire-and-forget cloud sync after the result is safely stored.
+  syncAfterSubmit().catch(e=>console.warn('Post-submit sync failed:',e));
   // Drawings, highlights and notes are exam-only and are intentionally discarded on submission.
   if(exam){ exam.annotations={}; }
   exam=null;
