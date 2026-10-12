@@ -649,6 +649,27 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
 @media(max-width:1050px){.phase2-library-main #libraryResults{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:850px){.phase2-library-grid{grid-template-columns:1fr!important}.phase2-library-side{position:static}.phase2-library-main #libraryResults{grid-template-columns:1fr}}
 
+
+/* MedEx smart study recommendation + focused exam review */
+.dashboard-smart-card{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(220px,.65fr);gap:18px;padding:18px;border:1px solid rgba(var(--primary-rgb),.28);background:linear-gradient(135deg,var(--primary-soft),var(--card) 60%)}
+.dashboard-smart-kicker{display:flex;align-items:center;gap:7px;color:var(--primary);font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.dashboard-smart-card h3{margin:8px 0 6px;font-family:var(--font-serif);font-size:21px;font-weight:650;line-height:1.25}
+.dashboard-smart-card p{margin:0;color:var(--muted);font-size:12px;line-height:1.6}
+.dashboard-smart-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.dashboard-smart-side{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:center}
+.dashboard-smart-metric{padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.dashboard-smart-metric b{display:block;color:var(--primary);font-size:22px;line-height:1.2}
+.dashboard-smart-metric span{display:block;margin-top:5px;color:var(--muted);font-size:10px;line-height:1.4}
+.result-topic-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+.result-topic-card{padding:13px;border:1px solid var(--line);border-radius:13px;background:var(--card);min-width:0}
+.result-topic-card .result-topic-title{font-size:12px;font-weight:750;overflow-wrap:anywhere}
+.result-topic-card .result-topic-meta{margin-top:4px;color:var(--muted);font-size:10px;line-height:1.5}
+.result-topic-card .bar{height:6px;margin:9px 0 7px}
+.result-topic-stats{display:flex;gap:8px;flex-wrap:wrap;font-size:10px;color:var(--muted)}
+.result-topic-stats .good{color:var(--ok)}.result-topic-stats .bad{color:var(--danger)}
+.result-topic-card .btn{margin-top:10px;font-size:11px;padding:7px 9px}
+@media(max-width:700px){.dashboard-smart-card{grid-template-columns:1fr;gap:13px;padding:14px}.dashboard-smart-card h3{font-size:19px}.dashboard-smart-side{grid-template-columns:repeat(3,minmax(0,1fr))}.dashboard-smart-metric{padding:10px}.dashboard-smart-metric b{font-size:19px}.result-topic-grid{grid-template-columns:1fr}}
+
 /* Dashboard refresh: use the existing MedEx teal/blue palette and both themes. */
 .dashboard-section{margin:22px 0 26px}.dashboard-section-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:0 0 12px}.dashboard-section-heading h2{font-family:var(--font-serif);font-size:22px;font-weight:600;letter-spacing:-.02em;margin:3px 0 0}.dashboard-section-heading p{font-size:12px;color:var(--muted);margin:5px 0 0}.dashboard-eyebrow{display:block;font-size:9.5px;font-weight:800;letter-spacing:.13em;color:var(--primary);text-transform:uppercase}.dashboard-section-note{font-size:11px;color:var(--muted)}.dashboard-actions-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.dashboard-action{min-width:0;display:flex;align-items:center;gap:11px;padding:14px 12px;text-align:left;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);box-shadow:var(--shadow-sm);transition:transform .15s,border-color .15s,background .15s}.dashboard-action:hover{transform:translateY(-2px);border-color:rgba(var(--primary-rgb),.55);background:var(--primary-soft)}.dashboard-action-icon{width:39px;height:39px;flex:0 0 39px;display:grid;place-items:center;border-radius:12px;background:var(--primary-soft);color:var(--primary);font-size:23px;font-weight:700}.dashboard-action.cards .dashboard-action-icon{background:rgba(111,83,174,.12);color:#7960b1}.dashboard-action.mistakes .dashboard-action-icon{background:var(--danger-soft);color:var(--danger)}.dashboard-action.library .dashboard-action-icon{background:var(--ok-soft);color:var(--ok)}.dashboard-action-copy{display:flex;flex-direction:column;gap:4px;min-width:0}.dashboard-action-copy b{font-size:12px;line-height:1.35}.dashboard-action-copy small{font-size:10px;line-height:1.45;color:var(--muted)}.dashboard-action-arrow{margin-left:auto;color:var(--primary);font-size:18px}.dashboard-stat-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.dashboard-stat-card{position:relative;min-width:0;padding:15px 16px 14px;border-top:3px solid var(--primary);background:linear-gradient(160deg,var(--card),rgba(var(--primary-rgb),.035))}.dashboard-stat-card .value{font-size:25px}.dashboard-stat-symbol{width:30px;height:30px;display:grid;place-items:center;margin-bottom:10px;border-radius:9px;background:var(--primary-soft);color:var(--primary);font-size:19px;font-weight:800}.dashboard-section-link{flex:0 0 auto;font-size:11px!important;padding:8px 10px!important;white-space:nowrap}.dashboard-weak-card{padding:4px 14px}.dashboard-weak-row{display:flex;align-items:center;gap:12px;padding:12px 0}.dashboard-weak-row+.dashboard-weak-row{border-top:1px solid var(--line)}.dashboard-weak-rank{width:29px;height:29px;display:grid;place-items:center;flex:0 0 29px;border-radius:9px;background:var(--primary-soft);color:var(--primary);font-size:12px;font-weight:800}.dashboard-weak-copy{flex:1;min-width:0}.dashboard-weak-copy strong{font-size:12.5px}.dashboard-weak-copy .bar{margin-top:7px;height:5px}.dashboard-practice-btn{flex:0 0 auto;font-size:11px!important;padding:8px 12px!important}.dashboard-leaderboard-card{padding:14px 16px}.dashboard-leaderboard-card .leaderboard-row{padding:10px 0}.dashboard-leaderboard-card .dashboard-leaderboard-shortcut{padding-bottom:10px;border-bottom:1px solid var(--line)}.dashboard-modules-details,.dashboard-sync-details{border:1px solid var(--line);border-radius:14px;background:var(--card);overflow:hidden}.dashboard-modules-details>summary,.dashboard-sync-details>summary{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;cursor:pointer;list-style:none;font-size:12.5px;font-weight:700}.dashboard-modules-details>summary::-webkit-details-marker,.dashboard-sync-details>summary::-webkit-details-marker{display:none}.dashboard-modules-details>summary:after,.dashboard-sync-details>summary:after{content:'+';color:var(--primary);font-size:20px;font-weight:500}.dashboard-modules-details[open]>summary:after,.dashboard-sync-details[open]>summary:after{content:'−'}.dashboard-modules-grid{padding:0 12px 12px}.dashboard-module-card{padding:14px}.dashboard-sync-details>.card{margin:0;border:0;border-top:1px solid var(--line);border-radius:0;box-shadow:none}.dashboard-contact-section{margin-top:26px}.dashboard-sync-section{margin-top:8px}
 @media(max-width:1050px){.dashboard-actions-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -1813,6 +1834,48 @@ async function refreshDashboardLeaderboardPreview(){
   host.innerHTML=`<div style="margin-top:12px;border-top:1px solid var(--line)">${shown.map(r=>leaderboardRowHTML(r,rows.indexOf(r))).join('')}</div>${meOutsideTopThree?'<div class="mini" style="margin-top:7px">Your current rank is included below the top 3.</div>':''}`;
 }
 
+function smartStudyPlan(){
+  const dueQuestions=dueSpacedQuestions();
+  const wrongQuestions=bank.filter(q=>Number(progress[key(q)]?.wrong||0)>0);
+  let dueCards=0;
+  try{dueCards=flashcardItems({module:'',subject:'',lecture:'',mode:'due'}).length;}catch(e){dueCards=0;}
+  const topicMap=new Map();
+  bank.forEach(q=>{
+    const p=progress[key(q)]||{};const attempts=Number(p.attempts||0);if(!attempts)return;
+    const topic=[String(q.module||''),String(q.subject||''),String(q.lecture||'')];
+    const k=JSON.stringify(topic);const row=topicMap.get(k)||{module:topic[0],subject:topic[1],lecture:topic[2],list:[],attempts:0,correct:0,wrong:0};
+    row.list.push(q);row.attempts+=attempts;row.correct+=Number(p.correct||0);row.wrong+=Number(p.wrong||0);topicMap.set(k,row);
+  });
+  const weakTopics=[...topicMap.values()].map(t=>({...t,accuracy:pct(t.correct,t.attempts)})).filter(t=>t.attempts>=3).sort((a,b)=>a.accuracy-b.accuracy||b.wrong-a.wrong||b.attempts-a.attempts);
+  const firstUnpracticed=bank.find(q=>!Number(progress[key(q)]?.attempts||0));
+  let plan;
+  if(dueCards>0)plan={type:'flashcards',title:'Review your due flashcards',desc:`${dueCards} revision card${dueCards===1?' is':'s are'} due. A short recall session now helps keep previously learned material fresh.`,button:'Start revision cards',icon:'▤'};
+  else if(dueQuestions.length)plan={type:'spaced',title:'Review questions due today',desc:`You have ${dueQuestions.length} previously studied question${dueQuestions.length===1?'':'s'} due for spaced repetition.`,button:'Start spaced review',icon:'↻'};
+  else if(wrongQuestions.length)plan={type:'mistakes',title:'Strengthen your weak points',desc:`You have ${wrongQuestions.length} question${wrongQuestions.length===1?'':'s'} with previous mistakes. Revisit them before moving on.`,button:'Practice mistakes',icon:'◎'};
+  else if(weakTopics.length){const t=weakTopics[0];plan={type:'topic',topic:t,title:`Focus on ${t.lecture||t.subject||t.module}`,desc:`${t.accuracy}% accuracy across ${t.attempts} attempts in ${[t.module,t.subject,t.lecture].filter(Boolean).join(' · ')}. Targeted practice may help improve retention.`,button:'Practice this topic',icon:'⌖'};}
+  else if(firstUnpracticed)plan={type:'new',topic:firstUnpracticed,title:'Start with a new question',desc:`You have unpracticed questions available in ${[firstUnpracticed.module,firstUnpracticed.subject,firstUnpracticed.lecture].filter(Boolean).join(' · ')}.`,button:'Start practicing',icon:'→'};
+  else if(bank.length)plan={type:'mixed',title:'Keep your knowledge sharp',desc:'You have no overdue revision or recorded mistakes. Try a mixed practice session to maintain your progress.',button:'Start a mixed exam',icon:'✓'};
+  else plan={type:'empty',title:'Your next study session starts here',desc:'Questions will appear here when the question bank has loaded from Supabase.',button:'Refresh question bank',icon:'↻'};
+  return {plan,dueQuestions:dueQuestions.length,dueCards,wrongQuestions:wrongQuestions.length,weakTopics};
+}
+function startSmartStudyAction(type){
+  if(type==='flashcards'){flashcardFilter={module:'',subject:'',lecture:'',mode:'due',count:0};go('tools');return;}
+  if(type==='spaced'){startSpacedReview();return;}
+  if(type==='mistakes'){const list=bank.filter(q=>Number(progress[key(q)]?.wrong||0)>0);if(!list.length){toast('No recorded mistakes to practise yet.','ok');return;}startExam(list,null,'Mistakes Review');return;}
+  if(type==='topic'){
+    const plan=smartStudyPlan().plan,t=plan.topic;if(!t)return;
+    const list=bank.filter(q=>String(q.module||'')===t.module&&String(q.subject||'')===t.subject&&String(q.lecture||'')===t.lecture);
+    if(list.length)startExam(list,null,`Targeted practice · ${t.lecture||t.subject||t.module}`);else toast('No questions are available for this topic.','error');return;
+  }
+  if(type==='new'){const q=bank.find(x=>!Number(progress[key(x)]?.attempts||0));if(q){const list=bank.filter(x=>x.module===q.module&&x.subject===q.subject&&x.lecture===q.lecture);startExam(list,null,`New questions · ${q.lecture||q.subject||q.module}`);}else go('exam');return;}
+  if(type==='mixed'){startExam();return;}
+  if(type==='empty'){loadQuestions();return;}
+}
+function smartStudyRecommendationHTML(){
+  const d=smartStudyPlan(),p=d.plan;
+  return `<section class="dashboard-section dashboard-smart-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">PERSONAL STUDY COACH</span><h2>Your next best step</h2><p>Suggested from your question progress and revision schedule.</p></div></div><div class="card dashboard-smart-card"><div><div class="dashboard-smart-kicker"><span aria-hidden="true">✦</span> Recommended for you</div><h3>${esc(p.title)}</h3><p>${esc(p.desc)}</p><div class="dashboard-smart-actions"><button class="btn primary" onclick="startSmartStudyAction('${p.type}')">${esc(p.button)} <span aria-hidden="true">→</span></button>${d.wrongQuestions&&p.type!=='mistakes'?`<button class="btn" onclick="go('mistakes')">View mistakes</button>`:''}</div></div><div class="dashboard-smart-side"><div class="dashboard-smart-metric"><b>${d.dueCards}</b><span>Flashcards due</span></div><div class="dashboard-smart-metric"><b>${d.dueQuestions}</b><span>Questions due</span></div><div class="dashboard-smart-metric"><b>${d.wrongQuestions}</b><span>Questions with mistakes</span></div></div></div></section>`;
+}
+
 function renderDashboard(){
   const modules=getModules();
   setTimeout(()=>{updateSupportUnreadDot(false);setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));updateTopbarControls();},0);
@@ -1835,6 +1898,7 @@ function renderDashboard(){
   ${visitorIdentity}
   ${dailyGoalStreakHTML()}
   <section class="dashboard-section dashboard-quick-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">YOUR STUDY SPACE</span><h2>What would you like to do?</h2></div><span class="dashboard-section-note">Pick up where you left off</span></div><div class="dashboard-actions-grid">${quickHTML}</div></section>
+  ${smartStudyRecommendationHTML()}
   <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">AT A GLANCE</span><h2>Your performance</h2></div><button class="btn dashboard-section-link" onclick="go('progress')">Detailed progress <span aria-hidden="true">→</span></button></div><div class="grid stats dashboard-stat-grid">
     <div class="card stat dashboard-stat-card"><div class="dashboard-stat-symbol">✓</div><div class="label">Correct answers</div><div class="value">${stats.correct}</div></div>
     <div class="card stat dashboard-stat-card"><div class="dashboard-stat-symbol">◷</div><div class="label">Questions attempted</div><div class="value">${stats.attempts}</div></div>
@@ -3087,6 +3151,33 @@ async function submitAuth(mode){
   if(mode==='signup') await signUpStudent(email,password); else await signInStudent(email,password);
 }
 
+function startResultReview(mode='incorrect',module='',subject='',lecture=''){
+  const r=loadJSON(CONFIG.lastResultKey,null);if(!r||!Array.isArray(r.list)){toast('No exam result is available to review.','error');return;}
+  const list=r.list.filter(q=>{
+    if(module&&String(q.module||'')!==module)return false;
+    if(subject&&String(q.subject||'')!==subject)return false;
+    if(lecture&&String(q.lecture||'')!==lecture)return false;
+    const a=r.answers?.[q.id];
+    if(mode==='incorrect')return a!==undefined&&a!==q.correctIndex;
+    if(mode==='unanswered')return a===undefined;
+    return a===undefined||a!==q.correctIndex;
+  });
+  if(!list.length){toast('There are no questions matching this review selection.','ok');return;}
+  startExam(list,null,`${mode==='incorrect'?'Incorrect':mode==='unanswered'?'Unanswered':'Incorrect & unanswered'} review · ${r.label||'Exam'}`);
+}
+function resultTopicAnalysisHTML(r){
+  const map=new Map();
+  (r.list||[]).forEach(q=>{
+    const module=String(q.module||'Other'),subject=String(q.subject||'Uncategorized'),lecture=String(q.lecture||'Unspecified lecture');
+    const k=JSON.stringify([module,subject,lecture]);let t=map.get(k);
+    if(!t){t={module,subject,lecture,total:0,answered:0,correct:0,wrong:0,unanswered:0};map.set(k,t);}
+    t.total++;const a=r.answers?.[q.id];if(a===undefined)t.unanswered++;else{t.answered++;if(a===q.correctIndex)t.correct++;else t.wrong++;}
+  });
+  const topics=[...map.values()].map(t=>({...t,accuracy:pct(t.correct,t.answered),needsReview:t.wrong+t.unanswered})).sort((a,b)=>b.needsReview-a.needsReview||a.accuracy-b.accuracy||a.module.localeCompare(b.module));
+  if(!topics.length)return '';
+  return `<section class="card" style="margin-top:16px"><div class="category-head"><div><strong>Topic-by-topic performance</strong><div class="mini">Find the lectures that need attention in this exam.</div></div><span class="pill">${topics.length} topics</span></div><div class="result-topic-grid">${topics.map(t=>`<div class="result-topic-card"><div class="result-topic-title">${esc(t.lecture)}</div><div class="result-topic-meta">${esc(t.module)} · ${esc(t.subject)}</div><div class="bar"><i style="width:${t.accuracy}%;background:${t.accuracy>=80?'var(--ok)':t.accuracy>=60?'var(--primary)':'var(--danger)'}"></i></div><div class="result-topic-stats"><span class="good">${t.correct} correct</span><span class="bad">${t.wrong} wrong</span><span>${t.unanswered} unanswered</span><b>${t.accuracy}%</b></div>${t.needsReview?`<button class="btn" onclick="startResultReview('all','${attrJs(t.module)}','${attrJs(t.subject)}','${attrJs(t.lecture)}')">Practise ${t.needsReview} to review</button>`:'<div class="mini" style="margin-top:10px;color:var(--ok)">All answered correctly</div>'}</div>`).join('')}</div><div class="actions" style="margin-top:12px"><button class="btn primary" onclick="startResultReview('all')">Practice all incorrect + unanswered</button><button class="btn" onclick="startResultReview('incorrect')">Incorrect only</button><button class="btn" onclick="startResultReview('unanswered')">Unanswered only</button></div></section>`;
+}
+
 function renderResults(){
   const r=loadJSON(CONFIG.lastResultKey,null);
   if(!r){go('dashboard');return;}
@@ -3111,6 +3202,7 @@ function renderResults(){
   const meta=`<div class="mini">${esc(r.label||'Exam')} · ${r.date?new Date(r.date).toLocaleString():''}${r.durationSec?' · '+formatTime(r.durationSec)+' taken':''}</div>`;
   const body=`${meta}
   <div class="grid stats" style="margin-top:10px"><div class="card stat"><div class="label">Score</div><div class="value">${r.correct}/${r.total}</div></div><div class="card stat"><div class="label">Accuracy</div><div class="value">${r.accuracy}%</div></div><div class="card stat"><div class="label">Answered</div><div class="value">${r.answered}</div></div><div class="card stat"><div class="label">Unanswered</div><div class="value">${r.unanswered}</div></div></div>
+  ${resultTopicAnalysisHTML(r)}
   <h2 class="section-title">Full review</h2><div>${rows}</div><div class="actions" style="margin-top:14px"><button class="btn primary" onclick="retakeExamFromResult()">Retake exam</button><button class="btn" onclick="go('exam')">New Exam</button><button class="btn" onclick="go('history')">Exam History</button><button class="btn" onclick="go('progress')">View Progress</button></div>`;
   const modeNote=r.answerMode==='immediate'?'Answers were shown during the exam.':'Answers and explanations are shown here after submission.';
   document.getElementById('app').innerHTML=layout('Exam Results',`${r.auto?'Time expired — exam submitted automatically.':'Exam completed.'} ${modeNote}`,body);
