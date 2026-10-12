@@ -596,9 +596,9 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
 
 /* ---------- Public leaderboard + visitor identity ---------- */
 .leaderboard-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.leaderboard-tab{border:1px solid var(--line);background:var(--card);color:var(--text);padding:9px 13px;border-radius:10px;font-weight:700;cursor:pointer}.leaderboard-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
-.leaderboard-row{display:grid;grid-template-columns:54px 1fr 110px 110px;gap:12px;align-items:center;padding:13px 8px;border-bottom:1px solid var(--line)}.leaderboard-row:last-child{border-bottom:0}.leaderboard-rank{font-family:var(--font-mono);font-weight:800;font-size:16px}.leaderboard-name{font-weight:750}.leaderboard-score{text-align:right;font-weight:800}.leaderboard-accuracy{text-align:right;color:var(--muted);font-size:12px}.leaderboard-me{background:var(--primary-soft);border-radius:10px}
+.leaderboard-row{display:grid;grid-template-columns:54px 1fr 110px;gap:12px;align-items:center;padding:13px 8px;border-bottom:1px solid var(--line)}.leaderboard-row:last-child{border-bottom:0}.leaderboard-rank{font-family:var(--font-mono);font-weight:800;font-size:16px}.leaderboard-name{font-weight:750}.leaderboard-score{text-align:right;font-weight:800;color:var(--primary)}.leaderboard-me{background:var(--primary-soft);border-radius:10px}
 .visitor-welcome{border:1px solid rgba(var(--primary-rgb),.35);background:linear-gradient(135deg,var(--primary-soft),var(--card));}.visitor-name-form{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap}.visitor-name-form .field{flex:1;min-width:220px}.dashboard-leaderboard-shortcut{display:flex;align-items:center;gap:13px}.dashboard-leaderboard-icon{width:40px;height:40px;border-radius:12px;background:var(--primary-soft);display:grid;place-items:center;color:var(--primary);font-size:20px;flex:0 0 auto}
-@media(max-width:700px){.leaderboard-row{grid-template-columns:42px 1fr 88px}.leaderboard-accuracy{display:none}}
+@media(max-width:700px){.leaderboard-row{grid-template-columns:42px minmax(0,1fr) 78px;gap:8px}.leaderboard-score{font-size:13px}}
 /* v41.16 independent flashcards + admin publishing */
 .flashcard-admin-grid{display:grid;grid-template-columns:1fr 1.2fr;gap:16px}.flashcard-admin-list{display:flex;flex-direction:column;gap:9px}.flashcard-admin-row{border:1px solid var(--line);border-radius:13px;background:var(--bg);padding:12px}.flashcard-admin-row.selected{outline:2px solid var(--primary)}.flashcard-admin-actions{display:flex;gap:8px;flex-wrap:wrap}@media(max-width:850px){.flashcard-admin-grid{grid-template-columns:1fr}}
 </style>
@@ -1779,24 +1779,36 @@ function leaderboardIsCurrentParticipant(r){
     ? (!currentUser && !!getVisitorId() && id===String(getVisitorId()))
     : (!!currentUser && id===String(currentUser.id));
 }
+// The leaderboard RPC should return xp/total_xp. Prefer that authoritative value.
+// Compatibility fallback keeps older RPC responses usable until the XP SQL is deployed.
+function leaderboardXP(r){
+  for(const field of ['xp','total_xp','xp_count','points']){
+    const value=Number(r?.[field]);
+    if(r?.[field]!==undefined&&r?.[field]!==null&&Number.isFinite(value))return Math.max(0,value);
+  }
+  const examCorrect=Number(r?.exam_correct_count);
+  const questionAnswers=Number(r?.question_answer_count ?? r?.practice_answer_count);
+  if(Number.isFinite(examCorrect)&&Number.isFinite(questionAnswers)&&(r?.exam_correct_count!==undefined||r?.question_answer_count!==undefined||r?.practice_answer_count!==undefined))return Math.max(0,examCorrect)+Math.max(0,questionAnswers);
+  return Math.max(0,Number(r?.correct_count||0));
+}
+function leaderboardSort(rows){
+  return rows.slice().sort((a,b)=>leaderboardXP(b)-leaderboardXP(a)||String(a.display_name||'').localeCompare(String(b.display_name||'')));
+}
 function leaderboardRowHTML(r,index){
   const me=leaderboardIsCurrentParticipant(r);
   const type=String(r.participant_type||'user');
-  const answered=Number(r.answered_count||0);
-  const correct=Number(r.correct_count||0);
-  const acc=answered?pct(correct,answered):0;
   const label=type==='visitor'?'Visitor':'Student';
-  const rank=Number(r.rank||index+1);
+  const rank=index+1;
+  const xp=leaderboardXP(r);
   return `<div class="leaderboard-row ${me?'leaderboard-me':''}">
     <div class="leaderboard-rank">#${rank}</div>
-    <div><div class="leaderboard-name">${esc(r.display_name||'Anonymous')} ${me?'<span class="pill" style="margin-left:6px">You</span>':''}</div><div class="mini">${label} · ${answered} answered</div></div>
-    <div class="leaderboard-score">${correct} true</div>
-    <div class="leaderboard-accuracy">${acc}% accuracy</div>
+    <div><div class="leaderboard-name">${esc(r.display_name||'Anonymous')} ${me?'<span class="pill" style="margin-left:6px">You</span>':''}</div><div class="mini">${label}</div></div>
+    <div class="leaderboard-score">⭐ ${xp} XP</div>
   </div>`;
 }
 function renderLeaderboard(){
   const body=`<div class="card"><div class="category-head"><div><strong>Top Students</strong><div class="mini">Top 10 students and visitors, plus your own rank if you are outside the top 10.</div></div><button class="btn" onclick="refreshUnifiedLeaderboard()">Refresh</button></div><div id="leaderboardContent" style="margin-top:14px"><div class="empty">Loading leaderboard…</div></div></div>`;
-  document.getElementById('app').innerHTML=layout('Top Students','One unified ranking for signed-in students and visitors, ranked by correct answers.',body);
+  document.getElementById('app').innerHTML=layout('Top Students','One unified XP ranking for students and visitors. Accuracy and answer counts are hidden.',body);
   refreshUnifiedLeaderboard();
 }
 
@@ -1807,7 +1819,7 @@ async function refreshUnifiedLeaderboard(){
   const data=await loadLeaderboard();
   if(!document.getElementById('leaderboardContent'))return;
   if(data?.error){host.innerHTML=`<div class="notice error">Could not load leaderboard: ${esc(data.error)}</div>`;return;}
-  const rows=(Array.isArray(data?.participants)?data.participants:[]).slice().sort((a,b)=>Number(a.rank||0)-Number(b.rank||0));
+  const rows=leaderboardSort(Array.isArray(data?.participants)?data.participants:[]);
   if(!rows.length){host.innerHTML='<div class="empty">No ranked participants yet.</div>';return;}
   const topTen=rows.slice(0,10);
   const me=rows.find(leaderboardIsCurrentParticipant);
@@ -1815,7 +1827,7 @@ async function refreshUnifiedLeaderboard(){
   const shown=[...topTen];
   if(currentOutsideTopTen)shown.push(me);
   const html=shown.map((r,i)=>leaderboardRowHTML(r,rows.indexOf(r))).join('');
-  host.innerHTML=`<div class="category-card"><div class="category-head"><strong>Top 10 Students</strong><span class="pill">${Math.min(10,rows.length)}</span></div>${html}</div>${currentOutsideTopTen?'<div class="mini" style="margin-top:12px">Your rank is shown below the top 10.</div>':''}<div class="mini" style="margin-top:10px">Students and visitors are ranked together by correct answers, then answered questions, then name. Updated ${data.updatedAt?new Date(data.updatedAt).toLocaleString():'now'}.</div>`;
+  host.innerHTML=`<div class="category-card"><div class="category-head"><strong>Top 10 Students</strong><span class="pill">${Math.min(10,rows.length)}</span></div>${html}</div>${currentOutsideTopTen?'<div class="mini" style="margin-top:12px">Your rank is shown below the top 10.</div>':''}<div class="mini" style="margin-top:10px">Students and visitors are ranked together by XP. Each correct exam answer earns 1 XP and each question answered earns 1 XP when included by the leaderboard XP calculation. Accuracy and answer counts are not displayed. Updated ${data.updatedAt?new Date(data.updatedAt).toLocaleString():'now'}.</div>`;
 }
 async function refreshDashboardLeaderboardPreview(){
   const host=document.getElementById('dashboardLeaderboardPreview');
@@ -1824,7 +1836,7 @@ async function refreshDashboardLeaderboardPreview(){
   const data=await loadLeaderboard();
   if(!document.getElementById('dashboardLeaderboardPreview'))return;
   if(data?.error){host.innerHTML='<div class="mini" style="margin-top:10px">Leaderboard is temporarily unavailable.</div>';return;}
-  const rows=(Array.isArray(data?.participants)?data.participants:[]).slice().sort((a,b)=>Number(a.rank||0)-Number(b.rank||0));
+  const rows=leaderboardSort(Array.isArray(data?.participants)?data.participants:[]);
   if(!rows.length){host.innerHTML='<div class="mini" style="margin-top:10px">No ranked students yet.</div>';return;}
   const topThree=rows.slice(0,3);
   const me=rows.find(leaderboardIsCurrentParticipant);
@@ -1906,7 +1918,7 @@ function renderDashboard(){
     <div class="card stat dashboard-stat-card"><div class="dashboard-stat-symbol">▤</div><div class="label">Questions available</div><div class="value">${bank.length}</div></div>
   </div></section>
   <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">SMART REVISION</span><h2>Continue your revision</h2><p>Start with a module that needs more practice.</p></div><button class="btn dashboard-section-link" onclick="go('mistakes')">Review mistakes <span aria-hidden="true">→</span></button></div><div class="card dashboard-weak-card">${weakHTML}</div></section>
-  <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">COMMUNITY</span><h2>Top students</h2><p>See the top 3 and your own rank.</p></div><button class="btn dashboard-section-link" onclick="go('leaderboard')">Full leaderboard <span aria-hidden="true">→</span></button></div><div class="card dashboard-leaderboard-card"><div class="dashboard-leaderboard-shortcut"><div class="dashboard-leaderboard-icon">🏆</div><div><strong>MedEx leaderboard</strong><div class="mini" style="margin-top:3px">Students and visitors ranked together by correct answers.</div></div></div><div id="dashboardLeaderboardPreview"><div class="mini" style="margin-top:10px">Loading top students…</div></div></div></section>
+  <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">COMMUNITY</span><h2>Top students</h2><p>See the top 3 and your own rank.</p></div><button class="btn dashboard-section-link" onclick="go('leaderboard')">Full leaderboard <span aria-hidden="true">→</span></button></div><div class="card dashboard-leaderboard-card"><div class="dashboard-leaderboard-shortcut"><div class="dashboard-leaderboard-icon">🏆</div><div><strong>MedEx leaderboard</strong><div class="mini" style="margin-top:3px">Students and visitors ranked together by XP.</div></div></div><div id="dashboardLeaderboardPreview"><div class="mini" style="margin-top:10px">Loading top students…</div></div></div></section>
   <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">YOUR QUESTION BANK</span><h2>Modules</h2><p>Jump directly into a module exam.</p></div><span class="pill">${modules.length} modules</span></div><details class="dashboard-modules-details"><summary>Browse all modules <span class="mini">${bank.length} questions</span></summary><div class="grid three dashboard-modules-grid">${allModulesHTML || '<div class="card empty">No questions loaded yet.</div>'}</div></details></section>
   <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">RECENT ACTIVITY</span><h2>Recent exams</h2></div><button class="btn dashboard-section-link" onclick="go('history')">Full history <span aria-hidden="true">→</span></button></div><div class="card">${renderRecentExamsList(3)}</div></section>
   <section class="dashboard-section dashboard-contact-section"><div class="card support-contact-card"><div style="display:flex;align-items:center;gap:12px"><div class="support-contact-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9l-5 3.5z"/><path d="M7 9h10M7 12h6"/></svg></div><div><strong class="support-contact-title" data-contact-medex>Contact MedEx team</strong><div class="mini" style="margin-top:4px">Send suggestions, complaints, or questions. You can continue as a visitor.</div></div></div><button class="btn primary" onclick="openSupportChat()">Open chat</button></div></section>
