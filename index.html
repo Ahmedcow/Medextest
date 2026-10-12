@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.53-unified-leaderboard-fix">
+<meta name="medex-build" content="v41.54-xp-leaderboard-privacy">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -596,7 +596,7 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
 
 /* ---------- Public leaderboard + visitor identity ---------- */
 .leaderboard-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.leaderboard-tab{border:1px solid var(--line);background:var(--card);color:var(--text);padding:9px 13px;border-radius:10px;font-weight:700;cursor:pointer}.leaderboard-tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
-.leaderboard-row{display:grid;grid-template-columns:54px 1fr 110px;gap:12px;align-items:center;padding:13px 8px;border-bottom:1px solid var(--line)}.leaderboard-row:last-child{border-bottom:0}.leaderboard-rank{font-family:var(--font-mono);font-weight:800;font-size:16px}.leaderboard-name{font-weight:750}.leaderboard-score{text-align:right;font-weight:800;color:var(--primary)}.leaderboard-me{background:var(--primary-soft);border-radius:10px}
+.leaderboard-row{display:grid;grid-template-columns:54px 1fr 110px 110px;gap:12px;align-items:center;padding:13px 8px;border-bottom:1px solid var(--line)}.leaderboard-row:last-child{border-bottom:0}.leaderboard-rank{font-family:var(--font-mono);font-weight:800;font-size:16px}.leaderboard-name{font-weight:750}.leaderboard-score{text-align:right;font-weight:800}.leaderboard-accuracy{text-align:right;color:var(--muted);font-size:12px}.leaderboard-me{background:var(--primary-soft);border-radius:10px}
 .visitor-welcome{border:1px solid rgba(var(--primary-rgb),.35);background:linear-gradient(135deg,var(--primary-soft),var(--card));}.visitor-name-form{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap}.visitor-name-form .field{flex:1;min-width:220px}.dashboard-leaderboard-shortcut{display:flex;align-items:center;gap:13px}.dashboard-leaderboard-icon{width:40px;height:40px;border-radius:12px;background:var(--primary-soft);display:grid;place-items:center;color:var(--primary);font-size:20px;flex:0 0 auto}
 @media(max-width:700px){.leaderboard-row{grid-template-columns:42px minmax(0,1fr) 78px;gap:8px}.leaderboard-score{font-size:13px}}
 /* v41.16 independent flashcards + admin publishing */
@@ -1779,36 +1779,30 @@ function leaderboardIsCurrentParticipant(r){
     ? (!currentUser && !!getVisitorId() && id===String(getVisitorId()))
     : (!!currentUser && id===String(currentUser.id));
 }
-// The leaderboard RPC should return xp/total_xp. Prefer that authoritative value.
-// Compatibility fallback keeps older RPC responses usable until the XP SQL is deployed.
+// XP rules: each answered question earns 1 XP; each correct exam answer earns 1 additional XP.
+// Prefer server-calculated XP when the Supabase RPC provides it, otherwise use its aggregate counts.
 function leaderboardXP(r){
-  for(const field of ['xp','total_xp','xp_count','points']){
-    const value=Number(r?.[field]);
-    if(r?.[field]!==undefined&&r?.[field]!==null&&Number.isFinite(value))return Math.max(0,value);
-  }
-  const examCorrect=Number(r?.exam_correct_count);
-  const questionAnswers=Number(r?.question_answer_count ?? r?.practice_answer_count);
-  if(Number.isFinite(examCorrect)&&Number.isFinite(questionAnswers)&&(r?.exam_correct_count!==undefined||r?.question_answer_count!==undefined||r?.practice_answer_count!==undefined))return Math.max(0,examCorrect)+Math.max(0,questionAnswers);
-  return Math.max(0,Number(r?.correct_count||0));
-}
-function leaderboardSort(rows){
-  return rows.slice().sort((a,b)=>leaderboardXP(b)-leaderboardXP(a)||String(a.display_name||'').localeCompare(String(b.display_name||'')));
+  const serverXP=Number(r.xp ?? r.total_xp ?? r.experience_points);
+  if(Number.isFinite(serverXP) && (r.xp!=null || r.total_xp!=null || r.experience_points!=null)) return Math.max(0,serverXP);
+  const answered=Number(r.answered_count||0);
+  const correct=Number(r.correct_count||0);
+  return Math.max(0,answered)+Math.max(0,correct);
 }
 function leaderboardRowHTML(r,index){
   const me=leaderboardIsCurrentParticipant(r);
   const type=String(r.participant_type||'user');
   const label=type==='visitor'?'Visitor':'Student';
-  const rank=index+1;
+  const rank=Number(index)+1;
   const xp=leaderboardXP(r);
   return `<div class="leaderboard-row ${me?'leaderboard-me':''}">
     <div class="leaderboard-rank">#${rank}</div>
     <div><div class="leaderboard-name">${esc(r.display_name||'Anonymous')} ${me?'<span class="pill" style="margin-left:6px">You</span>':''}</div><div class="mini">${label}</div></div>
-    <div class="leaderboard-score">⭐ ${xp} XP</div>
+    <div class="leaderboard-score">${xp.toLocaleString()} XP</div>
   </div>`;
 }
 function renderLeaderboard(){
   const body=`<div class="card"><div class="category-head"><div><strong>Top Students</strong><div class="mini">Top 10 students and visitors, plus your own rank if you are outside the top 10.</div></div><button class="btn" onclick="refreshUnifiedLeaderboard()">Refresh</button></div><div id="leaderboardContent" style="margin-top:14px"><div class="empty">Loading leaderboard…</div></div></div>`;
-  document.getElementById('app').innerHTML=layout('Top Students','One unified XP ranking for students and visitors. Accuracy and answer counts are hidden.',body);
+  document.getElementById('app').innerHTML=layout('Top Students','One private-friendly ranking for signed-in students and visitors, ranked by XP.',body);
   refreshUnifiedLeaderboard();
 }
 
@@ -1819,15 +1813,17 @@ async function refreshUnifiedLeaderboard(){
   const data=await loadLeaderboard();
   if(!document.getElementById('leaderboardContent'))return;
   if(data?.error){host.innerHTML=`<div class="notice error">Could not load leaderboard: ${esc(data.error)}</div>`;return;}
-  const rows=leaderboardSort(Array.isArray(data?.participants)?data.participants:[]);
+  const rows=(Array.isArray(data?.participants)?data.participants:[]).slice()
+    .sort((a,b)=>leaderboardXP(b)-leaderboardXP(a)||Number(b.correct_count||0)-Number(a.correct_count||0)||String(a.display_name||'').localeCompare(String(b.display_name||'')))
+    .map((r,i)=>({...r,rank:i+1}));
   if(!rows.length){host.innerHTML='<div class="empty">No ranked participants yet.</div>';return;}
   const topTen=rows.slice(0,10);
   const me=rows.find(leaderboardIsCurrentParticipant);
   const currentOutsideTopTen=me&&!topTen.some(r=>leaderboardIsCurrentParticipant(r));
   const shown=[...topTen];
   if(currentOutsideTopTen)shown.push(me);
-  const html=shown.map((r,i)=>leaderboardRowHTML(r,rows.indexOf(r))).join('');
-  host.innerHTML=`<div class="category-card"><div class="category-head"><strong>Top 10 Students</strong><span class="pill">${Math.min(10,rows.length)}</span></div>${html}</div>${currentOutsideTopTen?'<div class="mini" style="margin-top:12px">Your rank is shown below the top 10.</div>':''}<div class="mini" style="margin-top:10px">Students and visitors are ranked together by XP. Each correct exam answer earns 1 XP and each question answered earns 1 XP when included by the leaderboard XP calculation. Accuracy and answer counts are not displayed. Updated ${data.updatedAt?new Date(data.updatedAt).toLocaleString():'now'}.</div>`;
+  const html=shown.map(r=>leaderboardRowHTML(r,rows.indexOf(r))).join('');
+  host.innerHTML=`<div class="category-card"><div class="category-head"><strong>Top 10 Students</strong><span class="pill">${Math.min(10,rows.length)}</span></div>${html}</div>${currentOutsideTopTen?'<div class="mini" style="margin-top:12px">Your rank is shown below the top 10.</div>':''}<div class="mini" style="margin-top:10px">XP is shown instead of accuracy or answer statistics. Students and visitors are ranked together by XP. Updated ${data.updatedAt?new Date(data.updatedAt).toLocaleString():'now'}.</div>`;
 }
 async function refreshDashboardLeaderboardPreview(){
   const host=document.getElementById('dashboardLeaderboardPreview');
@@ -1836,7 +1832,9 @@ async function refreshDashboardLeaderboardPreview(){
   const data=await loadLeaderboard();
   if(!document.getElementById('dashboardLeaderboardPreview'))return;
   if(data?.error){host.innerHTML='<div class="mini" style="margin-top:10px">Leaderboard is temporarily unavailable.</div>';return;}
-  const rows=leaderboardSort(Array.isArray(data?.participants)?data.participants:[]);
+  const rows=(Array.isArray(data?.participants)?data.participants:[]).slice()
+    .sort((a,b)=>leaderboardXP(b)-leaderboardXP(a)||Number(b.correct_count||0)-Number(a.correct_count||0)||String(a.display_name||'').localeCompare(String(b.display_name||'')))
+    .map((r,i)=>({...r,rank:i+1}));
   if(!rows.length){host.innerHTML='<div class="mini" style="margin-top:10px">No ranked students yet.</div>';return;}
   const topThree=rows.slice(0,3);
   const me=rows.find(leaderboardIsCurrentParticipant);
@@ -2964,9 +2962,8 @@ function chooseAnswer(i){
 function nextQ(){if(exam.index<exam.list.length-1){reportPanelOpen=false;exam.index++;saveActiveExam();renderQuiz();}}
 function prevQ(){if(exam.index>0){reportPanelOpen=false;exam.index--;saveActiveExam();renderQuiz();}}
 async function submitExam(auto){
-  if(!exam || exam.submitted)return;
+  if(!exam)return;
   if(!auto && !confirm('Submit this exam now?'))return;
-  exam.submitted=true;
   clearInterval(timerId);
   let correct=0;
   const answeredQuestionsForReview=[];
@@ -2983,6 +2980,7 @@ async function submitExam(auto){
     recordStudyAnswer(q.id, a===q.correctIndex);
   });
   saveState();
+  await syncReviewSchedulesToSupabase(answeredQuestionsForReview);
   const unanswered=exam.list.filter(q=>exam.answers[q.id]===undefined).length;
   const durationSec=Math.round((Date.now()-exam.started)/1000);
   const result={
@@ -3005,40 +3003,23 @@ async function submitExam(auto){
     auto
   };
 
-  // Save and show the result locally first. Supabase requests must never hold
-  // the Submit Exam action hostage if the network or an RPC is slow/failing.
-  const submittedQuestions=exam.list.slice();
-  const submittedAnswers={...exam.answers};
-  const submittedWasVisitor=!currentUser;
-  const submittedUserId=currentUser?.id||null;
-  const syncAfterSubmit=async()=>{
-    if(!SUPABASE_ENABLED)return;
-    const jobs=[];
-    jobs.push(syncReviewSchedulesToSupabase(answeredQuestionsForReview));
-    if(submittedWasVisitor){
-      jobs.push(syncVisitorExamToSupabase(result));
-      for(const q of answeredQuestionsForReview){
-        const a=submittedAnswers[q.id];
-        jobs.push(syncVisitorAnswerToSupabase(q,a===q.correctIndex,result.id));
-      }
+  if(!currentUser){
+    await syncVisitorExamToSupabase(result);
+    for(const q of answeredQuestionsForReview){ const a=exam.answers[q.id]; await syncVisitorAnswerToSupabase(q,a===q.correctIndex,result.id); }
+  }
+  if(SUPABASE_ENABLED){
+    await recordExamForAnalytics(result);
+  }
+  if(SUPABASE_ENABLED && currentUser){
+    await saveExamToSupabase(result);
+    for(const q of exam.list){
+      const a=exam.answers[q.id];
+      if(a===undefined)continue;
+      await recordAttemptToSupabase(q,a,a===q.correctIndex,result.id);
     }
-    jobs.push(recordExamForAnalytics(result));
-    if(submittedUserId){
-      jobs.push(saveExamToSupabase(result));
-      for(const q of submittedQuestions){
-        const a=submittedAnswers[q.id];
-        if(a===undefined)continue;
-        jobs.push(recordAttemptToSupabase(q,a,a===q.correctIndex,result.id));
-      }
-      jobs.push(syncLocalProgressToSupabase());
-      jobs.push(loadGlobalAnalytics());
-    }
-    const settled=await Promise.allSettled(jobs);
-    const failed=settled.filter(x=>x.status==='rejected').length;
-    if(failed)console.warn(`MedEx: ${failed} post-submit sync task(s) failed; local exam result was saved.`);
-  };
-  // Fire-and-forget cloud sync after the result is safely stored.
-  syncAfterSubmit().catch(e=>console.warn('Post-submit sync failed:',e));
+    await syncLocalProgressToSupabase();
+    await loadGlobalAnalytics();
+  }
   // Drawings, highlights and notes are exam-only and are intentionally discarded on submission.
   if(exam){ exam.annotations={}; }
   exam=null;
