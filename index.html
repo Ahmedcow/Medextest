@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.57-flashcards-cache-refresh">
+<meta name="medex-build" content="v41.58-admin-only-materials-auth-guard">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -1019,13 +1019,17 @@ async function loadFavorites(){
 }
 
 async function checkAdminRole(){
+  // Fail closed: never treat an arbitrary truthy RPC payload as an admin grant.
   isAdmin=false;
-  adminCheckLoaded=true;
-  if(!SUPABASE_ENABLED || !currentUser) return false;
+  adminCheckLoaded=false;
+  if(!SUPABASE_ENABLED || !currentUser){adminCheckLoaded=true;return false;}
   try{
     const {data,error}=await supabaseClient.rpc('is_admin');
-    if(!error) isAdmin=!!data;
-  }catch(e){ isAdmin=false; }
+    // public.is_admin() is expected to return a boolean. Accept only explicit true.
+    isAdmin=!error && (data===true || data==='true');
+    if(error) console.warn('Admin role check failed:',error.message);
+  }catch(e){ isAdmin=false; console.warn('Admin role check failed:',e.message); }
+  finally{adminCheckLoaded=true;}
   return isAdmin;
 }
 async function requireAdmin(){
@@ -1722,7 +1726,20 @@ function render(){
   const adminRepliesNav=document.getElementById('adminRepliesNav'); if(adminRepliesNav) adminRepliesNav.style.display=isAdmin?'flex':'none';
   const adminNotificationsNav=document.getElementById('adminNotificationsNav'); if(adminNotificationsNav) adminNotificationsNav.style.display=isAdmin?'flex':'none';
   const adminWeeklyNotificationsNav=document.getElementById('adminWeeklyNotificationsNav'); if(adminWeeklyNotificationsNav) adminWeeklyNotificationsNav.style.display=isAdmin?'flex':'none';
-  if((['materials','materialreader','bank','import','aiquestions','analytics','reports','replies','notifications','weeklynotifications','flashadmin'].includes(v)) && !isAdmin){ location.hash='dashboard'; return; }
+  const adminOnlyViews=['materials','materialreader','bank','import','aiquestions','analytics','reports','replies','notifications','weeklynotifications','flashadmin'];
+  if(adminOnlyViews.includes(v)){
+    if(!adminCheckLoaded){
+      document.getElementById('app').innerHTML=layout('Checking access','Verifying your MedEx administrator permissions…','<div class="card" role="status" aria-live="polite">Please wait while MedEx verifies your account.</div>');
+      checkAdminRole().then(()=>render());
+      return;
+    }
+    if(!isAdmin){
+      activeStudyMaterial=null;
+      if(location.hash!=='#dashboard') location.hash='dashboard';
+      else renderDashboard();
+      return;
+    }
+  }
   if(v==='dashboard') renderDashboard();
   else if(v==='materials') renderLectureMaterials();
   else if(v==='materialreader') renderStudyMaterialReader();
@@ -4281,6 +4298,7 @@ async function uploadStudyMaterial(){
 }
 function updateStudyMaterialFilter(key,value){studyMaterialsFilter[key]=value||'';if(key==='module'){studyMaterialsFilter.subject='';studyMaterialsFilter.lecture='';}if(key==='subject')studyMaterialsFilter.lecture='';renderLectureMaterials(false);}
 function renderLectureMaterials(reload=true){
+ if(!adminCheckLoaded || !isAdmin){go('dashboard');return;}
  const build=()=>{
   const modules=studyMaterialSelectOptions('module'),subjects=studyMaterialSelectOptions('subject').filter(x=>!studyMaterialsFilter.module||studyMaterialsRows.some(r=>r.subject===x&&r.module===studyMaterialsFilter.module)),lectures=studyMaterialSelectOptions('lecture').filter(x=>(!studyMaterialsFilter.module||studyMaterialsRows.some(r=>r.lecture===x&&r.module===studyMaterialsFilter.module))&&(!studyMaterialsFilter.subject||studyMaterialsRows.some(r=>r.lecture===x&&r.subject===studyMaterialsFilter.subject&&(!studyMaterialsFilter.module||r.module===studyMaterialsFilter.module))));
   const rows=studyMaterialsRows.filter(studyMaterialMatches);
@@ -4384,6 +4402,7 @@ async function downloadStudyMaterialSignedCopy(){
  try{const lib=await ensureStudyMaterialPdfLib();const r=await fetch(studyMaterialReaderState.signedUrl,{cache:'no-store'});if(!r.ok)throw new Error('Could not fetch source PDF.');const pdf=await lib.PDFDocument.load(new Uint8Array(await r.arrayBuffer()));const font=await pdf.embedFont(lib.StandardFonts.HelveticaBold);const regular=await pdf.embedFont(lib.StandardFonts.Helvetica);for(const page of pdf.getPages()){const {width}=page.getSize();const x=Math.max(24,width*.055),y=24;page.drawLine({start:{x,y:y+12},end:{x:width-x,y:y+12},thickness:.8,color:lib.rgb(.04,.47,.53)});page.drawText('MedEx  |  Medical Examination Platform',{x,y,size:9,font,color:lib.rgb(.04,.42,.48)});}const blob=new Blob([await pdf.save()],{type:'application/pdf'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${studyMaterialEscapePath(m.title)}-MedEx-signed.pdf`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('Downloaded PDF with MedEx signature on every page.','ok');}catch(e){toast('Could not create signed PDF: '+e.message,'error');}finally{if(btn){btn.disabled=false;btn.textContent='Download signed PDF';}}
 }
 function renderStudyMaterialReader(){
+ if(!adminCheckLoaded || !isAdmin){go('dashboard');return;}
  const m=activeStudyMaterial;if(!m){location.hash='materials';return;}
  const body=`<section class="study-material-reader" id="studyMaterialReaderPanel"><div class="study-material-reader-toolbar"><button class="btn" onclick="location.hash='materials';renderLectureMaterials()">← Library</button><button class="btn" id="studyMaterialPrevPage" onclick="changeStudyMaterialPage(-1)" disabled>Previous</button><label class="mini" style="display:flex;align-items:center;gap:5px">Page <input id="studyMaterialPageInput" type="number" min="1" value="1" style="width:65px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text)" onchange="goStudyMaterialPage()"> <span id="studyMaterialPageCount">of —</span></label><button class="btn" id="studyMaterialNextPage" onclick="changeStudyMaterialPage(1)" disabled>Next</button><button class="btn" onclick="setStudyMaterialZoom(-10)">−</button><span id="studyMaterialZoomLabel" class="mini">Fit width</span><button class="btn" onclick="setStudyMaterialZoom(10)">+</button><button class="btn" onclick="fitStudyMaterialWidth()">Fit width</button><button class="btn" onclick="fullscreenStudyMaterial()">Fullscreen</button><button class="btn primary" id="studyMaterialPrintButton" onclick="printStudyMaterialWithSignature()">Print with MedEx signature</button><button class="btn" id="studyMaterialSignedDownloadButton" onclick="downloadStudyMaterialSignedCopy()">Download signed PDF</button></div><div id="studyMaterialPrintStatus" class="study-material-print-status" style="padding:8px 12px" aria-live="polite">PDF pages will be rendered directly inside MedEx.</div><div id="studyMaterialPdfStage" class="study-material-pages"><div id="studyMaterialRenderStatus" class="study-material-loading">Loading the in-app PDF reader…</div><canvas id="studyMaterialPdfCanvas" style="display:none"></canvas></div><div class="study-material-reader-note">${esc(m.module)} → ${esc(m.subject)} → ${esc(m.lecture)} · ${studyMaterialBytes(m.file_size)}. PDF pages are displayed inside the MedEx interface. Printing or downloading a signed copy adds MedEx branding to every page; the original uploaded PDF remains unchanged.</div></section>`;
  document.getElementById('app').innerHTML=layout(m.title,`${m.module} · ${m.subject} · ${m.lecture}`,body);
@@ -5507,7 +5526,7 @@ async function installPWA(){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.57',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.58',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
@@ -5519,10 +5538,12 @@ document.addEventListener('DOMContentLoaded',()=>{
   applyTheme();
   if(SUPABASE_ENABLED){
     supabaseClient.auth.onAuthStateChange((event,session)=>{
-      setTimeout(()=>{
+      setTimeout(async()=>{
         currentUser=session?.user||null;
+        isAdmin=false;
         adminCheckLoaded=false;
-        if(!currentUser){ isAdmin=false; remoteHistory=[]; remoteHistoryLoaded=false; }
+        if(!currentUser){ remoteHistory=[]; remoteHistoryLoaded=false; }
+        await checkAdminRole();
         render();
       },0);
     });
