@@ -1,4 +1,4 @@
-const CACHE='medex-v41.58-admin-only-materials';
+const CACHE='medex-v41.59-local-flashcards-log-optimization';
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./icons/medex-192.png','./icons/medex-512.png'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
@@ -10,25 +10,20 @@ self.addEventListener('activate',event=>event.waitUntil((async()=>{
   await Promise.all(keys.filter(key=>key.startsWith('medex-')&&key!==CACHE).map(key=>caches.delete(key)));
   await self.clients.claim();
 })()));
-self.addEventListener('fetch',event=>{
-  const request=event.request;
-  if(request.method!=='GET')return;
-  const url=new URL(request.url);
-  if(url.origin!==self.location.origin)return;
-  const isHtml=request.mode==='navigate'||url.pathname.endsWith('/index.html')||url.pathname==='/'||url.pathname.endsWith('/');
-  if(isHtml){
-    event.respondWith((async()=>{
-      try{
-        const response=await fetch(request,{cache:'no-store'});
-        if(response&&response.ok){const cache=await caches.open(CACHE);await cache.put(request,response.clone());}
-        return response;
-      }catch(error){const cached=await caches.match(request)||await caches.match('./index.html')||await caches.match('./');if(cached)return cached;throw error;}
-    })());
+self.addEventListener('fetch', event => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+  if (req.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname.endsWith('.html')) {
+    event.respondWith(fetch(req).then(response => {
+      if (response && response.ok) { const copy=response.clone(); caches.open(CACHE).then(cache=>cache.put(req,copy)); }
+      return response;
+    }).catch(() => caches.match(req).then(cached => cached || caches.match('./index.html'))));
     return;
   }
-  event.respondWith((async()=>{
-    const cache=await caches.open(CACHE);const cached=await cache.match(request);
-    if(cached)return cached;
-    try{const response=await fetch(request);if(response&&response.ok)await cache.put(request,response.clone());return response;}catch(error){return cached||Response.error();}
-  })());
+  event.respondWith(caches.match(req).then(cached => cached || fetch(req).then(response => {
+    if (response && response.ok) { const copy=response.clone(); caches.open(CACHE).then(cache=>cache.put(req,copy)); }
+    return response;
+  })));
 });
