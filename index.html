@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v41.60-full-width-admin-flashcard-bank-flagged-lists">
+<meta name="medex-build" content="v41.61-stability-offline-fixes">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -784,7 +784,7 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
   </main>
 </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" crossorigin="anonymous"></script>
 <script>
 'use strict';
 
@@ -902,7 +902,7 @@ let focusTimerState=loadJSON(CONFIG.focusStateKey,{remaining:1500,running:false,
 let writtenPractice=null;
 let studyHubFilter={module:'',subject:'',lecture:''};
 if(!focusTimerState.preset)focusTimerState.preset=Number(focusTimerState.remaining||1500);
-if(focusTimerState.running){focusTimerState.running=false;focusTimerState.startedAt=0;localStorage.setItem(CONFIG.focusStateKey,JSON.stringify(focusTimerState));}
+if(focusTimerState.running){focusTimerState.running=false;focusTimerState.startedAt=0;safeSetItem(CONFIG.focusStateKey,JSON.stringify(focusTimerState));}
 let examBuilderSelection = new Set();
 let examBuilderExpanded = new Set();
 let examBuilderSearch = '';
@@ -913,7 +913,7 @@ let examBuilderMode='simple';
 
 function getVisitorId(){
   let id=localStorage.getItem(CONFIG.visitorIdKey);
-  if(!id){ id='v_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12); localStorage.setItem(CONFIG.visitorIdKey,id); }
+  if(!id){ id='v_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,12); safeSetItem(CONFIG.visitorIdKey,id); }
   return id;
 }
 function getVisitorName(){ return (visitorName||localStorage.getItem(CONFIG.visitorNameKey)||'').trim(); }
@@ -922,7 +922,7 @@ async function saveVisitorName(name){
   name=String(name||'').trim().replace(/\s+/g,' ');
   if(!name){toast('Please enter a name.','error');return false;}
   if(name.length>40) name=name.slice(0,40).trim();
-  visitorName=name; localStorage.setItem(CONFIG.visitorNameKey,name);
+  visitorName=name; safeSetItem(CONFIG.visitorNameKey,name);
   if(SUPABASE_ENABLED && !currentUser){
     const {error}=await supabaseClient.rpc('save_visitor_profile',{p_visitor_id:getVisitorId(),p_display_name:name});
     if(error){console.warn('Visitor name sync failed:',error.message);toast('Name saved on this device, but could not sync to Supabase.','error');return false;}
@@ -935,7 +935,7 @@ async function loadVisitorCloudData(){
   try{
     const {data:vp,error:ve}=await supabaseClient.rpc('get_visitor_profile',{p_visitor_id:vid});
     const row=Array.isArray(vp)?vp[0]:vp;
-    if(!ve && row?.display_name){ visitorName=String(row.display_name).trim(); localStorage.setItem(CONFIG.visitorNameKey,visitorName); }
+    if(!ve && row?.display_name){ visitorName=String(row.display_name).trim(); safeSetItem(CONFIG.visitorNameKey,visitorName); }
   }catch(e){console.warn('Visitor profile load failed:',e.message);}
   try{
     const {data,error}=await supabaseClient.rpc('get_visitor_progress',{p_visitor_id:vid});
@@ -993,7 +993,7 @@ async function loadLeaderboard(){
 }
 function saveVisitorNameFromInput(){ return saveVisitorName(document.getElementById('visitorNameInput')?.value||''); }
 function isFavorite(q){ return favorites.has(key(q)); }
-function saveFavoritesLocal(){ localStorage.setItem(CONFIG.favoritesKey,JSON.stringify([...favorites])); }
+function saveFavoritesLocal(){ safeSetItem(CONFIG.favoritesKey,JSON.stringify([...favorites])); }
 async function toggleFavorite(id){
   const q=allQuestionBank.find(x=>x.id===id)||bank.find(x=>x.id===id);
   if(!q)return;
@@ -1299,6 +1299,15 @@ function loadJSON(key, fallback){
   try { const x = JSON.parse(localStorage.getItem(key)); return x ?? fallback; }
   catch(e){ return fallback; }
 }
+/* Safe storage: a full or blocked localStorage must never break exam submission or rendering. */
+function safeSetItem(k,v){
+  try{ localStorage.setItem(k,v); return true; }
+  catch(e){
+    console.warn('localStorage write failed for',k,e&&e.message);
+    if(!window.__storageWarned){ window.__storageWarned=true; try{ toast('Device storage is full. Some progress may not be saved on this device.','error'); }catch(_){} }
+    return false;
+  }
+}
 function localDayKey(date=new Date()){
   const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');
   return `${y}-${m}-${d}`;
@@ -1319,7 +1328,7 @@ function recordStudyAnswer(questionId, isCorrect){
   if(isCorrect){ row.correct=Number(row.correct||0)+1; }
   else { row.wrong=Number(row.wrong||0)+1; }
   row.solved=Number(row.solved||0)+1;
-  localStorage.setItem(CONFIG.studyActivityKey,JSON.stringify(activity));
+  safeSetItem(CONFIG.studyActivityKey,JSON.stringify(activity));
 }
 function studyStats(){
   const activity=getStudyActivity();
@@ -1478,20 +1487,16 @@ function renderStudyWeekChart(){
   const line=points.length>1?`<polyline class="study-total-line" points="${points.join(' ')}" fill="none"/>${points.map(p=>{const [cx,cy]=p.split(',');return `<circle class="study-total-dot" cx="${cx}" cy="${cy}" r="3.5"/>`;}).join('')}`:'';
   return `<div class="study-chart-wrap"><svg class="study-chart" viewBox="0 0 640 270" role="img" aria-label="Daily solved questions from Sunday through Saturday, with true and false stacked and total shown as a line">${grid}${groups}${line}</svg><div class="study-legend"><span><i class="legend-total"></i>Total solved</span><span><i class="legend-correct"></i>True</span><span><i class="legend-wrong"></i>False</span></div></div>`;
 }
-function saveFlashcardState(){
-  try{ localStorage.setItem(CONFIG.flashcardStateKey, JSON.stringify(flashcardState)); }
-  catch(e){ console.warn('Could not save flashcard progress:',e.message); }
-}
 function saveState(){
-  localStorage.setItem(CONFIG.progressKey, JSON.stringify(progress));
-  localStorage.setItem(CONFIG.settingsKey, JSON.stringify(settings));
+  safeSetItem(CONFIG.progressKey, JSON.stringify(progress));
+  safeSetItem(CONFIG.settingsKey, JSON.stringify(settings));
   saveFlashcardState();
 }
 
 function saveActiveExam(){
   if(!exam || exam.submitted){ localStorage.removeItem(CONFIG.activeExamKey); return; }
   try{
-    localStorage.setItem(CONFIG.activeExamKey, JSON.stringify(exam));
+    safeSetItem(CONFIG.activeExamKey, JSON.stringify(exam));
   }catch(e){ console.warn('Could not save active exam:',e.message); }
 }
 function clearActiveExam(){
@@ -1645,8 +1650,8 @@ async function loadQuestionsFromSupabase(){
     applyModuleVisibility();
     sourceFiles=['Supabase'];
     lastSync=new Date();
-    localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
-    localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:lastSync.toISOString(),sourceFiles,bank}));
+    safeSetItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+    safeSetItem(CONFIG.cacheKey,JSON.stringify({updatedAt:lastSync.toISOString(),sourceFiles,questions:allQuestionBank}));
     return true;
   }catch(e){
     console.warn('Supabase question load failed:',e.message);
@@ -1660,9 +1665,9 @@ async function loadQuestions(){
     const cached=localStorage.getItem(CONFIG.cacheKey);
     if(cached){
       const parsed=JSON.parse(cached);
-      const bank=Array.isArray(parsed)?parsed:(parsed.questions||parsed.data||[]);
-      if(Array.isArray(bank)&&bank.length){
-        allQuestionBank=bank.map(normalizeQuestion).filter(Boolean);
+      const cachedList=Array.isArray(parsed)?parsed:(parsed.questions||parsed.data||parsed.bank||[]);
+      if(Array.isArray(cachedList)&&cachedList.length){
+        allQuestionBank=cachedList.map(x=>normalizeQuestion(x,x&&x.source)).filter(Boolean);
         applyModuleVisibility();
         if(parsed.sourceFiles)sourceFiles=parsed.sourceFiles;
         if(parsed.lastSync)lastSync=parsed.lastSync;
@@ -1830,7 +1835,7 @@ function supportReadStorageKey(){return CONFIG.supportReadKey+'_'+(currentUser?.
 function getSupportReadAt(){return Number(localStorage.getItem(supportReadStorageKey())||0);}
 function markSupportRead(messages=supportChatState.messages||[]){
   const latest=messages.filter(m=>String(m.sender_type||'')==='admin').reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);
-  if(latest){localStorage.setItem(supportReadStorageKey(),String(latest));}
+  if(latest){safeSetItem(supportReadStorageKey(),String(latest));}
 }
 function supportHasUnread(messages=supportChatState.messages||[]){
   const seen=getSupportReadAt();
@@ -3039,79 +3044,87 @@ function chooseAnswer(i){
 }
 function nextQ(){if(exam.index<exam.list.length-1){reportPanelOpen=false;exam.index++;saveActiveExam();renderQuiz();}}
 function prevQ(){if(exam.index>0){reportPanelOpen=false;exam.index--;saveActiveExam();renderQuiz();}}
+let examSubmitting=false;
 async function submitExam(auto){
-  if(!exam)return;
+  if(!exam||examSubmitting)return;               // guards double-click / timer + click races
   if(!auto && !confirm('Submit this exam now?'))return;
+  examSubmitting=true;
   clearInterval(timerId);
-  let correct=0;
-  const answeredQuestionsForReview=[];
-  exam.list.forEach(q=>{
-    const a=exam.answers[q.id];
-    if(a===undefined)return;
-    const k=key(q);
-    if(!progress[k])progress[k]={attempts:0,correct:0,wrong:0,last:null};
-    progress[k].attempts++;
-    if(a===q.correctIndex){progress[k].correct++;correct++;progress[k].last='correct';}
-    else {progress[k].wrong++;progress[k].last='wrong';}
-    updateSpacedRepetition(q,a===q.correctIndex);
-    answeredQuestionsForReview.push(q);
-    recordStudyAnswer(q.id, a===q.correctIndex);
-  });
-  saveState();
-  await syncReviewSchedulesToSupabase(answeredQuestionsForReview);
-  const unanswered=exam.list.filter(q=>exam.answers[q.id]===undefined).length;
-  const durationSec=Math.round((Date.now()-exam.started)/1000);
-  const result={
-    id:'exam_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
-    date:new Date().toISOString(),
-    label:exam.label||'Exam',
-    moduleFilter:exam.moduleFilter||'',
-    subjectFilter:exam.subjectFilter||'',
-    lectureFilter:exam.lectureFilter||'',
-    total:exam.list.length,
-    answered:exam.list.length-unanswered,
-    correct,
-    unanswered,
-    answerMode:exam.answerMode||'finish',
-    accuracy:pct(correct,exam.list.length-unanswered),
-    durationSec,
-    examMinutes:Number(exam.minutes||0),
-    list:exam.list,
-    answers:exam.answers,
-    auto
-  };
-
-  if(!currentUser){
-    await syncVisitorExamToSupabase(result);
-    for(const q of answeredQuestionsForReview){ const a=exam.answers[q.id]; await syncVisitorAnswerToSupabase(q,a===q.correctIndex,result.id); }
-  }
-  if(SUPABASE_ENABLED){
-    await recordExamForAnalytics(result);
-  }
-  if(SUPABASE_ENABLED && currentUser){
-    await saveExamToSupabase(result);
-    for(const q of exam.list){
-      const a=exam.answers[q.id];
-      if(a===undefined)continue;
-      await recordAttemptToSupabase(q,a,a===q.correctIndex,result.id);
+  try{
+    const snap=exam;                             // keep a reference; sync below runs after navigation
+    let correct=0;
+    const answered=[];
+    snap.list.forEach(q=>{
+      const a=snap.answers[q.id];
+      if(a===undefined)return;
+      const k=key(q);
+      if(!progress[k])progress[k]={attempts:0,correct:0,wrong:0,last:null};
+      progress[k].attempts++;
+      const ok=a===q.correctIndex;
+      if(ok){progress[k].correct++;correct++;progress[k].last='correct';}
+      else {progress[k].wrong++;progress[k].last='wrong';}
+      try{ updateSpacedRepetition(q,ok); }catch(e){console.warn('Spaced repetition update failed:',e.message);}
+      try{ recordStudyAnswer(q.id,ok); }catch(e){console.warn('Study activity update failed:',e.message);}
+      answered.push({q,a,ok});
+    });
+    saveState();
+    const unanswered=snap.list.length-answered.length;
+    const result={
+      id:'exam_'+Date.now()+'_'+Math.random().toString(36).slice(2,8),
+      date:new Date().toISOString(),
+      label:snap.label||'Exam',
+      moduleFilter:snap.moduleFilter||'',
+      subjectFilter:snap.subjectFilter||'',
+      lectureFilter:snap.lectureFilter||'',
+      total:snap.list.length,
+      answered:answered.length,
+      correct,
+      unanswered,
+      answerMode:snap.answerMode||'finish',
+      accuracy:pct(correct,answered.length),
+      durationSec:Math.max(0,Math.round((Date.now()-snap.started)/1000)),
+      examMinutes:Number(snap.minutes||0),
+      list:snap.list,
+      answers:snap.answers,
+      auto:!!auto
+    };
+    // Local results first: these can never be lost to a slow or failing network.
+    snap.annotations={};                         // drawings/highlights are exam-only
+    exam=null;
+    clearActiveExam();
+    safeSetItem(CONFIG.lastResultKey,JSON.stringify(result));
+    saveHistory(result);
+    document.getElementById('toast')?.classList.add('hidden');
+    go('results');
+    // Cloud sync runs in parallel in the background; failures are logged, never block the student.
+    const jobs=[];
+    const reviewed=answered.map(x=>x.q);
+    jobs.push(syncReviewSchedulesToSupabase(reviewed));
+    if(SUPABASE_ENABLED) jobs.push(recordExamForAnalytics(result));
+    if(!currentUser){
+      jobs.push(syncVisitorExamToSupabase(result));
+      answered.forEach(x=>jobs.push(syncVisitorAnswerToSupabase(x.q,x.ok,result.id)));
+    }else if(SUPABASE_ENABLED){
+      jobs.push(saveExamToSupabase(result).then(()=>Promise.allSettled(answered.map(x=>recordAttemptToSupabase(x.q,x.a,x.ok,result.id)))).then(()=>syncLocalProgressToSupabase()).then(()=>loadGlobalAnalytics()));
     }
-    await syncLocalProgressToSupabase();
-    await loadGlobalAnalytics();
+    const settled=await Promise.allSettled(jobs);
+    const failed=settled.filter(r=>r.status==='rejected').length;
+    if(failed) console.warn(`${failed} background sync job(s) failed after exam submit.`);
+  }catch(e){
+    console.error('Exam submission failed:',e);
+    toast('Something went wrong while submitting. Your answers are still saved — try Submit again.','error');
+  }finally{
+    examSubmitting=false;
   }
-  // Drawings, highlights and notes are exam-only and are intentionally discarded on submission.
-  if(exam){ exam.annotations={}; }
-  exam=null;
-  clearActiveExam();
-  localStorage.setItem(CONFIG.lastResultKey,JSON.stringify(result));
-  saveHistory(result);
-  // v41.27: submitting an exam must not create a toast/site notification.
-  document.getElementById('toast')?.classList.add('hidden');
-  go('results');
 }
 function saveHistory(entry){
   const hist=loadJSON(CONFIG.historyKey,[]);
   hist.unshift(entry); if(hist.length>200)hist.length=200;
-  localStorage.setItem(CONFIG.historyKey,JSON.stringify(hist));
+  // Older entries keep their score but drop the bulky per-question payload to stay inside localStorage limits.
+  const slim=hist.map((h,i)=>i<15?h:{...h,list:[],answers:{},slimmed:true});
+  if(!safeSetItem(CONFIG.historyKey,JSON.stringify(slim))){
+    safeSetItem(CONFIG.historyKey,JSON.stringify(slim.slice(0,40).map((h,i)=>i<5?h:{...h,list:[],answers:{},slimmed:true})));
+  }
 }
 function getHistory(){ return remoteHistoryLoaded ? remoteHistory : loadJSON(CONFIG.historyKey,[]); }
 function renderRecentExamsList(n){
@@ -3126,7 +3139,7 @@ function renderRecentExamsList(n){
 async function viewHistoryResult(id){
   const hist=getHistory(); const r=hist.find(h=>h.id===id);
   if(!r){toast('That exam result was not found.','error');return;}
-  localStorage.setItem(CONFIG.lastResultKey,JSON.stringify(r)); go('results');
+  safeSetItem(CONFIG.lastResultKey,JSON.stringify(r)); go('results');
 }
 function retakeExamFromHistory(id){
   const hist=getHistory(); const r=hist.find(h=>h.id===id);
@@ -3164,14 +3177,14 @@ function getQuestionNote(id){return String(questionNotes[String(id)]||'');}
 function saveQuestionNote(id,text){
   const keyId=String(id); const value=String(text||'');
   if(value.trim()) questionNotes[keyId]=value; else delete questionNotes[keyId];
-  localStorage.setItem(CONFIG.questionNotesKey,JSON.stringify(questionNotes));
+  safeSetItem(CONFIG.questionNotesKey,JSON.stringify(questionNotes));
 }
 function sourceLinkedHTML(){return '';}
 function folderData(){
   if(!questionFolders||!Array.isArray(questionFolders.folders))questionFolders={folders:[]};
   return questionFolders.folders;
 }
-function saveFolders(){localStorage.setItem(CONFIG.questionFoldersKey,JSON.stringify(questionFolders));}
+function saveFolders(){safeSetItem(CONFIG.questionFoldersKey,JSON.stringify(questionFolders));}
 function createQuestionFolder(){
   const name=prompt('Folder name, e.g. Final revision'); if(!name||!name.trim())return;
   const clean=name.trim(); if(folderData().some(f=>f.name.toLowerCase()===clean.toLowerCase())){toast('A folder with that name already exists.','error');return;}
@@ -3269,8 +3282,8 @@ function resultTopicAnalysisHTML(r){
 function renderResults(){
   const r=loadJSON(CONFIG.lastResultKey,null);
   if(!r){go('dashboard');return;}
-  const rows=r.list.map((q,i)=>{
-    const a=r.answers[q.id], ok=a===q.correctIndex;
+  const rows=(r.list||[]).map((q,i)=>{
+    const a=(r.answers||{})[q.id], ok=a===q.correctIndex;
     const choices=q.options.map((o,j)=>{
       let cls='review-choice';
       if(j===q.correctIndex) cls+=' correct';
@@ -3326,7 +3339,7 @@ async function loadPublicFlashcards(force=false){
     flashcardCards=[...locals,...byId.values()]; saveFlashcardCards(); publicFlashcardsLoaded=true; return true;
   }catch(e){console.warn('Public flashcards load failed:',e.message);return false;}finally{publicFlashcardsLoading=false;}
 }
-function saveFlashcardAdminDrafts(){try{localStorage.setItem(CONFIG.flashcardAdminDraftsKey,JSON.stringify(flashcardAdminDrafts));}catch(e){console.warn('Could not save flashcard drafts:',e.message);}}
+function saveFlashcardAdminDrafts(){try{safeSetItem(CONFIG.flashcardAdminDraftsKey,JSON.stringify(flashcardAdminDrafts));}catch(e){console.warn('Could not save flashcard drafts:',e.message);}}
 function parseCSVLine(line){const out=[];let cur='',quote=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(quote&&line[i+1]==='"'){cur+='"';i++;}else quote=!quote;}else if(ch===','&&!quote){out.push(cur);cur='';}else cur+=ch;}out.push(cur);return out;}
 function parseFlashcardCSV(text){
   const lines=String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/).filter(l=>l.trim());if(!lines.length)return [];
@@ -3354,7 +3367,7 @@ async function deletePublicFlashcard(id){if(!isAdmin)return toast('Admin access 
 function selectAllAdminDrafts(){flashcardAdminDrafts=flashcardAdminDrafts.map(c=>({...c,selected:true}));saveFlashcardAdminDrafts();renderFlashcardAdmin();}
 function clearAllAdminDrafts(){flashcardAdminDrafts=flashcardAdminDrafts.map(c=>({...c,selected:false}));saveFlashcardAdminDrafts();renderFlashcardAdmin();}
 async function renderFlashcardAdmin(){if(!isAdmin){location.hash='dashboard';return;}await loadPublicFlashcards();const publicCards=flashcardCards.filter(c=>c.source==='public');const drafts=flashcardAdminDrafts;const body=`<div class="flashcard-admin-grid"><section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">ADMIN · REVIEW & PUBLISH</span><h3>Flashcard drafts</h3><p>Review cards here first. Only cards you explicitly select are uploaded to Supabase and become available to all users.</p></div><span class="study-count-badge"><b>${drafts.length}</b><span>drafts</span></span></div><div class="card" style="margin-top:14px"><div class="field"><label>Import CSV for review</label><input id="adminFlashcardCSV" type="file" accept=".csv,text/csv" onchange="importAdminFlashcardsCSV()"></div><div class="grid two" style="margin-top:8px"><div class="field"><label>Front</label><textarea id="adminDraftFront" placeholder="Front"></textarea></div><div class="field"><label>Back</label><textarea id="adminDraftBack" placeholder="Back"></textarea></div></div><div class="grid four" style="margin-top:8px"><input id="adminDraftModule" placeholder="Module"><input id="adminDraftSubject" placeholder="Subject"><input id="adminDraftLecture" placeholder="Lecture"><input id="adminDraftTags" placeholder="Tags"></div><input id="adminDraftDeck" placeholder="Deck" style="margin-top:8px"><button class="btn primary" style="margin-top:10px" onclick="adminDraftAddCard()">Add draft</button></div><div class="flashcard-admin-list" style="margin-top:12px">${drafts.length?drafts.map(c=>`<div class="flashcard-admin-row ${c.selected?'selected':''}"><label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" ${c.selected?'checked':''} onchange="toggleAdminDraft('${attrJs(c.id)}')"><span><b>${esc(c.front)}</b><div class="mini" style="margin-top:5px">${esc(c.back)}</div><div class="fc-meta"><span class="flashcard-chip">${esc(c.deck||'Draft')}</span>${c.tags?`<span class="flashcard-chip">${esc(c.tags)}</span>`:''}</div></span></label><div class="actions" style="margin-top:8px"><button class="btn danger" onclick="removeAdminDraft('${attrJs(c.id)}')">Remove</button></div></div>`).join(''):'<div class="tutor-empty">No drafts yet. Import CSV or add cards above.</div>'}</div><div class="actions" style="margin-top:12px"><button class="btn" onclick="selectAllAdminDrafts()">Select all</button><button class="btn" onclick="clearAllAdminDrafts()">Clear selection</button><button class="btn primary" onclick="publishSelectedFlashcards()">Publish selected for all users</button></div></section><section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">PUBLISHED LIBRARY</span><h3>Cards available to all users</h3><p>These are stored in Supabase. User-created/imported cards are never shown here.</p></div><span class="study-count-badge"><b>${publicCards.length}</b><span>published</span></span></div><div class="flashcard-admin-list" style="margin-top:14px">${publicCards.length?publicCards.map(c=>`<div class="flashcard-admin-row"><b>${esc(c.front)}</b><div class="mini" style="margin-top:5px">${esc(c.back)}</div><div class="fc-meta"><span class="flashcard-chip">${esc(c.module||'General')}</span>${c.subject?`<span class="flashcard-chip">${esc(c.subject)}</span>`:''}${c.lecture?`<span class="flashcard-chip">${esc(c.lecture)}</span>`:''}</div><button class="btn danger" style="margin-top:8px" onclick="deletePublicFlashcard('${attrJs(c.id)}')">Unpublish</button></div>`).join(''):'<div class="tutor-empty">No published flashcards yet.</div>'}</div></section></div>`;document.getElementById('app').innerHTML=layout('Flashcard Manager','Review and publish flashcards for the whole MedEx community.',body);}
-function saveFlashcardCards(){try{localStorage.setItem(CONFIG.flashcardCardsKey,JSON.stringify(flashcardCards));}catch(e){console.warn('Could not save flashcard cards:',e.message);}}
+function saveFlashcardCards(){try{safeSetItem(CONFIG.flashcardCardsKey,JSON.stringify(flashcardCards));}catch(e){console.warn('Could not save flashcard cards:',e.message);}}
 function flashcardCardId(){return 'fc_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9);}
 function flashcardRecord(card){
   const k=String(card.id);
@@ -3366,7 +3379,7 @@ function flashcardRecord(card){
 function flashcardDayKey(ts=Date.now()){const d=new Date(ts);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function flashcardDailyStats(){const keyDay=flashcardDayKey();const root=flashcardState.__daily||{};const row=root[keyDay]||{newCards:0,reviews:0,again:0,hard:0,good:0,easy:0};return {key:keyDay,row};}
 function saveFlashcardDailyStats(row){if(!flashcardState.__daily)flashcardState.__daily={};flashcardState.__daily[flashcardDayKey()]=row;}
-function saveFlashcardState(){try{localStorage.setItem(CONFIG.flashcardStateKey,JSON.stringify(flashcardState));}catch(e){console.warn('Could not save flashcard progress:',e.message);}}
+function saveFlashcardState(){safeSetItem(CONFIG.flashcardStateKey,JSON.stringify(flashcardState));}
 function flashcardScopeCards(filters=flashcardFilter){
   let list=flashcardCards.filter(c=>c&&c.front&&c.back&&(isAdmin||c.source!=='public'));
   if(filters.module)list=list.filter(c=>String(c.module||'')===String(filters.module));
@@ -3509,7 +3522,7 @@ function renderFlashcards(){
 }
 
 function studyPlans(){return loadJSON('med64_study_plans_v1',[]);}
-function saveStudyPlans(x){localStorage.setItem('med64_study_plans_v1',JSON.stringify(x));}
+function saveStudyPlans(x){safeSetItem('med64_study_plans_v1',JSON.stringify(x));}
 function createStudyPlan(){
   const name=prompt('Plan name','Medical exam preparation'); if(!name)return;
   const days=Math.max(1,Math.min(365,Number(prompt('Number of days','30'))||30));
@@ -3540,9 +3553,32 @@ function startStudyHubWritten(){const qs=studyHubQuestions();if(!qs.length){toas
 function startFocusTimer(){if(focusTimerState.running)return;focusTimerState.running=true;focusTimerState.startedAt=Date.now();saveFocusState();runFocusTimer();updateTopbarControls();if(location.hash.replace('#','')==='tools')renderStudyTools();}
 function pauseFocusTimer(){if(!focusTimerState.running)return;focusTimerState.running=false;const elapsed=Math.floor((Date.now()-(focusTimerState.startedAt||Date.now()))/1000);focusTimerState.remaining=Math.max(0,Number(focusTimerState.remaining||0)-elapsed);saveFocusState();clearInterval(focusTimerId);focusTimerId=null;updateTopbarControls();if(location.hash.replace('#','')==='tools')renderStudyTools();}
 function resetFocusTimer(seconds=focusTimerState.preset||1500){clearInterval(focusTimerId);focusTimerId=null;focusTimerState={remaining:seconds,running:false,label:focusTimerState.label||'Focused study',preset:seconds};saveFocusState();updateTopbarControls();if(location.hash.replace('#','')==='tools')renderStudyTools();}
-function saveFocusState(){localStorage.setItem(CONFIG.focusStateKey,JSON.stringify(focusTimerState));}
+function saveFocusState(){safeSetItem(CONFIG.focusStateKey,JSON.stringify(focusTimerState));}
 function focusLabelChanged(v){focusTimerState.label=String(v||'Focused study');saveFocusState();updateTopbarControls();}
-function runFocusTimer(){clearInterval(focusTimerId);if(!focusTimerState.running)return;focusTimerState.startedAt=Date.now();focusTimerId=setInterval(()=>{if(!focusTimerState.running){clearInterval(focusTimerId);return;}const elapsed=Math.floor((Date.now()-focusTimerState.startedAt)/1000);const remain=Math.max(0,Number(focusTimerState.remaining||0)-elapsed);focusTimerState.remaining=remain;focusTimerState.startedAt=Date.now();saveFocusState();const el=document.getElementById('focusTimerDisplay');if(el)el.textContent=formatTime(remain);document.querySelectorAll('.global-focus-timer-display').forEach(x=>x.textContent=formatTime(remain));if(remain<=0){focusTimerState.running=false;saveFocusState();clearInterval(focusTimerId);focusTimerId=null;updateTopbarControls();toast('Focus session complete. Nice work.','ok');if('Notification' in window&&Notification.permission==='granted')navigator.serviceWorker?.ready.then(r=>r.showNotification('MedEx Focus complete',{body:focusTimerState.label||'Your study session is complete.'})).catch(()=>{});}} ,1000);}
+function runFocusTimer(){
+  clearInterval(focusTimerId);
+  if(!focusTimerState.running)return;
+  // Absolute end timestamp: immune to interval drift and background-tab throttling.
+  const endAt=Date.now()+Math.max(0,Number(focusTimerState.remaining||0))*1000;
+  focusTimerState.startedAt=Date.now();
+  const tick=()=>{
+    if(!focusTimerState.running){clearInterval(focusTimerId);return;}
+    const remain=Math.max(0,Math.ceil((endAt-Date.now())/1000));
+    focusTimerState.remaining=remain;
+    saveFocusState();
+    const el=document.getElementById('focusTimerDisplay');
+    if(el)el.textContent=formatTime(remain);
+    document.querySelectorAll('.global-focus-timer-display').forEach(x=>x.textContent=formatTime(remain));
+    if(remain<=0){
+      focusTimerState.running=false;saveFocusState();
+      clearInterval(focusTimerId);focusTimerId=null;
+      updateTopbarControls();
+      toast('Focus session complete. Nice work.','ok');
+      if('Notification' in window&&Notification.permission==='granted')navigator.serviceWorker?.ready.then(r=>r.showNotification('MedEx Focus complete',{body:focusTimerState.label||'Your study session is complete.'})).catch(()=>{});
+    }
+  };
+  focusTimerId=setInterval(tick,500);
+}
 function focusPreset(seconds){focusTimerState.preset=seconds;focusTimerState.remaining=seconds;focusTimerState.running=false;focusTimerState.startedAt=0;saveFocusState();updateTopbarControls();if(location.hash.replace('#','')==='tools')renderStudyTools();}
 function requestFocusNotifications(){if('Notification' in window&&Notification.permission==='default')Notification.requestPermission().catch(()=>{});}
 function focusTimerHTML(){const remain=Math.max(0,Number(focusTimerState.remaining||1500));const presets=[1500,3000,3600];return `<section class="study-tools-card focus-timer-card"><span class="study-eyebrow">FOCUS MODE</span><h3 style="margin-top:5px">One task. No distractions.</h3><input class="field" style="max-width:320px;width:100%;margin-top:8px;text-align:center" value="${esc(focusTimerState.label||'Focused study')}" onchange="focusLabelChanged(this.value)" placeholder="What are you studying?"><div id="focusTimerDisplay" class="focus-timer">${formatTime(remain)}</div><div class="focus-status">${focusTimerState.running?'Session running':'Ready to focus'}</div><div class="focus-presets">${presets.map(x=>`<button class="btn focus-preset ${focusTimerState.preset===x?'active':''}" onclick="focusPreset(${x})">${x/60} min</button>`).join('')}</div><div class="actions" style="margin-top:12px;justify-content:center"><button class="btn primary" onclick="${focusTimerState.running?'pauseFocusTimer()':'startFocusTimer()'}">${focusTimerState.running?'Pause':'Start focus'}</button><button class="btn" onclick="resetFocusTimer()">Reset</button><button class="btn" onclick="requestFocusNotifications()">Allow completion alert</button></div></section>`;}
@@ -4046,8 +4082,8 @@ function setNotificationAppBadge(count){
     else if(navigator.clearAppBadge)navigator.clearAppBadge().catch(()=>{});
   }catch(e){}
 }
-function markWeeklyNotificationsRead(){const latest=(weeklyNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.weeklyNotificationReadKey,String(latest));setNotificationAppBadge(0);updateTopbarControls();}
-function markSiteNotificationsRead(){const latest=(activeNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)localStorage.setItem(CONFIG.siteNotificationReadKey,String(latest));}
+function markWeeklyNotificationsRead(){const latest=(weeklyNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)safeSetItem(CONFIG.weeklyNotificationReadKey,String(latest));setNotificationAppBadge(0);updateTopbarControls();}
+function markSiteNotificationsRead(){const latest=(activeNotifications||[]).reduce((n,m)=>Math.max(n,Date.parse(m.created_at||'')||0),0);if(latest)safeSetItem(CONFIG.siteNotificationReadKey,String(latest));}
 function weeklyNotificationRows(){const cutoff=Date.now()-7*86400000;return (weeklyNotifications||[]).filter(n=>(Date.parse(n.created_at||'')||0)>=cutoff).slice(0,12);}
 function siteNotificationRows(){return (activeNotifications||[]).slice(0,3);}
 function notificationBellSVG(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5h12c-1-1.2-1.5-2.8-1.5-5.1 0-3.1-1.7-5.4-4.5-5.9V4.4a.7.7 0 0 0-1.4 0v1.1C7.7 6 6 8.3 6 11.4c0 2.3-.5 3.9-1.5 5.1Z"/><path d="M9.3 19h5.4"/></svg>';}
@@ -4476,8 +4512,8 @@ async function addBuiltInQuestion(){
 
   localQuestions.push(q);
   bank.push(q);
-  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
-  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  safeSetItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  safeSetItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,questions:bank}));
   clearQuestionForm();
   render();
   toast(`Question "${q.id}" added locally. Sign in to Supabase to make it available to everyone.`,'ok');
@@ -4494,8 +4530,8 @@ function removeLocalQuestion(id){
   if(!confirm(`Remove local question "${id}" from this browser?`))return;
   localQuestions=localQuestions.filter(q=>q.id!==id);
   bank=bank.filter(q=>q.id!==id);
-  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
-  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  safeSetItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  safeSetItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,questions:bank}));
   render();
   toast('Local question removed.','ok');
 }
@@ -4506,8 +4542,8 @@ function clearLocalQuestions(){
   const ids=new Set(localQuestions.map(q=>q.id));
   localQuestions=[];
   bank=bank.filter(q=>!ids.has(q.id));
-  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
-  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  safeSetItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  safeSetItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,questions:bank}));
   render();
   toast('Local questions removed.','ok');
 }
@@ -4610,8 +4646,8 @@ function addPreviewQuestions(list){
   if(!added.length){toast('No new questions were added. IDs already exist.','error');return}
   localQuestions.push(...added);
   bank.push(...added);
-  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
-  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  safeSetItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  safeSetItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,questions:bank}));
   render();
   toast(`Added ${added.length} new question${added.length===1?'':'s'} to this browser.`,'ok');
 }
@@ -4619,8 +4655,8 @@ function replaceWithPreviewBank(list){
   const errors=validateBank(list);if(errors.length){toast('Cannot use invalid bank.','error');return}
   bank=list;sourceFiles=['local preview'];lastSync=new Date();
   localQuestions=list.filter(q=>q.source==='Built in');
-  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
-  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  safeSetItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  safeSetItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,questions:bank}));
   render();toast(`Loaded ${bank.length} preview questions in this browser.`,'ok');
 }
 function downloadTemplate(){
@@ -4636,7 +4672,7 @@ function supportStorageKey(){
   return CONFIG.supportChatKey+'_'+(currentUser?.id||getVisitorId());
 }
 function saveSupportLocal(){
-  try{ localStorage.setItem(supportStorageKey(),JSON.stringify({conversationId:supportChatState.conversationId,messages:supportChatState.messages.slice(-200)})); }catch(e){ console.warn('Support chat local save failed:',e.message); }
+  try{ safeSetItem(supportStorageKey(),JSON.stringify({conversationId:supportChatState.conversationId,messages:supportChatState.messages.slice(-200)})); }catch(e){ console.warn('Support chat local save failed:',e.message); }
 }
 function loadSupportLocal(){
   supportChatState.conversationId=null;
@@ -4935,19 +4971,6 @@ function aiModelPickerHTML(){
   const item=syncAIModel();
   return `<div class=\"field\" style=\"margin-top:12px\"><label>AI model</label><select id=\"aiModel\" onchange=\"changeAIModel()\">${AI_MODEL_CATALOG.map(m=>`<option value=\"${attrJs(m.id)}\" ${m.id===item.id?'selected':''}>${esc(m.label)}</option>`).join('')}</select><div class=\"mini\" style=\"margin-top:6px\">Free Auto retries Gemini with automatic model fallback → Groq GPT-OSS 120B → Qwen 3.8 27B. Add both GEMINI_API_KEY and GROQ_API_KEY for the full fallback chain.</div></div>`;
 }
-function changeAIProvider(){
-  const provider=document.getElementById('aiProvider')?.value||'groq';
-  const item=AI_MODEL_CATALOG.find(m=>m.provider===provider)||AI_MODEL_CATALOG[0];
-  aiSettings.provider=item.provider; aiSettings.model=item.id;
-  localStorage.setItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings));
-  renderAIAssistant();
-}
-function changeAIModel(){
-  const model=document.getElementById('aiModel')?.value||'';
-  const item=AI_MODEL_CATALOG.find(m=>m.id===model);
-  if(item){ aiSettings.provider=item.provider; aiSettings.model=item.id; localStorage.setItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings)); }
-  renderAIAssistant();
-}
 function renderAIAssistant(){
   syncAIModel();
   const tabs=`<div class="actions" style="margin-bottom:14px"><button class="btn ${aiTab==='chat'?'primary':''}" onclick="setAITab('chat')">Ask AI</button>${isAdmin?`<button class="btn ${aiTab==='generate'?'primary':''}" onclick="setAITab('generate')">Generate Questions</button>`:''}</div>`;
@@ -4966,13 +4989,13 @@ function changeAIProvider(){
   const provider=document.getElementById('aiProvider')?.value||'groq';
   aiSettings.provider=provider;
   ensureAIModelForProvider();
-  localStorage.setItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings));
+  safeSetItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings));
   renderAIAssistant();
 }
 function changeAIModel(){
   const model=document.getElementById('aiModel')?.value||'';
   if(model) aiSettings.model=model;
-  localStorage.setItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings));
+  safeSetItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings));
   renderAIAssistant();
 }
 
@@ -5074,7 +5097,7 @@ function saveAISettings(){
   aiSettings.model=document.getElementById('aiModel')?.value.trim()||'';
   aiSettings.accessCode=document.getElementById('aiAccessCode')?.value.trim()||'';
   ensureAIModelForProvider();
-  localStorage.setItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings));
+  safeSetItem(CONFIG.aiSettingsKey,JSON.stringify(aiSettings));
   toast(`AI provider saved: ${aiProviderLabel(aiSettings.provider)}.`,'ok');
 }
 
@@ -5260,7 +5283,7 @@ Rules:
     if(stamped.length<count) throw new Error(`${aiProviderLabel(aiSettings.provider)} returned ${stamped.length} questions instead of ${count}. Please try again.`);
 
     aiQuestions.push(...stamped);
-    localStorage.setItem(CONFIG.aiQuestionsKey,JSON.stringify(aiQuestions));
+    safeSetItem(CONFIG.aiQuestionsKey,JSON.stringify(aiQuestions));
 
     if(resultBox) resultBox.innerHTML=`<div class="card" style="margin-top:14px"><div class="notice ok">Generated ${stamped.length} question${stamped.length===1?'':'s'} from ${sourceType==='website'?'your website question bank':'AI medical knowledge'}.</div>
     <div class="mini" style="margin-top:8px">${esc(module+' AI generated')} · ${esc(subject)} · ${esc(lecture)} · ${esc(aiProviderLabel(aiSettings.provider))}</div>
@@ -5283,7 +5306,7 @@ async function sendAIChat(){
   if(!text) return;
 
   aiChat.push({role:'user',text});
-  localStorage.setItem(CONFIG.aiChatKey,JSON.stringify(aiChat));
+  safeSetItem(CONFIG.aiChatKey,JSON.stringify(aiChat));
   input.value='';
   renderAIAssistant();
   scrollChatToBottom();
@@ -5304,7 +5327,7 @@ async function sendAIChat(){
   }catch(e){
     aiChat.push({role:'error',text:'Error: '+e.message});
   }finally{
-    localStorage.setItem(CONFIG.aiChatKey,JSON.stringify(aiChat));
+    safeSetItem(CONFIG.aiChatKey,JSON.stringify(aiChat));
     aiBusy=false;
     renderAIAssistant();
     scrollChatToBottom();
@@ -5364,8 +5387,8 @@ function addAIQuestionToBank(id){
   if(bank.some(x=>x.id===q.id)){toast('This question is already in the bank.','error');return;}
   localQuestions.push(q);
   bank.push(q);
-  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
-  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  safeSetItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  safeSetItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,questions:bank}));
   render();
   toast('Question added to the question bank.','ok');
 }
@@ -5375,8 +5398,8 @@ function addAllAIQuestionsToBank(){
   if(!toAdd.length){toast('All AI questions are already in the bank.','error');return;}
   localQuestions.push(...toAdd);
   bank.push(...toAdd);
-  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
-  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  safeSetItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  safeSetItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,questions:bank}));
   render();
   toast(`Added ${toAdd.length} question${toAdd.length===1?'':'s'} to the question bank.`,'ok');
 }
@@ -5385,9 +5408,9 @@ function removeAIQuestion(id){
   aiQuestions=aiQuestions.filter(q=>q.id!==id);
   localQuestions=localQuestions.filter(q=>q.id!==id);
   bank=bank.filter(q=>q.id!==id);
-  localStorage.setItem(CONFIG.aiQuestionsKey,JSON.stringify(aiQuestions));
-  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
-  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  safeSetItem(CONFIG.aiQuestionsKey,JSON.stringify(aiQuestions));
+  safeSetItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  safeSetItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,questions:bank}));
   render();
   toast('AI question deleted.','ok');
 }
@@ -5398,9 +5421,9 @@ function clearAllAIQuestions(){
   aiQuestions=[];
   localQuestions=localQuestions.filter(q=>!ids.has(q.id));
   bank=bank.filter(q=>!ids.has(q.id));
-  localStorage.setItem(CONFIG.aiQuestionsKey,JSON.stringify(aiQuestions));
-  localStorage.setItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
-  localStorage.setItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,bank}));
+  safeSetItem(CONFIG.aiQuestionsKey,JSON.stringify(aiQuestions));
+  safeSetItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
+  safeSetItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,questions:bank}));
   render();
   toast('All AI questions deleted.','ok');
 }
@@ -5486,10 +5509,13 @@ async function installPWA(){
   }
   showPWAInstallHelp();
 }
+window.addEventListener('unhandledrejection',e=>{ console.warn('Unhandled promise rejection:',e.reason&&e.reason.message||e.reason); });
+window.addEventListener('offline',()=>toast('You are offline. Saved questions still work; progress will sync when you reconnect.','error'));
+window.addEventListener('online',()=>{ toast('Back online.','ok'); try{ if(SUPABASE_ENABLED&&currentUser) syncLocalProgressToSupabase(); }catch(_){} });
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.60',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.61',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
     updatePWAInstallButton();
