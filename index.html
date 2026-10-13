@@ -620,6 +620,23 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
 .flashcard-draw-color.active{outline:2px solid var(--primary);outline-offset:2px}
 @media(max-width:700px){.flashcard-draw-canvas{height:190px}.study-answer-points{font-size:15px}}
 
+
+/* v41.62: use available horizontal space on Flashcards and Study Tools. */
+.main:has(.study-tools-page){max-width:none;min-width:0;width:100%}
+.study-tools-page{width:100%;max-width:none;margin:0 auto}
+.study-phase2-grid:has(> :only-child){grid-template-columns:minmax(0,1fr)}
+.study-tools-columns:has(> :only-child){grid-template-columns:minmax(0,1fr)}
+.flashcard-library-grid{display:grid;grid-template-columns:minmax(300px,.85fr) minmax(0,1.15fr);gap:16px;align-items:start;width:100%}
+.flashcard-library-grid>div{min-width:0}
+.flashcard-library-grid .flashcard-list{max-height:none}
+.fc-cloud-status{margin:0 0 16px;padding:12px 14px}
+.fc-ai-import>summary{cursor:pointer;font-weight:700;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.fc-ai-import>summary::-webkit-details-marker{display:none}
+.fc-ai-import>summary:after{content:'+';font-size:1.25rem;color:var(--muted)}
+.fc-ai-import[open]>summary:after{content:'−'}
+.fc-ai-import-body{margin-top:12px}
+@media(max-width:900px){.flashcard-library-grid{grid-template-columns:minmax(0,1fr)}.study-tools-page{padding-left:0;padding-right:0}}
+
 </style>
 
 <style>
@@ -854,6 +871,9 @@ let flashcardState = loadJSON(CONFIG.flashcardStateKey, {});
 let flashcardCards = loadJSON(CONFIG.flashcardCardsKey, []);
 let flashcardAdminDrafts = loadJSON(CONFIG.flashcardAdminDraftsKey, []);
 let publicFlashcardsLoaded = false;
+let publicFlashcardsLoading = false;
+let publicFlashcardsLastAttempt = 0;
+let publicFlashcardsError = '';
 let questionNotes = loadJSON(CONFIG.questionNotesKey, {});
 let questionFolders = loadJSON(CONFIG.questionFoldersKey, {folders:[]});
 let activeLibraryFolder='';
@@ -3327,19 +3347,28 @@ function retakeExamFromResult(){
 
 
 async function loadPublicFlashcards(force=false){
-  // Public cards must load for visitors as well as signed-in users.
-  if((publicFlashcardsLoaded && !force) || !SUPABASE_ENABLED)return false;
+  // Shared MedEx cards load for all users; the management/question-bank screen remains admin-only.
+  if((publicFlashcardsLoaded && !force && Date.now()-publicFlashcardsLastAttempt<300000) || !SUPABASE_ENABLED){
+    if(!SUPABASE_ENABLED) publicFlashcardsError='Supabase is not configured in this build.';
+    return false;
+  }
+  if(publicFlashcardsLoading)return false;
+  publicFlashcardsLoading=true;publicFlashcardsLastAttempt=Date.now();publicFlashcardsError='';
   try{
     const {data,error}=await supabaseClient.from('flashcards_public')
       .select('id,front,back,module,subject,lecture,tags,deck,created_at,updated_at')
       .eq('active',true).order('created_at',{ascending:true});
-    if(error){console.warn('Public flashcards load failed:',error.message);return false;}
+    if(error){publicFlashcardsError=error.message||'Supabase query failed.';console.warn('Public flashcards load failed:',error);return false;}
     const remote=(data||[]).map(c=>({id:String(c.id),front:String(c.front||''),back:String(c.back||''),module:String(c.module||''),subject:String(c.subject||''),lecture:String(c.lecture||''),tags:Array.isArray(c.tags)?c.tags.join(', '):String(c.tags||''),deck:String(c.deck||''),source:'public',createdAt:c.created_at?Date.parse(c.created_at):Date.now(),updatedAt:c.updated_at?Date.parse(c.updated_at):Date.now()})).filter(c=>c.front&&c.back);
     const locals=flashcardCards.filter(c=>c.source!=='public');
     const byId=new Map(remote.map(c=>[c.id,c]));
     locals.forEach(c=>byId.has(String(c.id))&&byId.delete(String(c.id)));
-    flashcardCards=[...locals,...byId.values()]; saveFlashcardCards(); publicFlashcardsLoaded=true; return true;
-  }catch(e){console.warn('Public flashcards load failed:',e.message);return false;}
+    flashcardCards=[...locals,...byId.values()]; saveFlashcardCards(); publicFlashcardsLoaded=true; publicFlashcardsError=''; return true;
+  }catch(e){publicFlashcardsError=e?.message||String(e)||'Unexpected error loading flashcards.';console.warn('Public flashcards load failed:',e);return false;}
+  finally{
+    publicFlashcardsLoading=false;
+    if(location.hash.replace('#','')==='flashcards'&&!flashcardSession){setTimeout(()=>{if(location.hash.replace('#','')==='flashcards'&&!flashcardSession)renderFlashcards();},0);}
+  }
 }
 let publicFlashcardRealtimeChannel=null;
 function subscribeToPublicFlashcardChanges(){
@@ -3349,6 +3378,18 @@ function subscribeToPublicFlashcardChanges(){
       publicFlashcardsLoaded=false; await loadPublicFlashcards(true);
       if(typeof renderFlashcards==='function'&&location.hash.replace('#','')==='flashcards')renderFlashcards();
     }).subscribe((status)=>console.log('MedEx flashcard realtime:',status));
+}
+function retryPublicFlashcards(){
+  publicFlashcardsLoaded=false;publicFlashcardsLastAttempt=0;publicFlashcardsError='';
+  loadPublicFlashcards(true).then(()=>{if(location.hash.replace('#','')==='flashcards'&&!flashcardSession)renderFlashcards();});
+  renderFlashcards();
+}
+function flashcardCloudStatusHTML(){
+  if(!SUPABASE_ENABLED)return `<div class="notice error fc-cloud-status">Supabase is not configured in this build, so shared MedEx flashcards cannot load.</div>`;
+  if(publicFlashcardsLoading)return `<div class="notice fc-cloud-status">Loading shared MedEx flashcards from Supabase…</div>`;
+  if(publicFlashcardsError)return `<div class="notice error fc-cloud-status"><b>Could not load shared flashcards from Supabase.</b><div style="margin-top:5px">${esc(publicFlashcardsError)}</div><button class="btn" style="margin-top:9px" onclick="retryPublicFlashcards()">Retry loading</button></div>`;
+  if(!publicFlashcardsLoaded)return `<div class="notice fc-cloud-status">Shared MedEx flashcards have not loaded yet. <button class="btn" onclick="retryPublicFlashcards()">Load flashcards</button></div>`;
+  return '';
 }
 function saveFlashcardAdminDrafts(){try{safeSetItem(CONFIG.flashcardAdminDraftsKey,JSON.stringify(flashcardAdminDrafts));}catch(e){console.warn('Could not save flashcard drafts:',e.message);}}
 function parseCSVLine(line){const out=[];let cur='',quote=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(quote&&line[i+1]==='"'){cur+='"';i++;}else quote=!quote;}else if(ch===','&&!quote){out.push(cur);cur='';}else cur+=ch;}out.push(cur);return out;}
@@ -3533,7 +3574,7 @@ function flashcardAnswerPointsHTML(value,library=false){
 function renderFlashcardLibrary(){
   const cards=flashcardScopeCards({module:flashcardFilter.module,subject:flashcardFilter.subject,lecture:flashcardFilter.lecture});
   const mods=getFlashcardModules();
-  return `<section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">INDEPENDENT FLASHCARD LIBRARY</span><h3>Your flashcards</h3><p>Every card is independent. User-created and imported cards stay local to this browser and are never uploaded to Supabase.</p></div><span class="study-count-badge"><b>${flashcardCards.length}</b><span>cards</span></div><div class="flashcard-library-grid" style="margin-top:14px"><div class="flashcard-form"><div class="card" style="margin:0"><h4 style="margin-top:0">Create a card</h4><div class="field"><label>Front</label><textarea id="fcFront" placeholder="Prompt, term or question"></textarea></div><div class="field" style="margin-top:8px"><label>Back</label><textarea id="fcBack" placeholder="Answer, definition or explanation"></textarea></div><div class="grid three" style="margin-top:8px"><div class="field"><label>Module</label><input id="fcModule" placeholder="Optional"></div><div class="field"><label>Subject</label><input id="fcSubject" placeholder="Optional"></div><div class="field"><label>Lecture</label><input id="fcLecture" placeholder="Optional"></div></div><div class="field" style="margin-top:8px"><label>Tags</label><input id="fcTags" placeholder="e.g. high-yield, anatomy"></div><button class="btn primary" style="margin-top:10px" onclick="createManualFlashcard()">Create flashcard</button></div><div class="card" style="margin:12px 0 0"><h4 style="margin-top:0">Import CSV</h4><p class="mini">Anki-style basic cards. Required columns: <b>front,back</b>. Optional: module, subject, lecture, tags, deck.</p><input id="flashcardCSVInput" type="file" accept=".csv,text/csv"><button class="btn" style="margin-top:10px" onclick="importFlashcardsCSV()">Import locally</button></div><div class="card" style="margin:12px 0 0"><h4 style="margin-top:0">Generate with AI from website questions</h4><p class="mini">Choose a lecture already loaded on the website. AI will use those existing questions as source material and create new independent flashcards. The generated cards stay local unless an admin later reviews and publishes them.</p><div class="study-filter-grid"><div class="field"><label>Module</label><select id="aiFlashModule" onchange="updateAIFlashcardSubjects()"><option value="">Select module</option>${getModules().filter(isModuleVisible).map(x=>`<option value="${attrJs(x)}">${esc(x)}</option>`).join('')}</select></div><div class="field"><label>Subject</label><select id="aiFlashSubject" disabled onchange="updateAIFlashcardLectures()"><option value="">Select subject</option></select></div><div class="field"><label>Lecture</label><select id="aiFlashLecture" disabled onchange="updateAIFlashcardSourceInfo()"><option value="">Select lecture</option></select></div></div><div id="aiFlashSourceInfo" class="notice" style="margin-top:10px">Select a module, subject and lecture. AI will use the questions already loaded on this website as its source.</div><div class="grid two" style="margin-top:8px"><div class="field"><label>Number</label><input id="aiFlashCount" type="number" min="1" max="50" value="10"></div><div class="field"><label>Level</label><select id="aiFlashLevel"><option>medical student</option><option>pre-clinical medical student</option><option>clinical medical student</option></select></div></div><button id="aiFlashGenerateBtn" class="btn primary" style="margin-top:10px" onclick="generateFlashcardsWithAI()">Generate flashcards</button></div></div><div><div class="study-filter-grid"><div class="field"><label>View module</label><select id="flashLibraryModule" onchange="updateFlashLibraryFilter()"><option value="">All</option>${mods.map(x=>`<option value="${attrJs(x)}" ${flashcardFilter.module===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div><div class="field"><label>View subject</label><select id="flashLibrarySubject" onchange="updateFlashLibraryFilter()"><option value="">All</option>${getFlashcardSubjects(flashcardFilter.module).map(x=>`<option value="${attrJs(x)}" ${flashcardFilter.subject===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div><div class="field"><label>View lecture</label><select id="flashLibraryLecture" onchange="updateFlashLibraryFilter()"><option value="">All</option>${getFlashcardLectures(flashcardFilter.module,flashcardFilter.subject).map(x=>`<option value="${attrJs(x)}" ${flashcardFilter.lecture===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div></div><div class="flashcard-list" style="margin-top:12px">${cards.length?cards.map(c=>{const st=flashcardRecord(c);return `<div class="flashcard-library-row"><div class="fc-front">${esc(c.front)}</div><div class="fc-back">${flashcardAnswerPointsHTML(c.back,true)}</div><div class="fc-meta"><span class="flashcard-chip">${esc(c.source==='public'?'MedEx official':c.deck||'Personal')}</span>${c.module?`<span class="flashcard-chip">${esc(c.module)}</span>`:''}${c.subject?`<span class="flashcard-chip">${esc(c.subject)}</span>`:''}${c.lecture?`<span class="flashcard-chip">${esc(c.lecture)}</span>`:''}<span class="flashcard-chip">${esc(flashcardDueLabel(c))}</span><span class="flashcard-chip">${st.reviews||0} reviews</span></div><div class="actions" style="margin-top:8px">${c.source!=='public'?`<button class="btn" onclick="editFlashcard('${attrJs(c.id)}')">Edit</button>${isAdmin?`<button class="btn primary" onclick="uploadFlashcardToSupabase('${attrJs(c.id)}')">Upload to Supabase</button>`:''}<button class="btn danger" onclick="deleteFlashcard('${attrJs(c.id)}')">Delete</button>`:'<span class="mini">Official MedEx card · Published</span>'}</div></div>`}).join(''):'<div class="tutor-empty">No flashcards yet. Create one, import CSV, or generate cards with AI.</div>'}</div></div></div></section>`;
+  return `<section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">INDEPENDENT FLASHCARD LIBRARY</span><h3>Your flashcards</h3><p>Every card is independent. User-created and imported cards stay local to this browser and are never uploaded to Supabase.</p></div><span class="study-count-badge"><b>${flashcardCards.length}</b><span>cards</span></div><div class="flashcard-library-grid" style="margin-top:14px"><div class="flashcard-form"><div class="card" style="margin:0"><h4 style="margin-top:0">Create a card</h4><div class="field"><label>Front</label><textarea id="fcFront" placeholder="Prompt, term or question"></textarea></div><div class="field" style="margin-top:8px"><label>Back</label><textarea id="fcBack" placeholder="Answer, definition or explanation"></textarea></div><div class="grid three" style="margin-top:8px"><div class="field"><label>Module</label><input id="fcModule" placeholder="Optional"></div><div class="field"><label>Subject</label><input id="fcSubject" placeholder="Optional"></div><div class="field"><label>Lecture</label><input id="fcLecture" placeholder="Optional"></div></div><div class="field" style="margin-top:8px"><label>Tags</label><input id="fcTags" placeholder="e.g. high-yield, anatomy"></div><button class="btn primary" style="margin-top:10px" onclick="createManualFlashcard()">Create flashcard</button></div><div class="card" style="margin:12px 0 0"><h4 style="margin-top:0">Import CSV</h4><input id="flashcardCSVInput" type="file" accept=".csv,text/csv"><button class="btn" style="margin-top:10px" onclick="importFlashcardsCSV()">Import locally</button></div><details class="card fc-ai-import" style="margin:12px 0 0"><summary>Generate flashcards with AI</summary><div class="fc-ai-import-body"><div class="study-filter-grid"><div class="field"><label>Module</label><select id="aiFlashModule" onchange="updateAIFlashcardSubjects()"><option value="">Select module</option>${getModules().filter(isModuleVisible).map(x=>`<option value="${attrJs(x)}">${esc(x)}</option>`).join('')}</select></div><div class="field"><label>Subject</label><select id="aiFlashSubject" disabled onchange="updateAIFlashcardLectures()"><option value="">Select subject</option></select></div><div class="field"><label>Lecture</label><select id="aiFlashLecture" disabled onchange="updateAIFlashcardSourceInfo()"><option value="">Select lecture</option></select></div></div><div id="aiFlashSourceInfo" class="notice" style="margin-top:10px">Select a module, subject and lecture.</div><div class="grid two" style="margin-top:8px"><div class="field"><label>Number</label><input id="aiFlashCount" type="number" min="1" max="50" value="10"></div><div class="field"><label>Level</label><select id="aiFlashLevel"><option>medical student</option><option>pre-clinical medical student</option><option>clinical medical student</option></select></div></div><button id="aiFlashGenerateBtn" class="btn primary" style="margin-top:10px" onclick="generateFlashcardsWithAI()">Generate flashcards</button></div></details></div><div><div class="study-filter-grid"><div class="field"><label>View module</label><select id="flashLibraryModule" onchange="updateFlashLibraryFilter()"><option value="">All</option>${mods.map(x=>`<option value="${attrJs(x)}" ${flashcardFilter.module===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div><div class="field"><label>View subject</label><select id="flashLibrarySubject" onchange="updateFlashLibraryFilter()"><option value="">All</option>${getFlashcardSubjects(flashcardFilter.module).map(x=>`<option value="${attrJs(x)}" ${flashcardFilter.subject===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div><div class="field"><label>View lecture</label><select id="flashLibraryLecture" onchange="updateFlashLibraryFilter()"><option value="">All</option>${getFlashcardLectures(flashcardFilter.module,flashcardFilter.subject).map(x=>`<option value="${attrJs(x)}" ${flashcardFilter.lecture===x?'selected':''}>${esc(x)}</option>`).join('')}</select></div></div><div class="flashcard-list" style="margin-top:12px">${cards.length?cards.map(c=>{const st=flashcardRecord(c);return `<div class="flashcard-library-row"><div class="fc-front">${esc(c.front)}</div><div class="fc-back">${flashcardAnswerPointsHTML(c.back,true)}</div><div class="fc-meta"><span class="flashcard-chip">${esc(c.source==='public'?'MedEx official':c.deck||'Personal')}</span>${c.module?`<span class="flashcard-chip">${esc(c.module)}</span>`:''}${c.subject?`<span class="flashcard-chip">${esc(c.subject)}</span>`:''}${c.lecture?`<span class="flashcard-chip">${esc(c.lecture)}</span>`:''}<span class="flashcard-chip">${esc(flashcardDueLabel(c))}</span><span class="flashcard-chip">${st.reviews||0} reviews</span></div><div class="actions" style="margin-top:8px">${c.source!=='public'?`<button class="btn" onclick="editFlashcard('${attrJs(c.id)}')">Edit</button>${isAdmin?`<button class="btn primary" onclick="uploadFlashcardToSupabase('${attrJs(c.id)}')">Upload to Supabase</button>`:''}<button class="btn danger" onclick="deleteFlashcard('${attrJs(c.id)}')">Delete</button>`:'<span class="mini">Official MedEx card · Published</span>'}</div></div>`}).join(''):'<div class="tutor-empty">No flashcards yet. Create one, import CSV, or generate cards with AI.</div>'}</div></div></div></section>`;
 }
 
 function updateFlashLibraryFilter(){flashcardFilter.module=document.getElementById('flashLibraryModule')?.value||'';flashcardFilter.subject=document.getElementById('flashLibrarySubject')?.value||'';flashcardFilter.lecture=document.getElementById('flashLibraryLecture')?.value||'';renderFlashcards();}
@@ -3572,10 +3613,15 @@ function rateFlashcard(rating){const s=flashcardSession;if(!s||!s.revealed)retur
 function flashcardSummaryHTML(){const all=flashcardCards,now=Date.now();const due=all.filter(c=>{const p=flashcardRecord(c);return !p.suspended&&p.state!=='new'&&Number(p.due||0)<=now;}).length;const learning=all.filter(c=>['learning','relearning'].includes(flashcardRecord(c).state)).length;const mature=all.filter(c=>flashcardRecord(c).state==='review'&&Number(flashcardRecord(c).intervalDays||0)>=21).length;return `<section class="study-tools-card study-progress-card"><div class="study-card-heading"><div><span class="study-eyebrow">YOUR REVIEW</span><h3>Spaced-repetition progress</h3><p>Every flashcard has its own schedule. The Question Bank and flashcard library are separate.</p></div></div><div class="study-progress-grid"><div><b>${due}</b><span>Due now</span></div><div><b>${learning}</b><span>Learning / relearning</span></div><div><b>${mature}</b><span>Mature cards</span></div></div></section>`;}
 function renderFlashcards(){
   if(flashcardSession){renderFlashcardSession();return;}
+  if(SUPABASE_ENABLED&&!publicFlashcardsLoaded&&!publicFlashcardsLoading&&Date.now()-publicFlashcardsLastAttempt>30000){
+    loadPublicFlashcards().then(()=>{if(location.hash.replace('#','')==='flashcards'&&!flashcardSession)renderFlashcards();});
+  }
   const body=`<div class="study-tools-page">
-    <section class="study-tools-hero"><div><span class="study-eyebrow">MEDEX FLASHCARDS</span><h2>Recall, reveal, and review</h2><p>Create personal cards, import CSV, generate cards from MedEx questions, or review due cards with local spaced repetition.</p></div><div class="study-hero-actions"><button class="btn primary" onclick="startFlashcardSession()">Start review</button><button class="btn" onclick="go('tools')">Study Tools</button></div></section>
+    <section class="study-tools-hero"><div><span class="study-eyebrow">MEDEX FLASHCARDS</span><h2>Recall, reveal, and review</h2><p>Create personal cards, import CSV, and review new or due cards with local spaced repetition.</p></div><div class="study-hero-actions"><button class="btn primary" onclick="startFlashcardSession()">Start review</button><button class="btn" onclick="go('tools')">Study Tools</button></div></section>
+    ${flashcardCloudStatusHTML()}
     <div class="study-phase2-grid">${flashcardSummaryHTML()}</div>
     ${renderFlashcardSetup()}
+    ${typeof renderFlashcardFlagSections==='function'?renderFlashcardFlagSections():''}
     ${renderFlashcardLibrary()}
   </div>`;
   document.getElementById('app').innerHTML=layout('Flashcards','A dedicated workspace for creating, organizing and reviewing flashcards.',body);
@@ -5620,7 +5666,7 @@ if('serviceWorker' in navigator){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.61',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=41.62',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       watchPWARegistration(registration);
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }

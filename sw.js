@@ -1,4 +1,4 @@
-const CACHE='medex-v41.61-reliability';
+const CACHE='medex-v41.62-flashcards-supabase-layout';
 const APP_SHELL=['./','./index.html'];
 const MAX_RUNTIME_ENTRIES=80;
 const CDN_HOSTS=new Set(['cdn.jsdelivr.net','fonts.googleapis.com','fonts.gstatic.com']);
