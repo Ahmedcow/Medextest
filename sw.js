@@ -1,57 +1,76 @@
-const CACHE='medex-v41.62-flashcards-supabase-layout';
-const APP_SHELL=['./','./index.html'];
+/* MedEx service worker — v42
+ * Fixes vs v41.62:
+ *  - Runtime trimming no longer evicts the app shell (separate caches).
+ *  - cdnjs.cloudflare.com (pdf.js / pdf-lib) is now cached for offline reading.
+ *  - Manifest + icons are precached; offline navigation falls back to the shell.
+ *  - Cache name is a single constant to bump on release.
+ */
+const VERSION='v42.0';
+const SHELL_CACHE='medex-shell-'+VERSION;
+const RUNTIME_CACHE='medex-runtime-'+VERSION;
+const SHELL=['./','./index.html','./manifest.webmanifest','./icons/medex-192.png','./icons/medex-512.png'];
 const MAX_RUNTIME_ENTRIES=80;
-const CDN_HOSTS=new Set(['cdn.jsdelivr.net','fonts.googleapis.com','fonts.gstatic.com']);
+const CDN_HOSTS=new Set(['cdn.jsdelivr.net','cdnjs.cloudflare.com','fonts.googleapis.com','fonts.gstatic.com']);
+
 self.addEventListener('install',event=>event.waitUntil((async()=>{
-  const cache=await caches.open(CACHE);
-  await Promise.all(APP_SHELL.map(async path=>{try{const response=await fetch(path,{cache:'reload'});if(response.ok&&response.status===200)await cache.put(path,response);}catch(_){}}));
-  // Intentionally do not call skipWaiting here. The page shows an update prompt first.
+  const cache=await caches.open(SHELL_CACHE);
+  await Promise.all(SHELL.map(async path=>{
+    try{const res=await fetch(path,{cache:'reload'});if(res.ok&&res.status===200)await cache.put(path,res);}catch(_){}
+  }));
+  // No skipWaiting here: the page shows an "update available" prompt first.
 })()));
-self.addEventListener('message',event=>{
-  if(event.data?.type==='SKIP_WAITING')self.skipWaiting();
-});
+
+self.addEventListener('message',event=>{ if(event.data&&event.data.type==='SKIP_WAITING')self.skipWaiting(); });
+
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
+  const keep=new Set([SHELL_CACHE,RUNTIME_CACHE]);
   const keys=await caches.keys();
-  await Promise.all(keys.filter(key=>key.startsWith('medex-')&&key!==CACHE).map(key=>caches.delete(key)));
+  await Promise.all(keys.filter(k=>k.startsWith('medex-')&&!keep.has(k)).map(k=>caches.delete(k)));
   await self.clients.claim();
 })()));
-async function cacheSuccessful(cache,request,response){
+
+async function putRuntime(request,response){
   if(!response||!response.ok||response.status!==200||response.type==='opaque')return;
-  try{await cache.put(request,response.clone());await trimRuntimeCache(cache);}catch(_){}
+  try{
+    const cache=await caches.open(RUNTIME_CACHE);
+    await cache.put(request,response.clone());
+    const keys=await cache.keys();
+    if(keys.length>MAX_RUNTIME_ENTRIES)await Promise.all(keys.slice(0,keys.length-MAX_RUNTIME_ENTRIES).map(k=>cache.delete(k)));
+  }catch(_){}
 }
-async function trimRuntimeCache(cache){
-  const keys=await cache.keys();
-  if(keys.length<=MAX_RUNTIME_ENTRIES)return;
-  await Promise.all(keys.slice(0,keys.length-MAX_RUNTIME_ENTRIES).map(key=>cache.delete(key)));
-}
-function timeout(ms){return new Promise((_,reject)=>setTimeout(()=>reject(new Error('Network timeout')),ms));}
+const timeout=ms=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('Network timeout')),ms));
+
 self.addEventListener('fetch',event=>{
-  const request=event.request;
-  if(request.method!=='GET')return;
-  const url=new URL(request.url);
-  // Never cache API calls, Vercel internals, Supabase data/auth, or partial content.
-  if(url.pathname.startsWith('/api/')||url.pathname.startsWith('/_vercel/')||url.hostname.endsWith('.supabase.co')||request.headers.get('range'))return;
+  const req=event.request;
+  if(req.method!=='GET'||req.headers.get('range'))return;
+  const url=new URL(req.url);
+  // Never cache APIs, Vercel internals, or Supabase (data + auth).
+  if(url.pathname.startsWith('/api/')||url.pathname.startsWith('/_vercel/')||url.hostname.endsWith('.supabase.co'))return;
   const isOwn=url.origin===self.location.origin;
-  const isCdn=CDN_HOSTS.has(url.hostname);
-  if(!isOwn&&!isCdn)return;
-  const isNavigation=isOwn&&(request.mode==='navigate'||url.pathname.endsWith('/index.html')||url.pathname==='/'||url.pathname.endsWith('/'));
-  if(isNavigation){
+  if(!isOwn&&!CDN_HOSTS.has(url.hostname))return;
+
+  // Page loads: network first (fresh deploys), fall back to the cached shell when offline/slow.
+  if(isOwn&&req.mode==='navigate'){
     event.respondWith((async()=>{
-      const cache=await caches.open(CACHE);
+      const shell=await caches.open(SHELL_CACHE);
       try{
-        const response=await Promise.race([fetch(request,{cache:'no-store'}),timeout(4000)]);
-        if(response&&response.ok&&response.status===200)event.waitUntil(cacheSuccessful(cache,request,response));
-        return response;
-      }catch(error){const cached=await cache.match(request)||await cache.match('./index.html')||await cache.match('./');if(cached)return cached;throw error;}
+        const res=await Promise.race([fetch(req),timeout(4000)]);
+        if(res&&res.ok&&res.status===200)event.waitUntil(shell.put('./index.html',res.clone()));
+        return res;
+      }catch(err){
+        const cached=await shell.match('./index.html')||await shell.match('./');
+        if(cached)return cached;
+        return new Response('<h1>You are offline</h1><p>Open MedEx once while online to enable offline use.</p>',{status:503,headers:{'Content-Type':'text/html; charset=utf-8'}});
+      }
     })());
     return;
   }
-  // Stale-while-revalidate for app assets and the explicitly allowed CDN dependencies.
+
+  // Everything else: stale-while-revalidate.
   event.respondWith((async()=>{
-    const cache=await caches.open(CACHE);
-    const cached=await cache.match(request);
-    const network=fetch(request).then(response=>{if(response&&response.ok&&response.status===200)event.waitUntil(cacheSuccessful(cache,request,response));return response;});
+    const cached=(await caches.match(req,{ignoreSearch:false}));
+    const network=fetch(req).then(res=>{event.waitUntil(putRuntime(req,res));return res;});
     if(cached){event.waitUntil(network.catch(()=>{}));return cached;}
-    try{return await network;}catch(error){return cached||Response.error();}
+    try{return await network;}catch(_){return Response.error();}
   })());
 });
