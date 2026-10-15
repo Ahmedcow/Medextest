@@ -76,13 +76,33 @@ self.addEventListener('fetch',event=>{
 });
 
 
-// Web Push display/click handling. Delivery requires a push server and VAPID setup.
+// Web Push payloads are sent by a trusted server after VAPID subscription setup.
 self.addEventListener('push',event=>{
- let data={title:'MedEx',body:'You have a new MedEx update.',url:'./'};
- try{if(event.data)data={...data,...event.data.json()};}catch(_){try{if(event.data)data.body=event.data.text();}catch(__){}}
- event.waitUntil(self.registration.showNotification(data.title||'MedEx',{body:data.body||'You have a new MedEx update.',icon:data.icon||'./icons/medex-192.png',badge:data.badge||'./icons/medex-192.png',tag:data.tag||'medex-push',data:{url:data.url||'./'},renotify:false}));
+  let payload={title:'MedEx',body:'You have a new update.',url:'./#dashboard'};
+  try{if(event.data){const data=event.data.json();payload={...payload,...data};}}catch(_){
+    try{if(event.data)payload.body=event.data.text();}catch(__){}
+  }
+  event.waitUntil(self.registration.showNotification(payload.title||'MedEx',{
+    body:payload.body||'You have a new update.',
+    icon:'./icons/medex-192.png',
+    badge:'./icons/medex-192.png',
+    data:{url:payload.url||'./#dashboard'},
+    tag:payload.tag||'medex-'+(payload.type||'update'),
+    renotify:true
+  }));
 });
 self.addEventListener('notificationclick',event=>{
- event.notification.close();const target=new URL(event.notification.data?.url||'./',self.location.origin).href;
- event.waitUntil((async()=>{const list=await self.clients.matchAll({type:'window',includeUncontrolled:true});for(const client of list){if(new URL(client.url).origin===self.location.origin){await client.focus();if('navigate' in client)await client.navigate(target);return;}}if(self.clients.openWindow)await self.clients.openWindow(target);})());
+  event.notification.close();
+  const target=new URL(event.notification.data?.url||'./#dashboard',self.location.origin).href;
+  event.waitUntil((async()=>{
+    const clientsList=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+    for(const client of clientsList){
+      if(new URL(client.url).origin===self.location.origin){
+        await client.focus();
+        if('navigate' in client)await client.navigate(target);
+        return;
+      }
+    }
+    if(self.clients.openWindow)await self.clients.openWindow(target);
+  })());
 });
