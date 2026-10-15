@@ -768,6 +768,7 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
       <button data-view="import" id="adminNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13V2.5"/><polyline points="6,6.5 10,2.5 14,6.5"/><path d="M3 13v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg><span>Upload / Update Questions</span></button>
       <button data-view="ai"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5 L11.6 7.2 L16.2 8.8 L11.6 10.4 L10 15.1 L8.4 10.4 L3.8 8.8 L8.4 7.2 Z"/><path d="M16 2.5 L16.7 4.4 L18.6 5.1 L16.7 5.8 L16 7.7 L15.3 5.8 L13.4 5.1 L15.3 4.4 Z"/></svg><span>AI Assistant</span></button>
       <button data-view="aiquestions"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="4" rx="1.2"/><rect x="3" y="8.5" width="14" height="4" rx="1.2"/><rect x="3" y="14" width="14" height="4" rx="1.2"/><circle cx="6" cy="5" r=".6" fill="currentColor"/><circle cx="6" cy="10.5" r=".6" fill="currentColor"/><circle cx="6" cy="16" r=".6" fill="currentColor"/></svg><span>AI Questions</span></button>
+      <button data-view="semesters" id="semesterAdminNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3" width="15" height="14" rx="2"/><path d="M6 7h8M6 10h8M6 13h5"/></svg><span>Semester Manager</span></button>
       <button data-view="flashadmin" id="flashAdminNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="12" rx="2"/><path d="M6 8h8M6 11h6M6 14h4"/></svg><span>Flashcard Manager</span></button><button data-view="favorites" id="favoritesNav"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17.2 3.8 10.8A4.1 4.1 0 0 1 9.6 5l.4.4.4-.4a4.1 4.1 0 0 1 5.8 5.8Z"/></svg><span>Favourite Questions</span></button>
       <button data-view="analytics" id="analyticsNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="17" x2="3" y2="3"/><line x1="3" y1="17" x2="18" y2="17"/><rect x="6" y="10" width="2.5" height="5" rx=".5"/><rect x="10.5" y="7" width="2.5" height="8" rx=".5"/><rect x="15" y="4" width="2.5" height="11" rx=".5"/></svg><span>Admin Analytics</span></button>
       <button data-view="reports" id="adminReportsNav" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5 17 5v4.7c0 4.2-2.8 6.6-7 7.8-4.2-1.2-7-3.6-7-7.8V5z"/><path d="M10 6.2v4.2"/><circle cx="10" cy="13.2" r=".7" fill="currentColor" stroke="none"/></svg><span>Question Reports</span></button>
@@ -862,7 +863,8 @@ const DEFAULT_SETTINGS = {
   shuffleQuestions: true,
   shuffleOptions: true,
   darkMode: !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches),
-  dailyGoal: 20
+  dailyGoal: 20,
+  semester: null
 };
 
 const DEFAULT_AI_SETTINGS = {
@@ -1302,7 +1304,8 @@ async function loadModuleVisibility(){
 }
 function applyModuleVisibility(){
   if(!Array.isArray(allQuestionBank)||!allQuestionBank.length){ allQuestionBank=bank.slice(); }
-  bank=isAdmin ? allQuestionBank.slice() : allQuestionBank.filter(q=>isModuleVisible(q.module));
+  const selectedSemester=getSelectedSemester();
+  bank=isAdmin ? allQuestionBank.slice() : allQuestionBank.filter(q=>isModuleVisible(q.module) && (!selectedSemester || Number(q.semester)===Number(selectedSemester)));
 }
 
 function authCard(){
@@ -1597,6 +1600,7 @@ function normalizeQuestion(q, source=''){
   return {
     id: uid(q),
     module: String(q.module || q.section || 'General').trim() || 'General',
+    semester: [1,2,3].includes(Number(q.semester))?Number(q.semester):null,
     subject: String(q.subject || q.category || 'General').trim() || 'General',
     lecture: String(q.lecture || 'General').trim() || 'General',
     difficulty: String(q.difficulty || '').trim(),
@@ -1648,7 +1652,7 @@ async function loadQuestionsFromSupabase(){
     // This avoids a long serial round-trip for banks with thousands of questions.
     const first = await supabaseClient
       .from('questions')
-      .select('id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference,image_url')
+      .select('id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference,image_url,semester')
       .order('id',{ascending:true})
       .range(0,PAGE_SIZE-1);
     if(first.error)throw first.error;
@@ -1661,7 +1665,7 @@ async function loadQuestionsFromSupabase(){
       const pages=await Promise.all(starts.map(async from=>{
         const {data,error}=await supabaseClient
           .from('questions')
-          .select('id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference,image_url')
+          .select('id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference,image_url,semester')
           .order('id',{ascending:true})
           .range(from,from+PAGE_SIZE-1);
         if(error)throw error;
@@ -1683,7 +1687,7 @@ async function loadQuestionsFromSupabase(){
       return false;
     }
     const all=data.map(q=>normalizeQuestion({
-      id:q.id,module:q.module,subject:q.subject,lecture:q.lecture,question:q.question,
+      id:q.id,module:q.module,semester:q.semester,subject:q.subject,lecture:q.lecture,question:q.question,
       options:q.options,correctIndex:q.correct_index,explanation:q.explanation,
       difficulty:q.difficulty,reference:q.reference,imageUrl:q.image_url,source:'Supabase'
     },'Supabase'));
@@ -1779,24 +1783,74 @@ function layout(title,subtitle,body,actions=''){
   <div id="toast" class="notice hidden"></div>${body}`;
 }
 
+function getSelectedSemester(){
+  const raw=settings?.semester;
+  return [1,2,3].includes(Number(raw))?Number(raw):null;
+}
+function semesterOptions(selected, includeAll=false){
+  return `${includeAll?'<option value="">Unassigned / All</option>':''}<option value="1" ${Number(selected)===1?'selected':''}>Semester 1</option><option value="2" ${Number(selected)===2?'selected':''}>Semester 2</option><option value="3" ${Number(selected)===3?'selected':''}>Semester 3</option>`;
+}
+function renderVisitorOnboarding(){
+  const name=getVisitorName();
+  document.getElementById('app').innerHTML=`<div class="top"><div><h1>Welcome to MedEx</h1><div class="sub">Personalize your study space before you begin.</div></div></div><section class="card" style="max-width:680px;margin:28px auto;padding:clamp(20px,4vw,36px)"><div style="font-size:34px;margin-bottom:8px">🎓</div><h2 style="margin:0 0 8px">Choose your semester</h2><p class="mini" style="margin:0 0 20px">MedEx organizes modules and official flashcards by semester. Your choice filters the study content you see and can be changed later in Settings.</p><div class="field"><label for="visitorStartName">Your name</label><input id="visitorStartName" maxlength="40" value="${esc(name)}" placeholder="Enter your name" autocomplete="name"></div><div class="field" style="margin-top:14px"><label for="visitorStartSemester">Semester</label><select id="visitorStartSemester"><option value="">Choose semester…</option>${semesterOptions(getSelectedSemester())}</select></div><button class="btn primary" style="margin-top:20px;width:100%" onclick="completeVisitorOnboarding()">Enter MedEx</button><p class="mini" style="margin-top:12px">You can change your name or semester any time in Settings.</p></section>`;
+}
+async function completeVisitorOnboarding(){
+  const name=document.getElementById('visitorStartName')?.value||'';
+  const sem=Number(document.getElementById('visitorStartSemester')?.value);
+  if(!String(name).trim()){toast('Please enter your name.','error');return;}
+  if(![1,2,3].includes(sem)){toast('Please choose Semester 1, 2, or 3.','error');return;}
+  settings.semester=sem;saveState();
+  await saveVisitorName(name);
+  applyModuleVisibility();
+  render();
+}
+async function adminAssignModuleSemester(module,semester){
+  if(!isAdmin||!currentUser||!SUPABASE_ENABLED)return toast('Admin Supabase access is required.','error');
+  const sem=semester===''?null:Number(semester);
+  if(sem!==null&&![1,2,3].includes(sem))return toast('Choose Semester 1, 2, or 3.','error');
+  const {error}=await supabaseClient.from('questions').update({semester:sem}).eq('module',module);
+  if(error)return toast('Could not save module semester. Apply the included Supabase migration first. '+error.message,'error');
+  allQuestionBank=allQuestionBank.map(q=>q.module===module?{...q,semester:sem}:q);
+  safeSetItem(CONFIG.cacheKey,JSON.stringify({updatedAt:new Date().toISOString(),sourceFiles,questions:allQuestionBank}));
+  applyModuleVisibility();renderSemesterManager();toast(`${module} assigned to ${sem?'Semester '+sem:'Unassigned'}.`,'ok');
+}
+async function adminAssignFlashcardSemester(id,semester){
+  if(!isAdmin||!currentUser||!SUPABASE_ENABLED)return toast('Admin Supabase access is required.','error');
+  const sem=semester===''?null:Number(semester);
+  if(sem!==null&&![1,2,3].includes(sem))return toast('Choose Semester 1, 2, or 3.','error');
+  const {error}=await supabaseClient.from('flashcards_public').update({semester:sem,updated_at:new Date().toISOString()}).eq('id',id);
+  if(error)return toast('Could not save flashcard semester. Apply the included Supabase migration first. '+error.message,'error');
+  flashcardCards=flashcardCards.map(c=>String(c.id)===String(id)?{...c,semester:sem,updatedAt:Date.now()}:c);saveFlashcardCards();publicFlashcardsLoaded=false;await loadPublicFlashcards(true);renderSemesterManager();toast('Flashcard semester updated.','ok');
+}
+async function renderSemesterManager(){
+  if(!isAdmin)return;
+  await loadPublicFlashcards();
+  const modules=[...new Set(allQuestionBank.map(q=>String(q.module||'General')))].sort((a,b)=>a.localeCompare(b));
+  const official=flashcardCards.filter(c=>c.source==='public');
+  const body=`<div class="card"><div class="category-head"><div><h3 style="margin:0">Modules by semester</h3><p class="mini" style="margin:6px 0 0">Assign each module once; all questions in that module will inherit the selected semester for every visitor.</p></div><span class="pill">${modules.length} modules</span></div><div style="margin-top:14px;display:grid;gap:10px">${modules.map(m=>{const q=allQuestionBank.find(x=>x.module===m);const sem=q?.semester;return `<div class="category-card"><div class="category-head"><div><b>${esc(m)}</b><div class="mini">${allQuestionBank.filter(x=>x.module===m).length} questions</div></div><div class="actions"><select id="moduleSemester-${attrJs(m)}" aria-label="Semester for ${attrJs(m)}">${semesterOptions(sem,true)}</select><button class="btn primary" onclick="adminAssignModuleSemester('${attrJs(m)}',document.getElementById('moduleSemester-${attrJs(m)}').value)">Save</button></div></div></div>`}).join('')||'<div class="empty">No modules found.</div>'}</div></div><div class="card" style="margin-top:16px"><div class="category-head"><div><h3 style="margin:0">Published flashcards by semester</h3><p class="mini" style="margin:6px 0 0">Assign each official card to the semester where it belongs.</p></div><span class="pill">${official.length} cards</span></div><div style="display:grid;gap:10px;margin-top:14px">${official.map(c=>`<div class="category-card"><b>${esc(c.front)}</b><div class="mini" style="margin:5px 0 10px">${esc(c.module||'General')}${c.subject?' · '+esc(c.subject):''}${c.lecture?' · '+esc(c.lecture):''}</div><div class="actions"><select id="flashSemester-${attrJs(c.id)}" aria-label="Semester for flashcard">${semesterOptions(c.semester,true)}</select><button class="btn primary" onclick="adminAssignFlashcardSemester('${attrJs(c.id)}',document.getElementById('flashSemester-${attrJs(c.id)}').value)">Save</button></div></div>`).join('')||'<div class="empty">No published flashcards yet. Add semester to drafts in Flashcard Manager before publishing.</div>'}</div></div><div class="notice" style="margin-top:14px">Unassigned content will not appear in a visitor's semester-filtered question bank or official flashcard list until it is categorized.</div>`;
+  document.getElementById('app').innerHTML=layout('Semester Manager','Organize modules and official flashcards into Semesters 1, 2, and 3.',body);
+}
+
 function render(){
   updateSidebarFoot();
   updateTopbarControls();
   const view=location.hash.replace('#','')||'dashboard';
-  const allowed=['dashboard','leaderboard','exam','progress','tools','flashcards','library','materials','materialreader','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics','reports','replies','notifications','weeklynotifications','flashadmin'];
+  const allowed=['dashboard','leaderboard','exam','progress','tools','flashcards','library','materials','materialreader','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics','reports','replies','notifications','weeklynotifications','flashadmin','semesters'];
   const v=allowed.includes(view)?view:'dashboard';
+  if(!currentUser && (!getVisitorName() || !getSelectedSemester())){ renderVisitorOnboarding(); return; }
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   const materialsNav=document.querySelector('[data-view="materials"]'); if(materialsNav) materialsNav.style.display=isAdmin?'flex':'none';
   const adminNav=document.getElementById('adminNav'); if(adminNav) adminNav.style.display=isAdmin?'flex':'none';
   const bankNav=document.getElementById('bankNav'); if(bankNav) bankNav.style.display=isAdmin?'flex':'none';
   const aiQuestionsNav=document.querySelector('[data-view="aiquestions"]'); if(aiQuestionsNav) aiQuestionsNav.style.display=isAdmin?'flex':'none';
   const flashAdminNav=document.getElementById('flashAdminNav'); if(flashAdminNav) flashAdminNav.style.display=isAdmin?'flex':'none';
+  const semesterAdminNav=document.getElementById('semesterAdminNav'); if(semesterAdminNav) semesterAdminNav.style.display=isAdmin?'flex':'none';
   const analyticsNav=document.getElementById('analyticsNav'); if(analyticsNav) analyticsNav.style.display=isAdmin?'flex':'none';
   const adminReportsNav=document.getElementById('adminReportsNav'); if(adminReportsNav) adminReportsNav.style.display=isAdmin?'flex':'none';
   const adminRepliesNav=document.getElementById('adminRepliesNav'); if(adminRepliesNav) adminRepliesNav.style.display=isAdmin?'flex':'none';
   const adminNotificationsNav=document.getElementById('adminNotificationsNav'); if(adminNotificationsNav) adminNotificationsNav.style.display=isAdmin?'flex':'none';
   const adminWeeklyNotificationsNav=document.getElementById('adminWeeklyNotificationsNav'); if(adminWeeklyNotificationsNav) adminWeeklyNotificationsNav.style.display=isAdmin?'flex':'none';
-  const adminOnlyViews=['materials','materialreader','bank','import','aiquestions','analytics','reports','replies','notifications','weeklynotifications','flashadmin'];
+  const adminOnlyViews=['materials','materialreader','bank','import','aiquestions','analytics','reports','replies','notifications','weeklynotifications','flashadmin','semesters'];
   if(adminOnlyViews.includes(v)){
     if(!adminCheckLoaded){
       document.getElementById('app').innerHTML=layout('Checking access','Verifying your MedEx administrator permissions…','<div class="card" role="status" aria-live="polite">Please wait while MedEx verifies your account.</div>');
@@ -1825,6 +1879,7 @@ function render(){
   else if(v==='import') renderImport();
   else if(v==='ai') renderAIAssistant();
   else if(v==='flashadmin') renderFlashcardAdmin();
+  else if(v==='semesters') renderSemesterManager();
   else if(v==='aiquestions') renderAIQuestions();
   else if(v==='favorites') renderFavorites();
   else if(v==='analytics') renderAdminAnalytics();
@@ -3400,10 +3455,10 @@ async function loadPublicFlashcards(force=false){
   publicFlashcardsLoading=true;publicFlashcardsLastAttempt=Date.now();publicFlashcardsError='';
   try{
     const {data,error}=await supabaseClient.from('flashcards_public')
-      .select('id,front,back,module,subject,lecture,tags,deck,created_at,updated_at')
+      .select('id,front,back,module,subject,lecture,tags,deck,semester,created_at,updated_at')
       .eq('active',true).order('created_at',{ascending:true});
     if(error){publicFlashcardsError=error.message||'Supabase query failed.';console.warn('Public flashcards load failed:',error);return false;}
-    const remote=(data||[]).map(c=>({id:String(c.id),front:String(c.front||''),back:String(c.back||''),module:String(c.module||''),subject:String(c.subject||''),lecture:String(c.lecture||''),tags:Array.isArray(c.tags)?c.tags.join(', '):String(c.tags||''),deck:String(c.deck||''),source:'public',createdAt:c.created_at?Date.parse(c.created_at):Date.now(),updatedAt:c.updated_at?Date.parse(c.updated_at):Date.now()})).filter(c=>c.front&&c.back);
+    const remote=(data||[]).map(c=>({id:String(c.id),front:String(c.front||''),back:String(c.back||''),module:String(c.module||''),subject:String(c.subject||''),lecture:String(c.lecture||''),tags:Array.isArray(c.tags)?c.tags.join(', '):String(c.tags||''),deck:String(c.deck||''),semester:c.semester==null?null:Number(c.semester),source:'public',createdAt:c.created_at?Date.parse(c.created_at):Date.now(),updatedAt:c.updated_at?Date.parse(c.updated_at):Date.now()})).filter(c=>c.front&&c.back);
     const locals=flashcardCards.filter(c=>c.source!=='public');
     const byId=new Map(remote.map(c=>[c.id,c]));
     locals.forEach(c=>byId.has(String(c.id))&&byId.delete(String(c.id)));
@@ -3448,7 +3503,7 @@ function importFlashcardsCSV(inputId='flashcardCSVInput'){
   const file=document.getElementById(inputId)?.files?.[0];if(!file)return toast('Choose a CSV file first.','error');
   const reader=new FileReader();reader.onload=()=>{try{const rows=parseFlashcardCSV(reader.result);let added=0;for(const c of rows){const dup=flashcardCards.some(x=>x.front.toLowerCase()===c.front.toLowerCase()&&x.back.toLowerCase()===c.back.toLowerCase());if(!dup){flashcardCards.push(c);added++;}}saveFlashcardCards();renderFlashcards();toast(`Imported ${added} local flashcard${added===1?'':'s'}. They were not uploaded to Supabase.`,'ok');}catch(e){toast(e.message||'Invalid CSV.','error');}};reader.readAsText(file);
 }
-function importAdminFlashcardsCSV(inputId='adminFlashcardCSV'){const file=document.getElementById(inputId)?.files?.[0];if(!file)return toast('Choose a CSV file first.','error');const reader=new FileReader();reader.onload=()=>{try{const rows=parseFlashcardCSV(reader.result).map(c=>({...c,source:'admin-draft',selected:true}));flashcardAdminDrafts=[...flashcardAdminDrafts,...rows];saveFlashcardAdminDrafts();renderFlashcardAdmin();toast(`Imported ${rows.length} draft cards for review.`,'ok');}catch(e){toast(e.message||'Invalid CSV.','error');}};reader.readAsText(file);}
+function importAdminFlashcardsCSV(inputId='adminFlashcardCSV'){const file=document.getElementById(inputId)?.files?.[0];if(!file)return toast('Choose a CSV file first.','error');const reader=new FileReader();reader.onload=()=>{try{const rows=parseFlashcardCSV(reader.result).map(c=>({...c,semester:getSelectedSemester()||null,source:'admin-draft',selected:true}));flashcardAdminDrafts=[...flashcardAdminDrafts,...rows];saveFlashcardAdminDrafts();renderFlashcardAdmin();toast(`Imported ${rows.length} draft cards for review.`,'ok');}catch(e){toast(e.message||'Invalid CSV.','error');}};reader.readAsText(file);}
 function updateAIFlashcardSubjects(){
   const m=document.getElementById('aiFlashModule')?.value||'';
   const s=document.getElementById('aiFlashSubject');
@@ -3520,20 +3575,20 @@ ${JSON.stringify(sourceQuestions)}`;
   }catch(e){toast(e.message||'AI flashcard generation failed.','error');}
   finally{if(btn)btn.disabled=false;}
 }
-function adminDraftAddCard(){const front=document.getElementById('adminDraftFront')?.value.trim()||'',back=document.getElementById('adminDraftBack')?.value.trim()||'';if(!front||!back)return toast('Front and back are required.','error');flashcardAdminDrafts.push({id:flashcardCardId(),front,back,module:document.getElementById('adminDraftModule')?.value.trim()||'',subject:document.getElementById('adminDraftSubject')?.value.trim()||'',lecture:document.getElementById('adminDraftLecture')?.value.trim()||'',tags:document.getElementById('adminDraftTags')?.value.trim()||'',deck:document.getElementById('adminDraftDeck')?.value.trim()||'',source:'admin-draft',selected:true,createdAt:Date.now(),updatedAt:Date.now()});saveFlashcardAdminDrafts();renderFlashcardAdmin();}
+function adminDraftAddCard(){const front=document.getElementById('adminDraftFront')?.value.trim()||'',back=document.getElementById('adminDraftBack')?.value.trim()||'';if(!front||!back)return toast('Front and back are required.','error');flashcardAdminDrafts.push({id:flashcardCardId(),front,back,module:document.getElementById('adminDraftModule')?.value.trim()||'',subject:document.getElementById('adminDraftSubject')?.value.trim()||'',lecture:document.getElementById('adminDraftLecture')?.value.trim()||'',tags:document.getElementById('adminDraftTags')?.value.trim()||'',deck:document.getElementById('adminDraftDeck')?.value.trim()||'',semester:Number(document.getElementById('adminDraftSemester')?.value)||null,source:'admin-draft',selected:true,createdAt:Date.now(),updatedAt:Date.now()});saveFlashcardAdminDrafts();renderFlashcardAdmin();}
 function toggleAdminDraft(id){const c=flashcardAdminDrafts.find(x=>x.id===id);if(c)c.selected=!c.selected;saveFlashcardAdminDrafts();renderFlashcardAdmin();}
 function removeAdminDraft(id){flashcardAdminDrafts=flashcardAdminDrafts.filter(x=>x.id!==id);saveFlashcardAdminDrafts();renderFlashcardAdmin();}
 async function publishSelectedFlashcards(){
   if(!isAdmin||!currentUser||!SUPABASE_ENABLED)return toast('Admin Supabase access is required.','error');
   const selected=flashcardAdminDrafts.filter(c=>c.selected);if(!selected.length)return toast('Select cards to publish after reviewing them.','error');
-  const rows=selected.map(c=>({id:c.id,front:c.front,back:c.back,module:c.module||null,subject:c.subject||null,lecture:c.lecture||null,tags:c.tags?c.tags.split(',').map(x=>x.trim()).filter(Boolean):[],deck:c.deck||null,created_by:currentUser.id,active:true,updated_at:new Date().toISOString()}));
+  const rows=selected.map(c=>({id:c.id,front:c.front,back:c.back,module:c.module||null,subject:c.subject||null,lecture:c.lecture||null,semester:c.semester==null?null:Number(c.semester),tags:c.tags?c.tags.split(',').map(x=>x.trim()).filter(Boolean):[],deck:c.deck||null,created_by:currentUser.id,active:true,updated_at:new Date().toISOString()}));
   const {error}=await supabaseClient.from('flashcards_public').insert(rows);if(error)return toast(`Publish failed: ${error.message}`,'error');
   flashcardAdminDrafts=flashcardAdminDrafts.filter(c=>!c.selected);saveFlashcardAdminDrafts();publicFlashcardsLoaded=false;await loadPublicFlashcards(true);renderFlashcardAdmin();toast(`Published ${selected.length} flashcard${selected.length===1?'':'s'} for all users.`,'ok');
 }
 async function deletePublicFlashcard(id){if(!isAdmin)return toast('Admin access required.','error');if(!confirm('Remove this published flashcard for all users?'))return;const {error}=await supabaseClient.from('flashcards_public').update({active:false,updated_at:new Date().toISOString()}).eq('id',id);if(error)return toast(error.message,'error');flashcardCards=flashcardCards.filter(c=>String(c.id)!==String(id));saveFlashcardCards();publicFlashcardsLoaded=false;await loadPublicFlashcards(true);renderFlashcardAdmin();}
 function selectAllAdminDrafts(){flashcardAdminDrafts=flashcardAdminDrafts.map(c=>({...c,selected:true}));saveFlashcardAdminDrafts();renderFlashcardAdmin();}
 function clearAllAdminDrafts(){flashcardAdminDrafts=flashcardAdminDrafts.map(c=>({...c,selected:false}));saveFlashcardAdminDrafts();renderFlashcardAdmin();}
-async function renderFlashcardAdmin(){if(!isAdmin){location.hash='dashboard';return;}await loadPublicFlashcards();const publicCards=flashcardCards.filter(c=>c.source==='public');const drafts=flashcardAdminDrafts;const body=`<div class="flashcard-admin-grid"><section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">ADMIN · REVIEW & PUBLISH</span><h3>Flashcard drafts</h3><p>Review cards here first. Only cards you explicitly select are uploaded to Supabase and become available to all users.</p></div><span class="study-count-badge"><b>${drafts.length}</b><span>drafts</span></span></div><div class="card" style="margin-top:14px"><div class="field"><label>Import CSV for review</label><input id="adminFlashcardCSV" type="file" accept=".csv,text/csv" onchange="importAdminFlashcardsCSV()"></div><div class="grid two" style="margin-top:8px"><div class="field"><label>Front</label><textarea id="adminDraftFront" placeholder="Front"></textarea></div><div class="field"><label>Back</label><textarea id="adminDraftBack" placeholder="Back"></textarea></div></div><div class="grid four" style="margin-top:8px"><input id="adminDraftModule" placeholder="Module"><input id="adminDraftSubject" placeholder="Subject"><input id="adminDraftLecture" placeholder="Lecture"><input id="adminDraftTags" placeholder="Tags"></div><input id="adminDraftDeck" placeholder="Deck" style="margin-top:8px"><button class="btn primary" style="margin-top:10px" onclick="adminDraftAddCard()">Add draft</button></div><div class="flashcard-admin-list" style="margin-top:12px">${drafts.length?drafts.map(c=>`<div class="flashcard-admin-row ${c.selected?'selected':''}"><label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" ${c.selected?'checked':''} onchange="toggleAdminDraft('${attrJs(c.id)}')"><span><b>${esc(c.front)}</b><div class="mini" style="margin-top:5px">${esc(c.back)}</div><div class="fc-meta"><span class="flashcard-chip">${esc(c.deck||'Draft')}</span>${c.tags?`<span class="flashcard-chip">${esc(c.tags)}</span>`:''}</div></span></label><div class="actions" style="margin-top:8px"><button class="btn danger" onclick="removeAdminDraft('${attrJs(c.id)}')">Remove</button></div></div>`).join(''):'<div class="tutor-empty">No drafts yet. Import CSV or add cards above.</div>'}</div><div class="actions" style="margin-top:12px"><button class="btn" onclick="selectAllAdminDrafts()">Select all</button><button class="btn" onclick="clearAllAdminDrafts()">Clear selection</button><button class="btn primary" onclick="publishSelectedFlashcards()">Publish selected for all users</button></div></section><section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">PUBLISHED LIBRARY</span><h3>Cards available to all users</h3><p>These are stored in Supabase. User-created/imported cards are never shown here.</p></div><span class="study-count-badge"><b>${publicCards.length}</b><span>published</span></span></div><div class="flashcard-admin-list" style="margin-top:14px">${publicCards.length?publicCards.map(c=>`<div class="flashcard-admin-row"><b>${esc(c.front)}</b><div class="mini" style="margin-top:5px">${esc(c.back)}</div><div class="fc-meta"><span class="flashcard-chip">${esc(c.module||'General')}</span>${c.subject?`<span class="flashcard-chip">${esc(c.subject)}</span>`:''}${c.lecture?`<span class="flashcard-chip">${esc(c.lecture)}</span>`:''}</div><button class="btn danger" style="margin-top:8px" onclick="deletePublicFlashcard('${attrJs(c.id)}')">Unpublish</button></div>`).join(''):'<div class="tutor-empty">No published flashcards yet.</div>'}</div></section></div>`;document.getElementById('app').innerHTML=layout('Flashcard Manager','Review and publish flashcards for the whole MedEx community.',body);}
+async function renderFlashcardAdmin(){if(!isAdmin){location.hash='dashboard';return;}await loadPublicFlashcards();const publicCards=flashcardCards.filter(c=>c.source==='public');const drafts=flashcardAdminDrafts;const body=`<div class="flashcard-admin-grid"><section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">ADMIN · REVIEW & PUBLISH</span><h3>Flashcard drafts</h3><p>Review cards here first. Only cards you explicitly select are uploaded to Supabase and become available to all users.</p></div><span class="study-count-badge"><b>${drafts.length}</b><span>drafts</span></span></div><div class="card" style="margin-top:14px"><div class="field"><label>Import CSV for review</label><input id="adminFlashcardCSV" type="file" accept=".csv,text/csv" onchange="importAdminFlashcardsCSV()"></div><div class="grid two" style="margin-top:8px"><div class="field"><label>Front</label><textarea id="adminDraftFront" placeholder="Front"></textarea></div><div class="field"><label>Back</label><textarea id="adminDraftBack" placeholder="Back"></textarea></div></div><div class="grid four" style="margin-top:8px"><input id="adminDraftModule" placeholder="Module"><input id="adminDraftSubject" placeholder="Subject"><input id="adminDraftLecture" placeholder="Lecture"><input id="adminDraftTags" placeholder="Tags"></div><div class="grid two" style="margin-top:8px"><input id="adminDraftDeck" placeholder="Deck"><div class="field"><label>Semester</label><select id="adminDraftSemester">${semesterOptions(getSelectedSemester())}</select></div></div><button class="btn primary" style="margin-top:10px" onclick="adminDraftAddCard()">Add draft</button></div><div class="flashcard-admin-list" style="margin-top:12px">${drafts.length?drafts.map(c=>`<div class="flashcard-admin-row ${c.selected?'selected':''}"><label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" ${c.selected?'checked':''} onchange="toggleAdminDraft('${attrJs(c.id)}')"><span><b>${esc(c.front)}</b><div class="mini" style="margin-top:5px">${esc(c.back)}</div><div class="fc-meta"><span class="flashcard-chip">${esc(c.deck||'Draft')}</span>${c.tags?`<span class="flashcard-chip">${esc(c.tags)}</span>`:''}</div></span></label><div class="actions" style="margin-top:8px"><button class="btn danger" onclick="removeAdminDraft('${attrJs(c.id)}')">Remove</button></div></div>`).join(''):'<div class="tutor-empty">No drafts yet. Import CSV or add cards above.</div>'}</div><div class="actions" style="margin-top:12px"><button class="btn" onclick="selectAllAdminDrafts()">Select all</button><button class="btn" onclick="clearAllAdminDrafts()">Clear selection</button><button class="btn primary" onclick="publishSelectedFlashcards()">Publish selected for all users</button></div></section><section class="study-tools-card"><div class="study-card-heading"><div><span class="study-eyebrow">PUBLISHED LIBRARY</span><h3>Cards available to all users</h3><p>These are stored in Supabase. User-created/imported cards are never shown here.</p></div><span class="study-count-badge"><b>${publicCards.length}</b><span>published</span></span></div><div class="flashcard-admin-list" style="margin-top:14px">${publicCards.length?publicCards.map(c=>`<div class="flashcard-admin-row"><b>${esc(c.front)}</b><div class="mini" style="margin-top:5px">${esc(c.back)}</div><div class="fc-meta"><span class="flashcard-chip">${esc(c.module||'General')}</span>${c.subject?`<span class="flashcard-chip">${esc(c.subject)}</span>`:''}${c.lecture?`<span class="flashcard-chip">${esc(c.lecture)}</span>`:''}<span class="flashcard-chip">${c.semester?'Semester '+c.semester:'Unassigned'}</span></div><button class="btn danger" style="margin-top:8px" onclick="deletePublicFlashcard('${attrJs(c.id)}')">Unpublish</button></div>`).join(''):'<div class="tutor-empty">No published flashcards yet.</div>'}</div></section></div>`;document.getElementById('app').innerHTML=layout('Flashcard Manager','Review and publish flashcards for the whole MedEx community.',body);}
 function saveFlashcardCards(){try{safeSetItem(CONFIG.flashcardCardsKey,JSON.stringify(flashcardCards));}catch(e){console.warn('Could not save flashcard cards:',e.message);}}
 function flashcardCardId(){return 'fc_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,9);}
 function flashcardRecord(card){
@@ -3549,6 +3604,8 @@ function saveFlashcardDailyStats(row){if(!flashcardState.__daily)flashcardState.
 function saveFlashcardState(){try{safeSetItem(CONFIG.flashcardStateKey,JSON.stringify(flashcardState));}catch(e){console.warn('Could not save flashcard progress:',e.message);}}
 function flashcardScopeCards(filters=flashcardFilter){
   let list=flashcardCards.filter(c=>c&&c.front&&c.back);
+  const sem=getSelectedSemester();
+  if(sem&&!isAdmin)list=list.filter(c=>c.source==='public'?Number(c.semester)===Number(sem):(!c.semester||Number(c.semester)===Number(sem)));
   if(filters.module)list=list.filter(c=>String(c.module||'')===String(filters.module));
   if(filters.subject)list=list.filter(c=>String(c.subject||'')===String(filters.subject));
   if(filters.lecture)list=list.filter(c=>String(c.lecture||'')===String(filters.lecture));
@@ -3584,13 +3641,13 @@ function flashcardRatingSchedule(card,rating){
   }
   row[rating]=Number(row[rating]||0)+1;row.reviews=Number(row.reviews||0)+1;if(wasNew)row.newCards=Number(row.newCards||0)+1;saveFlashcardDailyStats(row);p.lastRating=rating;p.lastReviewedAt=Date.now();saveFlashcardState();return p;
 }
-function getFlashcardModules(){return [...new Set(flashcardCards.map(c=>String(c.module||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b));}
-function getFlashcardSubjects(module){return [...new Set(flashcardCards.filter(c=>!module||String(c.module||'')===String(module)).map(c=>String(c.subject||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b));}
-function getFlashcardLectures(module,subject){return [...new Set(flashcardCards.filter(c=>(!module||String(c.module||'')===String(module))&&(!subject||String(c.subject||'')===String(subject))).map(c=>String(c.lecture||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b));}
+function getFlashcardModules(){return [...new Set(flashcardScopeCards({module:'',subject:'',lecture:''}).map(c=>String(c.module||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b));}
+function getFlashcardSubjects(module){return [...new Set(flashcardScopeCards({module:module||'',subject:'',lecture:''}).map(c=>String(c.subject||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b));}
+function getFlashcardLectures(module,subject){return [...new Set(flashcardScopeCards({module:module||'',subject:subject||'',lecture:''}).map(c=>String(c.lecture||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b));}
 function createFlashcard(front,back,module='',subject='',lecture='',tags=''){
   front=String(front||'').trim();back=String(back||'').trim();if(!front||!back){toast('Both front and back are required.','error');return false;}
   const duplicate=flashcardCards.some(c=>c.front.trim().toLowerCase()===front.toLowerCase()&&c.back.trim().toLowerCase()===back.toLowerCase());if(duplicate){toast('An identical flashcard already exists.','error');return false;}
-  flashcardCards.push({id:flashcardCardId(),front,back,module:String(module||'').trim(),subject:String(subject||'').trim(),lecture:String(lecture||'').trim(),tags:String(tags||'').trim(),createdAt:Date.now(),updatedAt:Date.now()});saveFlashcardCards();return true;
+  flashcardCards.push({id:flashcardCardId(),front,back,module:String(module||'').trim(),subject:String(subject||'').trim(),lecture:String(lecture||'').trim(),semester:getSelectedSemester()||null,tags:String(tags||'').trim(),createdAt:Date.now(),updatedAt:Date.now()});saveFlashcardCards();return true;
 }
 function editFlashcard(id){const c=flashcardCards.find(x=>x.id===id);if(!c)return;const front=prompt('Flashcard front',c.front);if(front===null)return;const back=prompt('Flashcard back',c.back);if(back===null)return;c.front=front.trim();c.back=back.trim();c.updatedAt=Date.now();saveFlashcardCards();renderFlashcards();toast('Flashcard updated.','ok');}
 function deleteFlashcard(id){const c=flashcardCards.find(x=>x.id===id);if(!c)return;if(!confirm('Delete this flashcard? Its review history will also be deleted.'))return;flashcardCards=flashcardCards.filter(x=>x.id!==id);delete flashcardState[id];saveFlashcardCards();saveFlashcardState();renderFlashcards();}
@@ -4660,7 +4717,7 @@ async function addBuiltInQuestion(){
 
   if(SUPABASE_ENABLED && currentUser){
     const {error}=await supabaseClient.from('questions').insert({
-      id:q.id,module:q.module,subject:q.subject,lecture:q.lecture,
+      id:q.id,module:q.module,semester:q.semester,subject:q.subject,lecture:q.lecture,
       question:q.question,options:q.options,correct_index:q.correctIndex,
       explanation:q.explanation,difficulty:q.difficulty||null,reference:q.reference||null,image_url:q.imageUrl||null
     });
@@ -4785,7 +4842,7 @@ async function uploadPreviewToSupabase(){
   const errors=validateBank(pendingImportQuestions);
   if(errors.length){toast('Fix the validation errors before uploading.','error');return;}
   const rows=pendingImportQuestions.map(q=>({
-    id:q.id,module:q.module,subject:q.subject,lecture:q.lecture,
+    id:q.id,module:q.module,semester:q.semester??null,subject:q.subject,lecture:q.lecture,
     question:q.question,options:q.options,correct_index:q.correctIndex,
     explanation:q.explanation||'',difficulty:q.difficulty||null,reference:q.reference||null,image_url:q.imageUrl||null
   }));
@@ -4996,6 +5053,7 @@ function renderSettings(){
   const body=`<div class="card"><h3 style="margin-top:0">Exam settings</h3>
   <label><input type="checkbox" id="sImmediate" ${settings.showAnswerImmediately?'checked':''}> Use “Show answer immediately” as the default exam mode</label><br><br>
   <label><input type="checkbox" id="sAuto" ${settings.autoSubmit?'checked':''}> Auto-submit when timer reaches zero</label>
+  <div class="field" style="margin-top:14px;max-width:360px"><label>My semester / content</label><select id="sSemester">${semesterOptions(getSelectedSemester())}</select><div class="mini" style="margin-top:5px">Change this to switch the modules and official flashcards shown across MedEx.</div></div>
   <div class="field" style="margin-top:14px;max-width:360px"><label>Daily question goal</label><input id="sDailyGoal" type="number" min="1" max="200" value="${getDailyGoal()}"><div class="mini" style="margin-top:5px">Used for your daily progress goal.</div></div>
   <div class="card" style="margin-top:16px;padding:14px">
     <strong>Appearance</strong>
@@ -5019,14 +5077,15 @@ function renderSettings(){
   </div>
   <div class="actions" style="margin-top:16px"><button class="btn primary" onclick="saveSettings()">Save settings</button><button class="btn" onclick="exportProgress()">Export my progress</button>${isAdmin ? '<button class="btn" onclick="exportBank()">Export current bank</button>' : ''}<button class="btn" onclick="exportHistory()">Export exam history</button><button class="btn danger" onclick="clearHistory()">Clear exam history</button></div></div>
   <div class="card" style="margin-top:16px"><h3 style="margin-top:0">Install MedEx</h3><p class="mini" style="margin:8px 0 12px">Install MedEx as an app on a supported browser. On iPhone/iPad, use the browser's Share menu and choose “Add to Home Screen”.</p><button class="btn primary" id="pwaInstallBtn" onclick="installPWA()">Quick setup / Install MedEx</button></div>
-  <div class="card" style="margin-top:16px"><h3 style="margin-top:0">About storage</h3><p class="mini">The question bank is loaded from Supabase when connected, with GitHub as fallback. Signed-in student progress and exam history are stored in Supabase and follow the account across devices. AI questions and chat history are also stored only in this browser. AI requests are relayed through this site's own server-side function — no personal API key is ever stored in or sent from your browser.</p></div>`;
+  <div class="card" style="margin-top:16px"><h3 style="margin-top:0">About storage</h3><p class="mini">The question bank is loaded from Supabase when connected. Content is filtered by your selected semester. Signed-in student progress and exam history are stored in Supabase and follow the account across devices. AI questions and chat history are also stored only in this browser. AI requests are relayed through this site's own server-side function — no personal API key is ever stored in or sent from your browser.</p></div>`;
   document.getElementById('app').innerHTML=layout('Settings','Personal browser settings and backups.',body);
 }
 function saveSettings(){
   settings.showAnswerImmediately=document.getElementById('sImmediate').checked;
   settings.autoSubmit=document.getElementById('sAuto').checked;
   settings.dailyGoal=Math.min(200,Math.max(1,Math.round(Number(document.getElementById('sDailyGoal')?.value)||20)));
-  saveState();toast('Settings saved.','ok');
+  const sem=Number(document.getElementById('sSemester')?.value);if([1,2,3].includes(sem))settings.semester=sem;
+  saveState();applyModuleVisibility();render();toast('Settings saved.','ok');
 }
 function exportProgress(){downloadBlob(JSON.stringify({exportedAt:new Date().toISOString(),progress},null,2),'med64-progress.json','application/json');}
 function exportBank(){ if(!isAdmin){toast('Admin access required.','error');return;} downloadBlob(JSON.stringify(allQuestionBank.length?allQuestionBank:bank,null,2),'med64-current-question-bank.json','application/json');}
@@ -5600,6 +5659,7 @@ async function uploadAIQuestionsToSupabase(){
   const rows=aiQuestions.map(q=>({
     id:q.id,
     module:q.module,
+    semester:q.semester??null,
     subject:q.subject,
     lecture:q.lecture,
     question:q.question,
