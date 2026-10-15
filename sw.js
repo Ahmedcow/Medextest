@@ -5,7 +5,7 @@
  *  - Manifest + icons are precached; offline navigation falls back to the shell.
  *  - Cache name is a single constant to bump on release.
  */
-const VERSION='v42.0';
+const VERSION='v42.1';
 const SHELL_CACHE='medex-shell-'+VERSION;
 const RUNTIME_CACHE='medex-runtime-'+VERSION;
 const SHELL=['./','./index.html','./manifest.webmanifest','./icons/medex-192.png','./icons/medex-512.png'];
@@ -73,4 +73,16 @@ self.addEventListener('fetch',event=>{
     if(cached){event.waitUntil(network.catch(()=>{}));return cached;}
     try{return await network;}catch(_){return Response.error();}
   })());
+});
+
+
+// Web Push display/click handling. Delivery requires a push server and VAPID setup.
+self.addEventListener('push',event=>{
+ let data={title:'MedEx',body:'You have a new MedEx update.',url:'./'};
+ try{if(event.data)data={...data,...event.data.json()};}catch(_){try{if(event.data)data.body=event.data.text();}catch(__){}}
+ event.waitUntil(self.registration.showNotification(data.title||'MedEx',{body:data.body||'You have a new MedEx update.',icon:data.icon||'./icons/medex-192.png',badge:data.badge||'./icons/medex-192.png',tag:data.tag||'medex-push',data:{url:data.url||'./'},renotify:false}));
+});
+self.addEventListener('notificationclick',event=>{
+ event.notification.close();const target=new URL(event.notification.data?.url||'./',self.location.origin).href;
+ event.waitUntil((async()=>{const list=await self.clients.matchAll({type:'window',includeUncontrolled:true});for(const client of list){if(new URL(client.url).origin===self.location.origin){await client.focus();if('navigate' in client)await client.navigate(target);return;}}if(self.clients.openWindow)await self.clients.openWindow(target);})());
 });
