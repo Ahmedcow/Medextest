@@ -1600,7 +1600,7 @@ function normalizeQuestion(q, source=''){
   return {
     id: uid(q),
     module: String(q.module || q.section || 'General').trim() || 'General',
-    semester: [1,2,3].includes(Number(q.semester))?Number(q.semester):null,
+    semester: Number.isInteger(Number(q.semester)) && Number(q.semester)>=1 && Number(q.semester)<=10 ? Number(q.semester) : null,
     subject: String(q.subject || q.category || 'General').trim() || 'General',
     lecture: String(q.lecture || 'General').trim() || 'General',
     difficulty: String(q.difficulty || '').trim(),
@@ -1785,10 +1785,10 @@ function layout(title,subtitle,body,actions=''){
 
 function getSelectedSemester(){
   const raw=settings?.semester;
-  return [1,2,3].includes(Number(raw))?Number(raw):null;
+  return Number.isInteger(Number(raw)) && Number(raw)>=1 && Number(raw)<=10 ? Number(raw) : null;
 }
 function semesterOptions(selected, includeAll=false){
-  return `${includeAll?'<option value="">Unassigned / All</option>':''}<option value="1" ${Number(selected)===1?'selected':''}>Semester 1</option><option value="2" ${Number(selected)===2?'selected':''}>Semester 2</option><option value="3" ${Number(selected)===3?'selected':''}>Semester 3</option>`;
+  return `${includeAll?'<option value="">Unassigned / All</option>':''}${Array.from({length:10},(_,i)=>i+1).map(n=>`<option value="${n}" ${Number(selected)===n?'selected':''}>Semester ${n}</option>`).join('')}`;
 }
 function renderVisitorOnboarding(){
   const name=getVisitorName();
@@ -1798,7 +1798,7 @@ async function completeVisitorOnboarding(){
   const name=document.getElementById('visitorStartName')?.value||'';
   const sem=Number(document.getElementById('visitorStartSemester')?.value);
   if(!String(name).trim()){toast('Please enter your name.','error');return;}
-  if(![1,2,3].includes(sem)){toast('Please choose Semester 1, 2, or 3.','error');return;}
+  if(!Number.isInteger(sem)||sem<1||sem>10){toast('Please choose a semester from 1 to 10.','error');return;}
   settings.semester=sem;saveState();
   await saveVisitorName(name);
   applyModuleVisibility();
@@ -1807,7 +1807,7 @@ async function completeVisitorOnboarding(){
 async function adminAssignModuleSemester(module,semester){
   if(!isAdmin||!currentUser||!SUPABASE_ENABLED)return toast('Admin Supabase access is required.','error');
   const sem=semester===''?null:Number(semester);
-  if(sem!==null&&![1,2,3].includes(sem))return toast('Choose Semester 1, 2, or 3.','error');
+  if(sem!==null&&(!Number.isInteger(sem)||sem<1||sem>10))return toast('Choose a semester from 1 to 10.','error');
   const {error}=await supabaseClient.from('questions').update({semester:sem}).eq('module',module);
   if(error)return toast('Could not save module semester. Apply the included Supabase migration first. '+error.message,'error');
   allQuestionBank=allQuestionBank.map(q=>q.module===module?{...q,semester:sem}:q);
@@ -1817,18 +1817,29 @@ async function adminAssignModuleSemester(module,semester){
 async function adminAssignFlashcardSemester(id,semester){
   if(!isAdmin||!currentUser||!SUPABASE_ENABLED)return toast('Admin Supabase access is required.','error');
   const sem=semester===''?null:Number(semester);
-  if(sem!==null&&![1,2,3].includes(sem))return toast('Choose Semester 1, 2, or 3.','error');
+  if(sem!==null&&(!Number.isInteger(sem)||sem<1||sem>10))return toast('Choose a semester from 1 to 10.','error');
   const {error}=await supabaseClient.from('flashcards_public').update({semester:sem,updated_at:new Date().toISOString()}).eq('id',id);
   if(error)return toast('Could not save flashcard semester. Apply the included Supabase migration first. '+error.message,'error');
   flashcardCards=flashcardCards.map(c=>String(c.id)===String(id)?{...c,semester:sem,updatedAt:Date.now()}:c);saveFlashcardCards();publicFlashcardsLoaded=false;await loadPublicFlashcards(true);renderSemesterManager();toast('Flashcard semester updated.','ok');
+}
+async function adminAssignFlashcardModuleSemester(module,semester){
+  if(!isAdmin||!currentUser||!SUPABASE_ENABLED)return toast('Admin Supabase access is required.','error');
+  const sem=semester===''?null:Number(semester);
+  if(sem!==null&&(!Number.isInteger(sem)||sem<1||sem>10))return toast('Choose a semester from 1 to 10.','error');
+  let query=supabaseClient.from('flashcards_public').update({semester:sem,updated_at:new Date().toISOString()});
+  query = module==='General' ? query.is('module',null) : query.eq('module',module);
+  const {error}=await query;
+  if(error)return toast('Could not save flashcard module semester. Apply the updated Supabase migration first. '+error.message,'error');
+  flashcardCards=flashcardCards.map(c=>c.source==='public'&&(String(c.module||'General')===module)?{...c,semester:sem,updatedAt:Date.now()}:c);saveFlashcardCards();publicFlashcardsLoaded=false;await loadPublicFlashcards(true);renderSemesterManager();toast(`All published flashcards in ${module} assigned to ${sem?'Semester '+sem:'Unassigned'}.`,'ok');
 }
 async function renderSemesterManager(){
   if(!isAdmin)return;
   await loadPublicFlashcards();
   const modules=[...new Set(allQuestionBank.map(q=>String(q.module||'General')))].sort((a,b)=>a.localeCompare(b));
   const official=flashcardCards.filter(c=>c.source==='public');
-  const body=`<div class="card"><div class="category-head"><div><h3 style="margin:0">Modules by semester</h3><p class="mini" style="margin:6px 0 0">Assign each module once; all questions in that module will inherit the selected semester for every visitor.</p></div><span class="pill">${modules.length} modules</span></div><div style="margin-top:14px;display:grid;gap:10px">${modules.map(m=>{const q=allQuestionBank.find(x=>x.module===m);const sem=q?.semester;return `<div class="category-card"><div class="category-head"><div><b>${esc(m)}</b><div class="mini">${allQuestionBank.filter(x=>x.module===m).length} questions</div></div><div class="actions"><select id="moduleSemester-${attrJs(m)}" aria-label="Semester for ${attrJs(m)}">${semesterOptions(sem,true)}</select><button class="btn primary" onclick="adminAssignModuleSemester('${attrJs(m)}',document.getElementById('moduleSemester-${attrJs(m)}').value)">Save</button></div></div></div>`}).join('')||'<div class="empty">No modules found.</div>'}</div></div><div class="card" style="margin-top:16px"><div class="category-head"><div><h3 style="margin:0">Published flashcards by semester</h3><p class="mini" style="margin:6px 0 0">Assign each official card to the semester where it belongs.</p></div><span class="pill">${official.length} cards</span></div><div style="display:grid;gap:10px;margin-top:14px">${official.map(c=>`<div class="category-card"><b>${esc(c.front)}</b><div class="mini" style="margin:5px 0 10px">${esc(c.module||'General')}${c.subject?' · '+esc(c.subject):''}${c.lecture?' · '+esc(c.lecture):''}</div><div class="actions"><select id="flashSemester-${attrJs(c.id)}" aria-label="Semester for flashcard">${semesterOptions(c.semester,true)}</select><button class="btn primary" onclick="adminAssignFlashcardSemester('${attrJs(c.id)}',document.getElementById('flashSemester-${attrJs(c.id)}').value)">Save</button></div></div>`).join('')||'<div class="empty">No published flashcards yet. Add semester to drafts in Flashcard Manager before publishing.</div>'}</div></div><div class="notice" style="margin-top:14px">Unassigned content will not appear in a visitor's semester-filtered question bank or official flashcard list until it is categorized.</div>`;
-  document.getElementById('app').innerHTML=layout('Semester Manager','Organize modules and official flashcards into Semesters 1, 2, and 3.',body);
+  const cardModules=[...new Set(official.map(c=>String(c.module||'General')))].sort((a,b)=>a.localeCompare(b));
+  const body=`<div class="card"><div class="category-head"><div><h3 style="margin:0">Modules by semester</h3><p class="mini" style="margin:6px 0 0">Assign each module once; all questions in that module will inherit the selected semester for every visitor.</p></div><span class="pill">${modules.length} modules</span></div><div style="margin-top:14px;display:grid;gap:10px">${modules.map(m=>{const q=allQuestionBank.find(x=>x.module===m);const sem=q?.semester;return `<div class="category-card"><div class="category-head"><div><b>${esc(m)}</b><div class="mini">${allQuestionBank.filter(x=>x.module===m).length} questions</div></div><div class="actions"><select id="moduleSemester-${attrJs(m)}" aria-label="Semester for ${attrJs(m)}">${semesterOptions(sem,true)}</select><button class="btn primary" onclick="adminAssignModuleSemester('${attrJs(m)}',document.getElementById('moduleSemester-${attrJs(m)}').value)">Save</button></div></div></div>`}).join('')||'<div class="empty">No modules found.</div>'}</div></div><div class="card" style="margin-top:16px"><div class="category-head"><div><h3 style="margin:0">Flashcards by module</h3><p class="mini" style="margin:6px 0 0">Choose a semester for a module and all published flashcards assigned to that module will be categorized together.</p></div><span class="pill">${official.length} cards · ${cardModules.length} modules</span></div><div style="display:grid;gap:10px;margin-top:14px">${cardModules.map(m=>{const cards=official.filter(c=>String(c.module||'General')===m);const sems=[...new Set(cards.map(c=>c.semester).filter(x=>x!=null).map(Number))];const selected=sems.length===1?sems[0]:'';return `<div class="category-card"><div class="category-head"><div><b>${esc(m)}</b><div class="mini">${cards.length} published flashcards${sems.length>1?' · mixed semester assignments':''}</div></div><div class="actions"><select id="flashModuleSemester-${attrJs(m)}" aria-label="Semester for flashcards in ${attrJs(m)}">${semesterOptions(selected,true)}</select><button class="btn primary" onclick="adminAssignFlashcardModuleSemester('${attrJs(m)}',document.getElementById('flashModuleSemester-${attrJs(m)}').value)">Apply to module</button></div></div><div class="mini" style="margin-top:7px">${cards.slice(0,3).map(c=>esc(c.front)).join(' · ')}${cards.length>3?' · …':''}</div></div>`}).join('')||'<div class="empty">No published flashcards yet. Assign a module when creating cards, then publish them.</div>'}</div></div><div class="notice" style="margin-top:14px">Unassigned content will not appear in a visitor's semester-filtered question bank or official flashcard list until categorized. Flashcard categorization is applied in bulk by module.</div>`;
+  document.getElementById('app').innerHTML=layout('Semester Manager','Organize modules and flashcard modules into Semesters 1–10.',body);
 }
 
 function render(){
@@ -2093,7 +2104,9 @@ function renderDashboard(){
   const quickHTML=quickActions.map(a=>`<button type="button" class="dashboard-action ${a.tone}" onclick="go('${a.view}')"><span class="dashboard-action-icon" aria-hidden="true">${a.icon}</span><span class="dashboard-action-copy"><b>${a.title}</b><small>${a.desc}</small></span><span class="dashboard-action-arrow" aria-hidden="true">→</span></button>`).join('');
   const weakHTML=weakModules.length?weakModules.map((m,i)=>`<div class="dashboard-weak-row"><div class="dashboard-weak-rank">${i+1}</div><div class="dashboard-weak-copy"><strong>${esc(m.name)}</strong><div class="mini">${m.attempts?`${m.accuracy}% accuracy · ${m.practiced} of ${m.list.length} practiced`:`${m.list.length} questions · not practiced yet`}</div><div class="bar"><i style="width:${m.practiced?m.accuracy:0}%"></i></div></div><button class="btn dashboard-practice-btn" onclick="startModuleExam('${attrJs(m.name)}')">Practice</button></div>`).join(''):'<div class="empty">No modules are available yet.</div>';
   const allModulesHTML=modules.map(m=>{const list=bank.filter(q=>q.module===m);return `<div class="card dashboard-module-card"><div class="category-head"><strong>${esc(m)}</strong><div style="display:flex;gap:8px;align-items:center"><span class="pill">${list.length} Q</span><button class="section-start-btn" onclick="startModuleExam('${attrJs(m)}')" title="Start an exam on ${esc(m)}" aria-label="Start an exam on ${esc(m)}"><svg viewBox="0 0 20 20" fill="currentColor"><polygon points="6,4 16,10 6,16"/></svg></button></div></div><div class="mini" style="margin:10px 0">Progress ${progressFor(list)}% · Accuracy ${accuracyFor(list)}%</div><div class="bar"><i style="width:${progressFor(list)}%"></i></div><div class="mini" style="margin-top:8px">${practicedCount(list)} of ${list.length} practiced</div></div>`;}).join('');
+  const semesterDashboardBar=`<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;margin-bottom:14px"><div style="display:flex;align-items:center;gap:9px;min-width:0"><span aria-hidden="true" style="font-size:18px">🎓</span><div><div class="mini" style="line-height:1.2">YOUR CONTENT</div><strong style="font-size:14px">Semester ${getSelectedSemester()||'Not selected'}</strong></div></div><button class="btn" style="padding:6px 10px;font-size:11px;white-space:nowrap" onclick="go('settings')">Change semester</button></div>`;
   const body=`
+  ${semesterDashboardBar}
   ${siteNotificationsHTML()}
   ${visitorIdentity}
   ${dailyGoalStreakHTML()}
@@ -3656,7 +3669,7 @@ async function uploadFlashcardToSupabase(id){
   if(!SUPABASE_ENABLED||!currentUser)return toast('Supabase login is required.','error');
   const c=flashcardCards.find(x=>String(x.id)===String(id));
   if(!c||c.source==='public')return toast('This flashcard is already published.','error');
-  const row={id:String(c.id),front:String(c.front||'').trim(),back:String(c.back||'').trim(),module:c.module||null,subject:c.subject||null,lecture:c.lecture||null,tags:c.tags?String(c.tags).split(',').map(x=>x.trim()).filter(Boolean):[],deck:c.deck||'Admin published',created_by:currentUser.id,active:true,updated_at:new Date().toISOString()};
+  const row={id:String(c.id),front:String(c.front||'').trim(),back:String(c.back||'').trim(),module:c.module||null,subject:c.subject||null,lecture:c.lecture||null,tags:c.tags?String(c.tags).split(',').map(x=>x.trim()).filter(Boolean):[],deck:c.deck||'Admin published',semester:Number(c.semester||getSelectedSemester())||null,created_by:currentUser.id,active:true,updated_at:new Date().toISOString()};
   if(!row.front||!row.back)return toast('Flashcard front and back are required.','error');
   const {error}=await supabaseClient.from('flashcards_public').upsert(row,{onConflict:'id'});
   if(error){toast(`Upload failed: ${error.message}`,'error');return;}
@@ -5084,7 +5097,7 @@ function saveSettings(){
   settings.showAnswerImmediately=document.getElementById('sImmediate').checked;
   settings.autoSubmit=document.getElementById('sAuto').checked;
   settings.dailyGoal=Math.min(200,Math.max(1,Math.round(Number(document.getElementById('sDailyGoal')?.value)||20)));
-  const sem=Number(document.getElementById('sSemester')?.value);if([1,2,3].includes(sem))settings.semester=sem;
+  const sem=Number(document.getElementById('sSemester')?.value);if(Number.isInteger(sem)&&sem>=1&&sem<=10)settings.semester=sem;
   saveState();applyModuleVisibility();render();toast('Settings saved.','ok');
 }
 function exportProgress(){downloadBlob(JSON.stringify({exportedAt:new Date().toISOString(),progress},null,2),'med64-progress.json','application/json');}
