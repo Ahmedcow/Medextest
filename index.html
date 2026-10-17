@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v42.0-audit-fixes-exam-tools">
+<meta name="medex-build" content="v42.2-ui-polish">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -742,6 +742,154 @@ html[data-theme="dark"] input,html[data-theme="dark"] textarea{background:var(--
 .quiz-tools .btn.on{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
 .quiz-tools .kbd-hint{margin-left:auto;font-size:11.5px;color:var(--muted)}
 @media(max-width:640px){.quiz-tools .kbd-hint{display:none}}
+</style>
+<style id="medex-ui-polish">
+/* =====================================================================
+   MedEx UI polish v42.2 — appearance only. No markup, IDs, handlers or logic are changed.
+   To revert completely, delete this <style id="medex-ui-polish"> block (and the small
+   helper script with id medex-ui-polish-js at the end of the body).
+   ===================================================================== */
+
+/* 1. Missing design tokens (these were referenced by existing CSS but never defined,
+      which made progress tracks and some borders render transparent). */
+:root{
+  --panel:var(--card);
+  --border:var(--line);
+  --panel2:rgba(91,107,114,.16);
+  --focus-ring:0 0 0 3px rgba(var(--primary-rgb),.22);
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+html[data-theme="dark"]{ --panel2:rgba(255,255,255,.10); }
+
+/* 2. Base readability */
+html{scroll-padding-top:calc(var(--topbar-h) + 12px)}
+body{line-height:1.5;-webkit-tap-highlight-color:transparent;text-rendering:optimizeLegibility}
+.mini{font-size:12.5px;line-height:1.45}
+.sub{font-size:14.5px;line-height:1.5}
+.top{margin-bottom:20px}
+.top h1{font-size:clamp(23px,4.6vw,30px);line-height:1.2}
+.main{padding-bottom:calc(96px + env(safe-area-inset-bottom))}   /* floating chat button never covers the last card */
+p{line-height:1.55}
+::selection{background:rgba(var(--primary-rgb),.25)}
+
+/* 3. Cards: calmer, consistent surfaces */
+.card{border-color:color-mix(in srgb,var(--line) 85%,transparent);box-shadow:0 1px 2px rgba(16,24,38,.05),0 6px 18px -12px rgba(16,24,38,.18)}
+html[data-theme="dark"] .card{box-shadow:0 1px 2px rgba(0,0,0,.35)}
+.card h3,.card h2{line-height:1.3}
+.card>h3:first-child,.card>h2:first-child{margin-bottom:6px}
+
+/* 4. Form controls: one consistent, touch-friendly style (zero specificity so any
+      specific existing rule still wins) */
+:where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]):not([type=button]):not([type=submit]):not([type=hidden]),select,textarea){
+  background-color:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;line-height:1.35;color:var(--text);
+  transition:border-color .15s var(--ease),box-shadow .15s var(--ease)}
+:where(input,select,textarea):focus{outline:none;border-color:var(--primary);box-shadow:var(--focus-ring)}
+:where(input,textarea)::placeholder{color:var(--muted);opacity:.8}
+:where(input,select,textarea):disabled{opacity:.55;cursor:not-allowed}
+select:not([multiple]):not([size]){
+  -webkit-appearance:none;appearance:none;padding-right:36px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235b6b72' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;background-size:16px}
+html[data-theme="dark"] select:not([multiple]):not([size]){
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238fa0a5' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+.field label{font-size:12.5px;letter-spacing:.01em}
+
+:where(input[type=checkbox],input[type=radio]){accent-color:var(--primary);width:18px;height:18px;flex:0 0 auto;vertical-align:-3px;margin:0 8px 0 0;cursor:pointer}
+
+:where(label:has(>input[type=checkbox]:first-child),label:has(>input[type=radio]:first-child)){display:flex;align-items:flex-start;gap:10px;line-height:1.4;cursor:pointer;margin:4px 0}
+
+@media(max-width:700px){
+  :where(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=file]):not([type=button]):not([type=submit]),select,textarea){font-size:16px} /* stops iOS zoom-on-focus */
+}
+
+/* 5. Buttons: clearer states */
+.btn{box-shadow:0 1px 0 rgba(16,24,38,.04)}
+:where(.btn:not(.primary):not(.danger):not(.ok)):hover{background:color-mix(in srgb,var(--primary) 6%,var(--card))}
+.btn.primary:hover{background:var(--primary2)}
+.btn.danger:hover{background:color-mix(in srgb,var(--danger) 88%,#000)}
+.btn.ok:hover{background:color-mix(in srgb,var(--ok) 88%,#000)}
+.btn.primary{box-shadow:0 1px 2px rgba(var(--primary-rgb),.35)}
+.btn:focus-visible,.icon-btn:focus-visible,.option:focus-visible,.qnav-btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.btn:disabled,.btn[disabled]{opacity:.45;box-shadow:none}
+.pill{letter-spacing:.01em}
+
+/* 6. Progress bars: readable in dark mode (track was a hard-coded light grey) */
+.bar{background:var(--panel2)}
+.goal-track{background:var(--panel2)}
+.bar>i,.goal-track i{transition:width .35s var(--ease)}
+html[data-theme="dark"] .notice.error{color:#ffb4a9}
+html[data-theme="dark"] .notice.ok{color:#8be3b3}
+
+/* 7. Exam screen */
+.quiz{max-width:860px}
+.quiz .card{padding:clamp(12px,3vw,22px)}
+.quiz .question{line-height:1.55}
+.quiz .options{gap:10px}
+.quiz .option{display:flex;align-items:center;gap:10px;min-height:52px;padding:13px 16px;line-height:1.4;border-width:1.5px;
+  transition:border-color .15s var(--ease),background .15s var(--ease),box-shadow .15s var(--ease),transform .08s var(--ease)}
+.quiz .option:hover:not(.correct):not(.wrong){background:color-mix(in srgb,var(--primary) 5%,var(--card))}
+.quiz .option:active{transform:scale(.995)}
+.quiz .option.selected{box-shadow:inset 4px 0 0 var(--primary)}
+.quiz .option.correct{box-shadow:inset 4px 0 0 var(--ok)}
+.quiz .option.wrong{box-shadow:inset 4px 0 0 var(--danger)}
+/* answer state is no longer conveyed by colour alone */
+.quiz .option.correct::after{content:"✓";margin-left:auto;padding-left:10px;font-weight:800;color:var(--ok)}
+.quiz .option.wrong::after{content:"✗";margin-left:auto;padding-left:10px;font-weight:800;color:var(--danger)}
+.quiz .review{border-radius:12px;padding:14px 16px;line-height:1.55}
+.exam-annotation-stage{border-style:solid;border-color:color-mix(in srgb,var(--line) 70%,transparent);margin:8px 0}
+.question-nav{background:color-mix(in srgb,var(--bg) 70%,var(--card))}
+.qnav-btn{width:40px;height:40px;font-size:13.5px}
+.qnav-btn.current{transform:scale(1.06)}
+.nav-legend{flex-wrap:wrap;row-gap:4px}
+
+/* Previous / Next stay reachable without scrolling back down (esp. on phones) */
+.quiz-footer{position:sticky;bottom:0;z-index:25;margin:16px calc(-1*clamp(12px,3vw,22px)) calc(-1*clamp(12px,3vw,22px));padding-left:clamp(12px,3vw,22px);padding-right:clamp(12px,3vw,22px);border-radius:0 0 var(--radius) var(--radius);padding-top:12px;padding-bottom:calc(12px + env(safe-area-inset-bottom));
+  background:var(--card);border-top:1px solid var(--line);}
+.quiz-footer .btn{flex:1 1 0;min-height:46px;font-size:15px;padding:11px 18px}
+.quiz-footer .btn.primary{flex:1.4 1 0}
+@media(min-width:900px){.quiz-footer .btn{flex:0 0 auto;min-width:140px}.quiz-footer .btn.primary{flex:0 0 auto}}
+
+@media(max-width:700px){
+  .main{padding:14px 14px calc(96px + env(safe-area-inset-bottom))}
+  /* long usage hint is not needed once the exam is on screen */
+  .main:has(.quiz) .top .sub{display:none}
+  .main:has(.quiz) .top{margin-bottom:10px}
+  .main:has(.quiz) .top h1{font-size:20px}
+  /* tall navigators (30–100 questions) scroll inside their own box instead of pushing the question off screen */
+  .quiz .question-nav{max-height:152px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;gap:6px}
+  .qnav-btn{width:38px;height:38px}
+  .quiz .option{min-height:54px;font-size:15px}
+  .quiz .question{font-size:18px}
+}
+
+/* 8. Dashboard: on phones, the things students actually tap come first */
+@media(max-width:700px){
+  #app:has(.dashboard-quick-section)>.dashboard-quick-section{margin-top:0}
+  #app:has(.dashboard-quick-section){display:flex;flex-direction:column}
+  #app:has(.dashboard-quick-section)>.top{order:-3}
+  #app:has(.dashboard-quick-section)>.dashboard-quick-section{order:-2}
+  #app:has(.dashboard-quick-section)>.study-goal-card{order:-1}
+}
+.site-notifications-card .empty,.site-notifications-list .empty{padding:14px 10px}
+.dashboard-action{transition:transform .12s var(--ease),border-color .15s var(--ease),box-shadow .15s var(--ease)}
+.dashboard-action:hover{transform:translateY(-1px)}
+.dashboard-action:active{transform:translateY(0) scale(.995)}
+.dashboard-section-heading{margin-top:6px}
+
+/* 9. Settings / lists */
+.card>h3:first-child+label,.card>h3:first-child+div{margin-top:10px}
+.empty{padding:28px 18px}
+.stat .value{font-variant-numeric:tabular-nums}
+
+/* 10. Topbar & sidebar finish */
+.topbar{box-shadow:0 1px 0 var(--line)}
+.nav button{transition:background .15s var(--ease),color .15s var(--ease)}
+.nav button:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+.nav button.active{box-shadow:inset 3px 0 0 var(--primary2)}
+
+
+/* 12. Print: hide chrome */
+@media print{.topbar,.sidebar,.scrim,.support-floating-btn,.quiz-footer{display:none!important}}
 </style>
 </head>
 <body>
@@ -5828,7 +5976,7 @@ if('serviceWorker' in navigator){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=42.1',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=42.2',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       watchPWARegistration(registration);
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
@@ -5952,6 +6100,24 @@ document.addEventListener('DOMContentLoaded',()=>{
     window.__notificationPoll=setInterval(async()=>{ if(document.hidden)return; await refreshWeeklyNotifications(); },60000);
   });
 });
+</script>
+<script id="medex-ui-polish-js">
+/* UI polish helper (visual only): keeps the current question's number visible inside a scrollable question navigator. */
+(function(){
+  var raf=0;
+  function sync(){
+    raf=0;
+    try{
+      var nav=document.querySelector('.quiz .question-nav'); if(!nav)return;
+      var cur=nav.querySelector('.qnav-btn.current'); if(!cur)return;
+      var top=cur.offsetTop-nav.offsetTop, bottom=top+cur.offsetHeight;
+      if(top<nav.scrollTop+34) nav.scrollTop=Math.max(0,top-40);
+      else if(bottom>nav.scrollTop+nav.clientHeight) nav.scrollTop=bottom-nav.clientHeight+8;
+    }catch(e){}
+  }
+  var app=document.getElementById('app'); if(!app||!window.MutationObserver)return;
+  new MutationObserver(function(){ if(!raf)raf=requestAnimationFrame(sync); }).observe(app,{childList:true,subtree:false});
+})();
 </script>
 </body>
 </html>
