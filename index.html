@@ -1046,6 +1046,27 @@ html[data-theme="dark"] .notice.ok{color:#8be3b3}
 @media(prefers-reduced-motion:reduce){.visitor-guide-window{animation:none}}
 </style>
 
+<style id="medex-flashcards-revision-polish">
+/* Revision-first flashcards workspace: high-priority study action stays above setup and library. */
+.study-tools-page{max-width:1180px}
+.study-tools-page .study-tools-hero{align-items:center;padding:clamp(20px,3vw,30px);background:linear-gradient(120deg,var(--card) 35%,var(--primary-soft));border-color:rgba(var(--primary-rgb),.24)}
+.study-tools-page .study-tools-hero h2{font-size:clamp(25px,3vw,34px);line-height:1.12;letter-spacing:-.035em}
+.study-tools-page .study-tools-hero p{max-width:610px;margin-top:9px;font-size:13.5px}
+.fc-daily-focus{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(180px,.8fr) auto;align-items:center;gap:20px;padding:20px 22px;margin:0 0 16px;border:1px solid rgba(var(--primary-rgb),.3);border-radius:16px;background:var(--card);box-shadow:0 8px 26px rgba(15,40,70,.06)}
+.fc-daily-copy h3{font:600 21px/1.25 var(--font-serif);margin:5px 0}
+.fc-daily-copy p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.5}
+.fc-daily-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fc-daily-metrics>div{padding:11px 12px;border-radius:11px;background:var(--bg);border:1px solid var(--line)}
+.fc-daily-metrics b{display:block;font:700 25px var(--font-mono);color:var(--primary)}
+.fc-daily-metrics span{display:block;margin-top:3px;font-size:11px;color:var(--muted)}
+.fc-daily-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.fc-daily-actions .btn{min-height:42px}
+.study-tools-page .fc-revision-first{border-top-width:4px;box-shadow:0 8px 24px rgba(15,40,70,.06)}
+.study-tools-page .study-filter-grid .field label{font-size:12px}
+.study-tools-page .study-filter-grid select{min-height:43px}
+@media(max-width:900px){.fc-daily-focus{grid-template-columns:1fr 1fr}.fc-daily-copy{grid-column:1/-1}.fc-daily-actions{justify-content:flex-start}}
+@media(max-width:600px){.study-tools-page .study-tools-hero{align-items:flex-start;flex-direction:column}.study-tools-page .study-hero-actions{justify-content:flex-start}.fc-daily-focus{grid-template-columns:1fr;padding:16px;gap:14px}.fc-daily-copy{grid-column:auto}.fc-daily-actions{display:grid;grid-template-columns:1fr 1fr}.fc-daily-actions .btn{padding:10px 8px}.fc-daily-metrics b{font-size:22px}}
+</style>
 </head>
 <body>
 <div class="app">
@@ -4051,6 +4072,7 @@ function renderFlashcardSetup(){
 function updateFlashcardFilter(id){if(id==='flashModule'){flashcardFilter.module=document.getElementById('flashModule')?.value||'';flashcardFilter.subject='';flashcardFilter.lecture='';}else if(id==='flashSubject'){flashcardFilter.subject=document.getElementById('flashSubject')?.value||'';flashcardFilter.lecture='';}else if(id==='flashLecture')flashcardFilter.lecture=document.getElementById('flashLecture')?.value||'';else if(id==='flashMode')flashcardFilter.mode=document.getElementById('flashMode')?.value==='new'?'new':'due';else if(id==='flashCount')flashcardFilter.count=Number(document.getElementById('flashCount')?.value||0);renderFlashcards();}
 function resetFlashcardFilter(){flashcardFilter={module:'',subject:'',lecture:'',mode:'new',count:0};renderFlashcards();}
 function flashcardQueueForSession(){const mode=flashcardFilter.mode==='new'?'new':'due';let list=flashcardItems({...flashcardFilter,mode});list.sort((a,b)=>{const pa=flashcardRecord(a),pb=flashcardRecord(b);if(pa.difficult!==pb.difficult)return pa.difficult?-1:1;if(Number(pa.due||0)!==Number(pb.due||0))return Number(pa.due||0)-Number(pb.due||0);return Number(pa.lastReviewedAt||0)-Number(pb.lastReviewedAt||0);});return list;}
+function startDueFlashcardSession(){flashcardFilter.mode='due';startFlashcardSession();}
 function startFlashcardSession(){const mode=flashcardFilter.mode==='new'?'new':'due';let list=flashcardQueueForSession();const count=Number(flashcardFilter.count||0);if(count>0)list=list.slice(0,count);if(!list.length){toast(mode==='new'?'No new cards are available for this selection.':'No revision cards are due for this selection.','error');return;}flashcardSession={list,index:0,revealed:false,ratings:{again:0,hard:0,good:0,easy:0},startedAt:Date.now()};renderFlashcardSession();}
 function studyFlashIcon(type){const icons={back:'←',menu:'⋮',flag:'⚐',heart:'♡',filledHeart:'♥'};return icons[type]||'';}
 function flashcardKeyboardHandler(e){if(!flashcardSession)return;const tag=document.activeElement?.tagName||'';if(['INPUT','TEXTAREA','SELECT'].includes(tag))return;if(e.code==='Space'){e.preventDefault();if(flashcardSession.revealed)rateFlashcard('again');else revealFlashcard();}if(flashcardSession.revealed&&['Digit1','Digit2','Digit3','Digit4'].includes(e.code)){e.preventDefault();const map={Digit1:'again',Digit2:'hard',Digit3:'good',Digit4:'easy'};rateFlashcard(map[e.code]);}}
@@ -4083,7 +4105,12 @@ function renderFlashcards(){
     loadPublicFlashcards().then(()=>{if(location.hash.replace('#','')==='flashcards'&&!flashcardSession)renderFlashcards();});
   }
   const body=`<div class="study-tools-page">
-    <section class="study-tools-hero"><div><span class="study-eyebrow">MEDEX FLASHCARDS</span><h2>Recall, reveal, and review</h2></div><div class="study-hero-actions"><button class="btn primary" onclick="startFlashcardSession()">Start review</button><button class="btn" onclick="enableMedExPhoneNotifications()">Enable phone notifications</button><button class="btn" onclick="go('tools')">Study Tools</button></div></section>
+    <section class="study-tools-hero"><div><span class="study-eyebrow">MEDEX FLASHCARDS · ACTIVE RECALL</span><h2>Make every review count.</h2><p>Start with cards due today, then learn new material. Rate each answer honestly so your next review is timed to your memory.</p></div><div class="study-hero-actions"><button class="btn primary" onclick="startDueFlashcardSession()">Review due cards</button><button class="btn" onclick="enableMedExPhoneNotifications()">Enable reminders</button></div></section>
+    <section class="fc-daily-focus" aria-label="Daily flashcard revision">
+      <div class="fc-daily-copy"><span class="study-eyebrow">YOUR DAILY REVISION</span><h3>What needs your attention?</h3><p>Prioritise scheduled reviews before adding more cards.</p></div>
+      <div class="fc-daily-metrics"><div><b>${flashcardItems({...flashcardFilter,mode:'due'}).length}</b><span>Due to review</span></div><div><b>${flashcardItems({...flashcardFilter,mode:'new'}).length}</b><span>New to learn</span></div></div>
+      <div class="fc-daily-actions"><button class="btn primary" onclick="startDueFlashcardSession()">Start revision</button><button class="btn" onclick="flashcardFilter.mode='new';renderFlashcards()">Learn new cards</button></div>
+    </section>
     ${renderFlashcardSetup()}
     <div class="study-phase2-grid">${flashcardSummaryHTML()}</div>
     ${typeof renderFlashcardFlagSections==='function'?renderFlashcardFlagSections():''}
