@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v42.2-ui-polish">
+<meta name="medex-build" content="v42.3-nav-organisation">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -890,6 +890,42 @@ html[data-theme="dark"] .notice.ok{color:#8be3b3}
 
 /* 12. Print: hide chrome */
 @media print{.topbar,.sidebar,.scrim,.support-floating-btn,.quiz-footer{display:none!important}}
+</style>
+<style id="medex-nav-css">
+/* MedEx navigation v42.3 — organisation only. Revert by deleting this block and the script id="medex-nav-js". */
+
+/* Sidebar groups */
+.nav-group-label{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7f929a;padding:14px 12px 5px;line-height:1}
+.nav-group-label[hidden]{display:none}
+.nav button{padding-top:9px;padding-bottom:9px}
+
+/* Section tabs: sibling pages of one task sit together (like UWorld's Create Test / Previous Tests / Performance) */
+.section-tabs{display:flex;gap:6px;overflow-x:auto;margin:-6px 0 18px;padding:4px 2px 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.section-tabs::-webkit-scrollbar{display:none}
+.section-tabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--muted);font:inherit;font-size:13.5px;font-weight:600;
+  padding:8px 15px;border-radius:999px;cursor:pointer;white-space:nowrap;line-height:1.2;transition:background .15s,color .15s,border-color .15s}
+.section-tabs button:hover{color:var(--text);border-color:var(--primary)}
+.section-tabs button[aria-current="page"]{background:var(--primary);border-color:var(--primary);color:#fff}
+.section-tabs button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+/* Phone bottom tab bar (3–5 top-level destinations; everything else under “More”) */
+.bottom-tabs{display:none}
+@media(max-width:880px){
+  .bottom-tabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:35;gap:2px;background:var(--card);border-top:1px solid var(--line);
+    padding:6px 6px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -6px 18px -12px rgba(16,24,38,.35)}
+  .bottom-tabs button{flex:1 1 0;min-width:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;
+    color:var(--muted);font:inherit;font-size:11px;font-weight:600;padding:4px 2px;border-radius:12px;cursor:pointer;line-height:1.1;transition:background .15s,color .15s}
+  .bottom-tabs svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6}
+  .bottom-tabs button[aria-current="page"]{color:var(--primary);background:rgba(var(--primary-rgb),.10)}
+  .bottom-tabs button:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+  .main{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+  .support-floating-btn{bottom:calc(76px + env(safe-area-inset-bottom))}
+  /* no bottom bar while taking an exam or on first-run setup: more room, no accidental exits */
+  body:has(.quiz) .bottom-tabs,body:has(#visitorStartName) .bottom-tabs{display:none}
+  body:has(.quiz) .main{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+  body:has(.quiz) .support-floating-btn{bottom:max(14px,env(safe-area-inset-bottom))}
+}
+@media print{.bottom-tabs,.section-tabs{display:none!important}}
 </style>
 </head>
 <body>
@@ -5976,7 +6012,7 @@ if('serviceWorker' in navigator){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=42.2',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=42.3',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       watchPWARegistration(registration);
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
@@ -6117,6 +6153,98 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
   var app=document.getElementById('app'); if(!app||!window.MutationObserver)return;
   new MutationObserver(function(){ if(!raf)raf=requestAnimationFrame(sync); }).observe(app,{childList:true,subtree:false});
+})();
+</script>
+<script id="medex-nav-js">
+/* Navigation organisation (no feature logic): groups the sidebar, adds section tabs and a phone bottom bar.
+   Existing buttons are MOVED, never recreated, so every id, handler and admin show/hide rule keeps working. */
+(function(){
+  try{
+    var nav=document.querySelector('.nav'); if(!nav)return;
+    var by=function(v){return nav.querySelector(':scope > button[data-view="'+v+'"]');};
+    var groups=[
+      {id:'practice',label:'Practice',views:['exam','mistakes','favorites','library']},
+      {id:'learn',label:'Learn',views:['flashcards','tools','ai','materials']},
+      {id:'track',label:'Track progress',views:['progress','history','leaderboard']},
+      {id:'account',label:'Account',views:['settings','account']},
+      {id:'admin',label:'Admin',views:['bank','import','aiquestions','semesters','flashadmin','analytics','reports','replies','notifications','weeklynotifications']}
+    ];
+    var frag=document.createDocumentFragment(), home=by('dashboard');
+    if(home)frag.appendChild(home);
+    groups.forEach(function(g){
+      var lab=document.createElement('div'); lab.className='nav-group-label'; lab.setAttribute('data-group',g.id); lab.textContent=g.label; frag.appendChild(lab);
+      g.views.forEach(function(v){var b=by(v); if(b)frag.appendChild(b);});
+    });
+    Array.prototype.slice.call(nav.children).forEach(function(el){ if(el.tagName==='BUTTON')frag.appendChild(el); }); // anything unlisted keeps working
+    nav.appendChild(frag);
+
+    function syncLabels(){
+      var labs=nav.querySelectorAll('.nav-group-label');
+      Array.prototype.forEach.call(labs,function(lab){
+        var any=false, el=lab.nextElementSibling;
+        while(el&&!el.classList.contains('nav-group-label')){ if(el.tagName==='BUTTON'&&el.style.display!=='none')any=true; el=el.nextElementSibling; }
+        lab.hidden=!any;
+      });
+    }
+    syncLabels();
+    if(window.MutationObserver)new MutationObserver(syncLabels).observe(nav,{attributes:true,attributeFilter:['style'],subtree:true});
+
+    /* ---- section tabs ---- */
+    var SECTIONS={
+      practice:[['exam','Start exam'],['mistakes','Mistakes'],['favorites','Favourites'],['library','Library']],
+      learn:[['flashcards','Flashcards'],['tools','Study tools'],['ai','AI assistant']],
+      track:[['progress','Progress'],['history','History'],['leaderboard','Top users']]
+    };
+    var LABEL={practice:'Practice',learn:'Learn',track:'Track progress'};
+    var VIEW_SECTION={exam:'practice',mistakes:'practice',favorites:'practice',library:'practice',flashcards:'learn',tools:'learn',ai:'learn',progress:'track',history:'track',leaderboard:'track',results:'track'};
+    var CHIP={results:'history'};
+    var view=function(){return location.hash.replace('#','')||'dashboard';};
+    var go=function(v){ if(typeof window.go==='function')window.go(v); else location.hash=v; };
+
+    function syncTabs(){
+      var app=document.getElementById('app'); if(!app)return;
+      var v=view(), sec=VIEW_SECTION[v];
+      var old=app.querySelector(':scope > .section-tabs'), top=app.querySelector(':scope > .top');
+      if(!sec||!top||app.querySelector('.quiz')||app.querySelector('#visitorStartName')){ if(old)old.remove(); return; }
+      var active=CHIP[v]||v, key=sec+':'+active;
+      if(old&&old.getAttribute('data-key')===key&&old.previousElementSibling===top)return;
+      if(old)old.remove();
+      var bar=document.createElement('nav'); bar.className='section-tabs'; bar.setAttribute('data-key',key); bar.setAttribute('aria-label',LABEL[sec]+' pages');
+      SECTIONS[sec].forEach(function(it){
+        var b=document.createElement('button'); b.type='button'; b.textContent=it[1]; b.setAttribute('data-view',it[0]);
+        if(it[0]===active)b.setAttribute('aria-current','page');
+        b.addEventListener('click',function(){ if(it[0]!==view())go(it[0]); });
+        bar.appendChild(b);
+      });
+      top.insertAdjacentElement('afterend',bar);
+    }
+
+    /* ---- phone bottom bar ---- */
+    var icon=function(v){var s=nav.querySelector('button[data-view="'+v+'"] svg'); return s?s.outerHTML:'';};
+    var MORE='<svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round"><circle cx="4.5" cy="10" r="1.2"/><circle cx="10" cy="10" r="1.2"/><circle cx="15.5" cy="10" r="1.2"/></svg>';
+    var TABS=[['dashboard','Home',icon('dashboard')],['exam','Practice',icon('exam')],['flashcards','Learn',icon('flashcards')],['progress','Progress',icon('progress')],['more','More',MORE]];
+    var tabs=document.createElement('nav'); tabs.className='bottom-tabs'; tabs.id='bottomTabs'; tabs.setAttribute('aria-label','Main navigation');
+    TABS.forEach(function(t){
+      var b=document.createElement('button'); b.type='button'; b.setAttribute('data-tab',t[0]); b.innerHTML=t[2]+'<span>'+t[1]+'</span>';
+      b.addEventListener('click',function(){
+        if(t[0]==='more'){ if(typeof window.setSidebar==='function')window.setSidebar(true); return; }
+        if(view()!==t[0])go(t[0]);
+      });
+      tabs.appendChild(b);
+    });
+    document.body.appendChild(tabs);
+    function tabFor(v){ if(v==='dashboard')return 'dashboard'; var s=VIEW_SECTION[v]; if(s==='practice')return 'exam'; if(s==='learn')return 'flashcards'; if(s==='track')return 'progress'; return 'more'; }
+    function syncBar(){
+      var cur=tabFor(view());
+      Array.prototype.forEach.call(tabs.children,function(b){ if(b.getAttribute('data-tab')===cur)b.setAttribute('aria-current','page'); else b.removeAttribute('aria-current'); });
+    }
+
+    function syncAll(){ syncTabs(); syncBar(); }
+    syncAll();
+    window.addEventListener('hashchange',syncAll);
+    var app=document.getElementById('app');
+    if(app&&window.MutationObserver)new MutationObserver(syncAll).observe(app,{childList:true});
+  }catch(e){ console.warn('Navigation enhancement skipped:',e&&e.message); }
 })();
 </script>
 </body>
