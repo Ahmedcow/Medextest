@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v42.3-nav-organisation">
+<meta name="medex-build" content="v42.5-focus-timer">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -926,6 +926,81 @@ html[data-theme="dark"] .notice.ok{color:#8be3b3}
   body:has(.quiz) .support-floating-btn{bottom:max(14px,env(safe-area-inset-bottom))}
 }
 @media print{.bottom-tabs,.section-tabs{display:none!important}}
+</style>
+<style id="medex-simple-css">
+/* MedEx simplification v42.4 — progressive disclosure. Nothing is deleted: secondary sections are folded into
+   "More" panels, empty cards are hidden, and idle controls are tucked away.
+   Revert by deleting this block and the script id="medex-simple-js". */
+
+/* Folded "More" panels */
+.more-details{margin:18px 0 8px}
+.more-details>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:54px;padding:14px 18px;
+  border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);font-weight:700;font-size:14.5px;line-height:1.3;
+  box-shadow:0 1px 2px rgba(16,24,38,.05);transition:border-color .15s,background .15s}
+.more-details>summary::-webkit-details-marker{display:none}
+.more-details>summary:hover{border-color:var(--primary)}
+.more-details>summary:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.more-details>summary::after{content:"";flex:0 0 auto;width:9px;height:9px;margin-right:4px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translateY(-2px);transition:transform .2s}
+.more-details[open]>summary::after{transform:rotate(-135deg) translateY(-2px)}
+.more-details[open]>summary{margin-bottom:18px}
+.more-details .more-hint{font-weight:500;color:var(--muted);font-size:12.5px;display:block;margin-top:2px}
+
+/* Dashboard: one clear path — next step, quick actions, daily goal; everything else is one tap away */
+#app.dash-main{display:flex;flex-direction:column}
+#app.dash-main>.top{order:-6}
+#app.dash-main>.site-notifications-card{order:-5}
+#app.dash-main>.dashboard-smart-section{order:-4;margin-top:4px}
+#app.dash-main>.dashboard-quick-section{order:-3;margin-top:4px}
+#app.dash-main>.study-goal-card{order:-2}
+#app.dash-main>.more-details{order:0}
+.dash-main .dashboard-section{margin-top:4px}
+
+
+/* Study Library: "Show more" row spans the whole results grid */
+.library-more{grid-column:1/-1;display:flex;justify-content:center;padding:6px 0 2px}
+</style>
+<style id="medex-focus-css">
+/* MedEx focus timer v42.5 — top-bar timer is always visible again, with a quick-start panel.
+   Revert by deleting this block and the script id="medex-focus-js". */
+.global-focus-timer{position:relative;overflow:hidden;transition:border-color .2s,background .2s}
+.global-focus-timer .focus-time-btn{border:0;background:transparent;color:inherit;font:inherit;font-size:13px;font-weight:800;min-width:52px;text-align:center;padding:4px 2px;border-radius:6px;cursor:pointer}
+.global-focus-timer .focus-time-btn:hover{background:rgba(var(--primary-rgb),.10)}
+.global-focus-timer .focus-time-btn:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+.global-focus-timer .focus-progress{position:absolute;left:0;right:0;bottom:0;height:3px;pointer-events:none}
+.global-focus-timer .focus-progress i{display:block;height:100%;width:var(--fp,0%);background:var(--primary);transition:width 1s linear}
+.global-focus-timer.running{border-color:var(--primary)}
+.global-focus-timer.break .focus-global-label{color:var(--ok)}
+.global-focus-timer.break .focus-progress i{background:var(--ok)}
+.global-focus-timer.break.running{border-color:var(--ok)}
+.global-focus-timer.done{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,var(--card));animation:focusDone 1.6s ease-in-out 3}
+.global-focus-timer.done .focus-global-label{color:var(--ok)}
+@keyframes focusDone{50%{box-shadow:0 0 0 4px rgba(31,138,92,.25)}}
+
+.focus-popover{position:fixed;right:18px;top:calc(var(--topbar-h) + 9px);width:min(340px,calc(100vw - 24px));max-height:calc(100vh - var(--topbar-h) - 24px);overflow:auto;
+  background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px;z-index:10000;text-align:left;font-family:var(--font-sans)}
+@media(max-width:700px){.focus-popover{right:12px;left:12px;width:auto}}
+.focus-pop-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.focus-pop-head strong{font-size:15px}
+.focus-pop-x{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;padding:6px 8px;border-radius:8px;cursor:pointer}
+.focus-pop-x:hover{background:var(--bg);color:var(--text)}
+.focus-pop-sec{margin-top:12px}
+.focus-pop-sec>.mini{display:block;margin-bottom:6px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-size:10.5px}
+.focus-pop-row{display:flex;gap:6px;flex-wrap:wrap}
+.focus-chip{flex:1 1 0;min-width:64px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit;font-size:13.5px;font-weight:700;padding:10px 6px;border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s}
+.focus-chip:hover{border-color:var(--primary);background:rgba(var(--primary-rgb),.07)}
+.focus-chip.break:hover{border-color:var(--ok);background:rgba(31,138,92,.08)}
+.focus-chip.solid{background:var(--primary);border-color:var(--primary);color:#fff}
+.focus-chip.solid:hover{background:var(--primary2)}
+.focus-pop-input{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:14px;background:var(--card);color:var(--text)}
+.focus-pop-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(var(--primary-rgb),.2)}
+.focus-pop-custom{display:flex;gap:6px}
+.focus-pop-custom input{flex:1;min-width:0}
+.focus-pop-custom .focus-chip{flex:0 0 auto;padding:10px 16px}
+.focus-done-box{background:color-mix(in srgb,var(--ok) 12%,var(--card));border:1px solid color-mix(in srgb,var(--ok) 40%,var(--line));border-radius:12px;padding:12px;margin-bottom:4px}
+.focus-done-box b{display:block;margin-bottom:8px}
+.focus-pop-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.focus-pop-foot label{display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text);font-weight:600}
+@media(prefers-reduced-motion:reduce){.global-focus-timer.done{animation:none}.global-focus-timer .focus-progress i{transition:none}}
 </style>
 </head>
 <body>
@@ -3524,11 +3599,23 @@ function deleteQuestionFolder(folderId){const f=folderData().find(x=>x.id===fold
 function practiceSingleQuestion(qid){const q=questionById(qid);if(!q)return;startExam([q],{answerMode:settings.showAnswerImmediately?'immediate':'finish',minutes:0});}
 function libraryFolderControlsHTML(qid){const folders=folderData();if(!folders.length)return `<div class="mini" style="margin-top:8px">No folders yet. <button class="btn" onclick="createQuestionFolder();renderStudyLibrary()">+ Create folder</button></div>`;const active=folders.find(f=>f.id===activeLibraryFolder);const current=active&&active.questionIds.includes(String(qid));return `<div class="phase2-library-folders" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${folders.map(f=>{const has=f.questionIds.includes(String(qid));return `<button class="btn ${has?'danger':'primary'}" type="button" onclick="toggleQuestionFolder('${attrJs(qid)}','${attrJs(f.id)}')">${has?'Remove from ': 'Add to '}${esc(f.name)}</button>`;}).join('')}${current?`<button class="btn danger" type="button" onclick="removeQuestionFromFolder('${attrJs(qid)}','${attrJs(active.id)}')">Remove from current folder</button>`:''}</div>`;}
 function normalizeLibrarySearchText(v){return String(v||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]+/gi,' ').replace(/\s+/g,' ').trim();}
-function librarySearchChanged(value){librarySearchTerm=String(value||'');clearTimeout(window.__librarySearchTimer);window.__librarySearchTimer=setTimeout(()=>{const host=document.getElementById('libraryResults');const count=document.getElementById('libraryResultCount');if(host){const results=librarySearchResults();host.innerHTML=renderLibraryResultsHTML(results);if(count)count.textContent=`${results.length} shown`;}else renderStudyLibrary();},80);}
-function libraryFilterChanged(value,which){if(which==='module'){librarySearchModule=String(value||'');librarySearchSubject='';}else librarySearchSubject=String(value||'');renderStudyLibrary();}
+function librarySearchChanged(value){libraryShowCount=10;librarySearchTerm=String(value||'');clearTimeout(window.__librarySearchTimer);window.__librarySearchTimer=setTimeout(()=>{const host=document.getElementById('libraryResults');const count=document.getElementById('libraryResultCount');if(host){const results=librarySearchResults();host.innerHTML=renderLibraryResultsHTML(results);if(count)count.textContent=`${results.length} shown`;}else renderStudyLibrary();},80);}
+function libraryFilterChanged(value,which){libraryShowCount=10;if(which==='module'){librarySearchModule=String(value||'');librarySearchSubject='';}else librarySearchSubject=String(value||'');renderStudyLibrary();}
 function librarySearchResults(){const raw=normalizeLibrarySearchText(librarySearchTerm),terms=raw?raw.split(' ').filter(Boolean):[],module=String(librarySearchModule||'').trim(),subject=String(librarySearchSubject||'').trim(),folder=folderData().find(f=>f.id===activeLibraryFolder);return questionUniverse().filter(q=>{const hay=normalizeLibrarySearchText([q.id,q.question,q.module,q.subject,q.lecture,getQuestionNote(q.id),q.sourceEvidence,q.reference,q.source].map(x=>String(x||'')).join(' '));if(terms.length&&!terms.every(t=>hay.includes(t)))return false;if(module&&String(q.module)!==module)return false;if(subject&&String(q.subject)!==subject)return false;if(folder&&!folder.questionIds.map(String).includes(String(q.id)))return false;return true;}).slice(0,120);}
 function editLibraryQuestionNote(qid){const current=getQuestionNote(qid);const value=prompt('Personal note for this question:',current);if(value===null)return;saveQuestionNote(qid,value);renderStudyLibrary();toast(value.trim()?'Note saved locally.':'Note removed.','ok');}
-function renderLibraryResultsHTML(results){return results.length?results.map(q=>{const note=getQuestionNote(q.id);return `<article class="phase2-result"><div class="phase2-result-top"><div style="min-width:0"><b>${esc(q.question)}</b><div class="phase2-result-meta">${esc(q.module||'')} · ${esc(q.subject||'')} · ${esc(q.lecture||'')}</div></div><span class="pill">${isFavorite(q)?'★ Favourite':''}</span></div><div style="margin-top:10px">${(q.options||[]).map((o,i)=>`<div class="review-choice"><b>${String.fromCharCode(65+i)}.</b> ${esc(o)}</div>`).join('')}</div><div class="actions" style="margin-top:10px"><button class="btn primary" onclick="practiceSingleQuestion('${attrJs(q.id)}')">Practice</button><button class="btn" onclick="toggleFavorite('${attrJs(q.id)}')">${isFavorite(q)?'★ Favourite':'☆ Favourite'}</button></div>${libraryFolderControlsHTML(q.id)}<div style="margin-top:10px"><div class="category-head"><label class="mini">Personal note · saved locally</label><button type="button" class="btn" onclick="editLibraryQuestionNote('${attrJs(q.id)}')">${note?'Edit note':'Add note'}</button></div>${note?`<div class="phase2-review-note" style="margin-top:7px">${esc(note)}</div>`:'<div class="mini" style="margin-top:7px">No note saved for this question.</div>'}</div></article>`}).join(''):'<div class="empty">No questions match your search.</div>';}
+let libraryShowCount=10;
+function libraryShowMore(){
+  libraryShowCount+=10;
+  const host=document.getElementById('libraryResults');
+  if(host)host.innerHTML=renderLibraryResultsHTML(librarySearchResults()); else renderStudyLibrary();
+}
+function renderLibraryResultsHTML(results){
+  const total=results.length, shown=results.slice(0,libraryShowCount);
+  let html=renderLibraryResultsAllHTML(shown);
+  if(total>shown.length) html+=`<div class="library-more"><button type="button" class="btn" onclick="libraryShowMore()">Show ${Math.min(10,total-shown.length)} more · ${total-shown.length} left</button></div>`;
+  return html;
+}
+function renderLibraryResultsAllHTML(results){return results.length?results.map(q=>{const note=getQuestionNote(q.id);return `<article class="phase2-result"><div class="phase2-result-top"><div style="min-width:0"><b>${esc(q.question)}</b><div class="phase2-result-meta">${esc(q.module||'')} · ${esc(q.subject||'')} · ${esc(q.lecture||'')}</div></div><span class="pill">${isFavorite(q)?'★ Favourite':''}</span></div><div style="margin-top:10px">${(q.options||[]).map((o,i)=>`<div class="review-choice"><b>${String.fromCharCode(65+i)}.</b> ${esc(o)}</div>`).join('')}</div><div class="actions" style="margin-top:10px"><button class="btn primary" onclick="practiceSingleQuestion('${attrJs(q.id)}')">Practice</button><button class="btn" onclick="toggleFavorite('${attrJs(q.id)}')">${isFavorite(q)?'★ Favourite':'☆ Favourite'}</button></div>${libraryFolderControlsHTML(q.id)}<div style="margin-top:10px"><div class="category-head"><label class="mini">Personal note · saved locally</label><button type="button" class="btn" onclick="editLibraryQuestionNote('${attrJs(q.id)}')">${note?'Edit note':'Add note'}</button></div>${note?`<div class="phase2-review-note" style="margin-top:7px">${esc(note)}</div>`:'<div class="mini" style="margin-top:7px">No note saved for this question.</div>'}</div></article>`}).join(''):'<div class="empty">No questions match your search.</div>';}
 function renderStudyLibrary(){
   const universe=questionUniverse();
   const modules=[...new Set(universe.map(q=>String(q.module||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
@@ -6012,7 +6099,7 @@ if('serviceWorker' in navigator){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=42.3',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=42.5',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       watchPWARegistration(registration);
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
@@ -6245,6 +6332,241 @@ document.addEventListener('DOMContentLoaded',()=>{
     var app=document.getElementById('app');
     if(app&&window.MutationObserver)new MutationObserver(syncAll).observe(app,{childList:true});
   }catch(e){ console.warn('Navigation enhancement skipped:',e&&e.message); }
+})();
+</script>
+<script id="medex-simple-js">
+/* Progressive disclosure (no feature logic): moves secondary sections into collapsible "More" panels.
+   Nodes are MOVED, never recreated, so ids, inline handlers and admin rules keep working. */
+(function(){
+  try{
+    var app=document.getElementById('app'); if(!app)return;
+    var ALWAYS=['#toast','.support-floating-btn','.top','.section-tabs','.more-details'];
+    var RULES={
+      dashboard:{host:null,marker:'dash-main',label:'More from your dashboard',hint:'Performance, modules, leaderboard and recent exams',
+        keep:['.dashboard-smart-section','.dashboard-quick-section','.study-goal-card']},
+      progress:{host:null,label:'Detailed breakdown & analytics',hint:'Daily analytics, lecture and difficulty performance, reset',
+        keep:['.study-goal-card','.dashboard-spaced-review','.grid.stats']},
+      flashcards:{host:'.study-tools-page',label:'Create, import & manage flashcards',hint:'Card builder and your full card list',
+        keep:['.study-tools-hero','.fc-cloud-status','.study-phase2-grid']},
+      tools:{host:'.study-tools-page',label:'Study plans & achievements',hint:'Exam countdown, plans and badges',
+        keep:['.study-tools-hero','.study-phase2-grid']}
+    };
+    var openState={};
+    var view=function(){return location.hash.replace('#','')||'dashboard';};
+    var matchesAny=function(el,list){for(var i=0;i<list.length;i++){if(el.matches(list[i]))return true;}return false;};
+
+    function simplify(){
+      var v=view(); if(v!=='dashboard')app.classList.remove('dash-main'); var rule=RULES[v]; if(!rule)return;
+      if(app.querySelector('.quiz')||app.querySelector('#visitorStartName'))return;
+      var host=rule.host?app.querySelector(rule.host):app; if(!host)return;
+      if(host.querySelector(':scope > details.more-details'))return;          // already simplified
+      if(v==='dashboard'&&!app.querySelector('.dashboard-quick-section'))return; // not rendered yet
+      var keep=rule.keep.slice();
+      if(v==='dashboard'){
+        var n=app.querySelector(':scope > .site-notifications-card');
+        if(n){
+          if(/no site notifications/i.test(n.textContent||'')&&!n.querySelector('.notification-item,.site-notification-item,article'))n.hidden=true; // empty: nothing to show
+          else keep.push('.site-notifications-card');
+        }
+        host.classList.add('dash-main');
+        // the visitor-name card repeats the greeting; it lives in the More panel
+      }
+      var movable=Array.prototype.filter.call(host.children,function(el){
+        return !matchesAny(el,ALWAYS)&&!matchesAny(el,keep)&&!el.hidden&&el.getAttribute('aria-hidden')!=='true';
+      });
+      if(!movable.length)return;
+      var d=document.createElement('details'); d.className='more-details';
+      var s=document.createElement('summary');
+      var t=document.createElement('span'); t.textContent=rule.label;
+      var h=document.createElement('span'); h.className='more-hint'; h.textContent=rule.hint;
+      var box=document.createElement('span'); box.appendChild(t); box.appendChild(h); s.appendChild(box); d.appendChild(s);
+      movable.forEach(function(el){d.appendChild(el);});
+      d.open=!!openState[v];
+      d.addEventListener('toggle',function(){openState[v]=d.open;});
+      host.appendChild(d);
+      // keep floating chat button last in DOM order (it is position:fixed, order is cosmetic)
+      var fab=host.querySelector(':scope > .support-floating-btn'); if(fab)host.appendChild(fab);
+    }
+
+    function all(){ simplify(); }
+    all();
+    window.addEventListener('hashchange',all);
+    if(window.MutationObserver){
+      new MutationObserver(all).observe(app,{childList:true});
+    }
+  }catch(e){ console.warn('Simplification skipped:',e&&e.message); }
+})();
+</script>
+<script id="medex-focus-js">
+/* Focus timer upgrade. Reuses the existing timer state/functions; adds a quick-start panel, break mode,
+   progress bar, today's stats, sound/vibration/title alert, and fixes the "frozen after reload" bug. */
+(function(){
+  try{
+    if(typeof focusTimerState==='undefined'||typeof updateTopbarControls!=='function')return;
+    var PREFS='medex_focus_prefs_v1', STATS='medex_focus_stats_v1';
+    var load=function(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v&&typeof v==='object'?v:d;}catch(e){return d;}};
+    var store=function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+    var prefs=load(PREFS,{sound:true}), stats=load(STATS,{});
+    var popOpen=false, audio=null, baseTitle=document.title, titleTimer=0;
+    var S=function(){return focusTimerState;};              // never cache: the original replaces this object on reset
+    var day=function(){return typeof localDayKey==='function'?localDayKey():new Date().toISOString().slice(0,10);};
+    var fmt=function(s){return typeof formatTime==='function'?formatTime(s):Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
+    var onTools=function(){return location.hash.replace('#','')==='tools';};
+    var refresh=function(){updateTopbarControls(); if(onTools()&&typeof renderStudyTools==='function')renderStudyTools();};
+
+    /* ---------- stats ---------- */
+    function addStats(min){
+      var d=day(), e=stats[d]||{sessions:0,minutes:0}; e.sessions++; e.minutes+=min; stats[d]=e;
+      Object.keys(stats).sort().slice(0,-60).forEach(function(k){delete stats[k];});
+      store(STATS,stats);
+    }
+    function today(){return stats[day()]||{sessions:0,minutes:0};}
+
+    /* ---------- alerts ---------- */
+    function unlockAudio(){
+      try{ var AC=window.AudioContext||window.webkitAudioContext; if(!AC)return; if(!audio)audio=new AC(); if(audio.state==='suspended')audio.resume(); }catch(e){}
+    }
+    function beep(){
+      if(!prefs.sound||!audio)return;
+      try{
+        [660,880,1100].forEach(function(f,i){
+          var o=audio.createOscillator(), g=audio.createGain(), t=audio.currentTime+i*0.22;
+          o.type='sine'; o.frequency.value=f; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.25,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+0.2);
+          o.connect(g); g.connect(audio.destination); o.start(t); o.stop(t+0.22);
+        });
+      }catch(e){}
+    }
+    function flashTitle(msg){
+      clearInterval(titleTimer); var on=false, n=0;
+      titleTimer=setInterval(function(){ on=!on; document.title=on?msg:baseTitle; if(++n>40||!document.hidden&&n>6){clearInterval(titleTimer);document.title=baseTitle;} },1000);
+    }
+    function restoreTitle(){ clearInterval(titleTimer); document.title=baseTitle; }
+
+    /* ---------- core ---------- */
+    function paint(remain){
+      var s=S(), total=Number(s.total||s.preset||remain)||remain, pct=total>0?Math.min(100,Math.max(0,(1-remain/total)*100)):0;
+      document.querySelectorAll('.global-focus-timer-display').forEach(function(x){x.textContent=fmt(remain);});
+      var big=document.getElementById('focusTimerDisplay'); if(big)big.textContent=fmt(remain);
+      document.querySelectorAll('.global-focus-timer').forEach(function(x){x.style.setProperty('--fp',pct.toFixed(1)+'%');});
+      if(s.running)document.title=fmt(remain)+' · '+(s.mode==='break'?'Break':'Focus')+' · MedEx';
+    }
+    function finish(late){
+      var s=S(), wasBreak=s.mode==='break', total=Number(s.total||s.preset||0);
+      s.running=false; s.endTime=0; s.startedAt=0; s.remaining=0; s.done=true; s.paused=false;
+      saveFocusState(); clearInterval(focusTimerId); focusTimerId=null;
+      if(!wasBreak&&total>=60)addStats(Math.round(total/60));
+      var msg=wasBreak?'Break over. Ready for the next focus session?':(late?'Your focus session finished while you were away.':'Focus session complete. Nice work — take a short break.');
+      if(typeof toast==='function')toast(msg,'ok');
+      if(!late){ beep(); try{navigator.vibrate&&navigator.vibrate([200,100,200]);}catch(e){} if(document.hidden)flashTitle('✔ Time is up · MedEx'); else restoreTitle(); }
+      else restoreTitle();
+      if('Notification' in window&&Notification.permission==='granted'&&navigator.serviceWorker)navigator.serviceWorker.ready.then(function(r){r.showNotification(wasBreak?'MedEx break over':'MedEx focus complete',{body:msg});}).catch(function(){});
+      refresh();
+    }
+    window.runFocusTimer=function(){
+      clearInterval(focusTimerId); if(!S().running)return;
+      var tick=function(){
+        var s=S(); if(!s.running){clearInterval(focusTimerId);focusTimerId=null;restoreTitle();return;}
+        var remain=Math.max(0,Math.ceil((Number(s.endTime||Date.now())-Date.now())/1000));
+        s.remaining=remain; paint(remain);
+        if(remain<=0)finish(false); else if(remain%5===0)saveFocusState();
+      };
+      tick(); if(S().running)focusTimerId=setInterval(tick,1000);
+    };
+
+    var _start=window.startFocusTimer, _pause=window.pauseFocusTimer, _reset=window.resetFocusTimer, _preset=window.focusPreset;
+    window.startFocusTimer=function(){
+      unlockAudio(); var s=S(); if(s.running)return;
+      if(!Number(s.remaining||0)){                              // finished: play starts the NEXT session
+        var wasBreak=s.mode==='break', next=wasBreak?Number(s.returnPreset||1500):Number(s.preset||1500), label=s.label;
+        _reset(next); S().label=label||S().label; S().mode='focus';
+      }
+      s=S(); var resuming=!!(s.paused&&s.total&&s.remaining>0&&s.remaining<s.total);
+      if(!resuming)s.total=Number(s.remaining); s.paused=false; s.done=false; if(!s.mode)s.mode='focus';
+      _start();
+    };
+    window.pauseFocusTimer=function(){ _pause(); var s=S(); s.paused=true; saveFocusState(); restoreTitle(); refresh(); };
+    window.resetFocusTimer=function(sec){
+      var m=S().mode, rp=S().returnPreset; restoreTitle();
+      _reset.apply(null,sec===undefined?[]:[sec]);
+      if(m==='break'){ var s=S(); s.mode='break'; s.returnPreset=rp; saveFocusState(); updateTopbarControls(); }
+    };
+    window.focusPreset=function(sec){ _preset(sec); var s=S(); delete s.total; delete s.paused; s.done=false; s.mode='focus'; saveFocusState(); refresh(); };
+
+    /* quick actions used by the panel */
+    window.focusQuickStart=function(sec,mode){
+      unlockAudio(); clearInterval(focusTimerId); focusTimerId=null; restoreTitle();
+      var old=S(), isBreak=mode==='break';
+      var next={remaining:sec,running:false,endTime:0,startedAt:0,label:old.label||'Focused study',preset:isBreak?(old.preset||1500):sec,mode:isBreak?'break':'focus'};
+      if(isBreak)next.returnPreset=old.mode==='break'?old.returnPreset:old.preset;
+      focusTimerState=next; saveFocusState(); popOpen=false; window.startFocusTimer();
+    };
+    window.focusCustomStart=function(){
+      var el=document.getElementById('focusCustomMin'), m=Math.round(Number(el&&el.value));
+      if(!m||m<1||m>180){ if(typeof toast==='function')toast('Enter a number of minutes between 1 and 180.','error'); if(el)el.focus(); return; }
+      window.focusQuickStart(m*60,'focus');
+    };
+    window.focusExtend=function(min){
+      var s=S(), add=min*60; if(!add)return;
+      if(s.running){ s.endTime=Number(s.endTime)+add*1000; s.total=Number(s.total||s.remaining)+add; s.remaining+=add; }
+      else { s.remaining=Math.max(60,Number(s.remaining||0)+add); s.total=Number(s.remaining); s.paused=false; s.done=false; }
+      saveFocusState(); paint(s.remaining); refresh();
+    };
+    window.focusToggleSound=function(on){ prefs.sound=!!on; store(PREFS,prefs); if(on){unlockAudio();beep();} };
+    window.focusDismissDone=function(){ var s=S(); s.done=false; saveFocusState(); refresh(); };
+    window.toggleFocusPopover=function(e){ if(e)e.stopPropagation(); popOpen=!popOpen; updateTopbarControls(); };
+    window.closeFocusPopover=function(){ popOpen=false; updateTopbarControls(); };
+
+    /* ---------- top-bar markup ---------- */
+    function popoverHTML(){
+      var s=S(), isBreak=s.mode==='break', running=!!s.running, t=today(), esc2=typeof esc==='function'?esc:function(x){return String(x);};
+      var done='';
+      if(s.done){
+        done='<div class="focus-done-box"><b>'+(isBreak?'Break over — ready to focus?':'Session complete — nice work!')+'</b><div class="focus-pop-row">'
+          +(isBreak?'<button class="focus-chip solid" onclick="startFocusTimer();closeFocusPopover()">Start focus</button>'
+                   :'<button class="focus-chip solid break" onclick="focusQuickStart(300,\'break\')">5-min break</button><button class="focus-chip" onclick="startFocusTimer();closeFocusPopover()">Another session</button>')
+          +'<button class="focus-chip" onclick="focusDismissDone()">Dismiss</button></div></div>';
+      }
+      var mins=[15,25,45,60].map(function(m){return '<button class="focus-chip" onclick="focusQuickStart('+m*60+')">'+m+' min</button>';}).join('');
+      var brk=[5,10,15].map(function(m){return '<button class="focus-chip break" onclick="focusQuickStart('+m*60+',\'break\')">'+m+' min</button>';}).join('');
+      var ctl=(running||Number(s.remaining)>0&&s.paused)?'<div class="focus-pop-sec"><div class="focus-pop-row"><button class="focus-chip" onclick="focusExtend(5)">+ 5 min</button>'
+          +(running?'<button class="focus-chip" onclick="pauseFocusTimer()">Pause</button>':'<button class="focus-chip solid" onclick="startFocusTimer()">Resume</button>')
+          +'<button class="focus-chip" onclick="resetFocusTimer()">Reset</button></div></div>':'';
+      return '<div class="focus-popover" role="dialog" aria-label="Focus timer" onclick="event.stopPropagation()">'
+        +'<div class="focus-pop-head"><strong>'+(isBreak?'Break time':'Focus timer')+'</strong><button class="focus-pop-x" onclick="closeFocusPopover()" aria-label="Close">✕</button></div>'
+        +done
+        +'<div class="focus-pop-sec"><span class="mini">What are you studying?</span><input class="focus-pop-input" maxlength="60" value="'+esc2(s.label||'Focused study')+'" onchange="focusLabelChanged(this.value)" aria-label="Session label"></div>'
+        +'<div class="focus-pop-sec"><span class="mini">Start a focus session</span><div class="focus-pop-row">'+mins+'</div></div>'
+        +'<div class="focus-pop-sec"><div class="focus-pop-custom"><input class="focus-pop-input" id="focusCustomMin" type="number" inputmode="numeric" min="1" max="180" placeholder="Custom minutes" onkeydown="if(event.key===\'Enter\')focusCustomStart()"><button class="focus-chip solid" onclick="focusCustomStart()">Start</button></div></div>'
+        +'<div class="focus-pop-sec"><span class="mini">Take a break</span><div class="focus-pop-row">'+brk+'</div></div>'
+        +ctl
+        +'<div class="focus-pop-foot"><span>Today: <b>'+t.sessions+'</b> session'+(t.sessions===1?'':'s')+' · <b>'+t.minutes+'</b> min</span><label><input type="checkbox" '+(prefs.sound?'checked':'')+' onchange="focusToggleSound(this.checked)"> Sound</label></div>'
+        +'</div>';
+    }
+    window.globalFocusTimerHTML=function(){
+      var s=S(), remain=Math.max(0,Number(s.remaining||0)), isBreak=s.mode==='break', running=!!s.running, done=!!s.done;
+      var total=Number(s.total||s.preset||remain)||remain, pct=running||s.paused?Math.min(100,Math.max(0,(1-remain/total)*100)):(done?100:0);
+      var icon=running?'<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><rect x="5" y="4" width="3.2" height="12" rx="1"/><rect x="11.8" y="4" width="3.2" height="12" rx="1"/></svg>'
+                      :'<svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><polygon points="7,4 16,10 7,16"/></svg>';
+      var label=done?'Done':(isBreak?'Break':'Focus');
+      return '<div class="global-focus-timer'+(isBreak?' break':'')+(running?' running':'')+(done?' done':'')+'" style="--fp:'+pct.toFixed(1)+'%" title="'+(isBreak?'Break':'Focus')+' timer — tap the time for options">'
+        +'<span class="focus-global-label">'+label+'</span>'
+        +'<button class="focus-time-btn global-focus-timer-display" onclick="toggleFocusPopover(event)" aria-haspopup="dialog" aria-expanded="'+popOpen+'" aria-label="Timer '+fmt(remain)+'. Open timer options">'+fmt(remain)+'</button>'
+        +'<button class="global-focus-control" onclick="event.stopPropagation();'+(running?'pauseFocusTimer()':'startFocusTimer()')+'" aria-label="'+(running?'Pause focus timer':'Start focus timer')+'">'+icon+'</button>'
+        +'<button class="global-focus-control" onclick="event.stopPropagation();resetFocusTimer()" aria-label="Reset focus timer">↺</button>'
+        +'<span class="focus-progress" aria-hidden="true"><i></i></span></div>'+(popOpen?popoverHTML():'');
+    };
+
+    /* close on outside click / Esc */
+    document.addEventListener('click',function(e){ if(popOpen&&!e.target.closest('.focus-popover,.focus-time-btn'))window.closeFocusPopover(); });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&popOpen)window.closeFocusPopover(); });
+    document.addEventListener('visibilitychange',function(){ if(!document.hidden){ if(S().running)window.runFocusTimer(); if(S().done||!S().running)restoreTitle(); } });
+
+    /* ---------- startup: resume a running timer (was frozen after reload) / report a session that ended while away ---------- */
+    var s0=S();
+    if(s0.running){ window.runFocusTimer(); }
+    else if(!s0.done&&Number(s0.remaining)===0&&Number(s0.total)>0){ finish(true); }
+    updateTopbarControls();
+  }catch(e){ console.warn('Focus timer upgrade skipped:',e&&e.message); }
 })();
 </script>
 </body>
