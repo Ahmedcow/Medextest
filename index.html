@@ -1016,6 +1016,24 @@ html[data-theme="dark"] .notice.ok{color:#8be3b3}
 .focus-pop-foot label{display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text);font-weight:600}
 @media(prefers-reduced-motion:reduce){.global-focus-timer.done{animation:none}.global-focus-timer .focus-progress i{transition:none}}
 </style>
+
+<style id="medex-visitor-guide-and-clean-copy">
+/* Hide page-level subtitles and low-value backend/storage status copy. */
+.top .sub{display:none!important}
+.visitor-welcome .category-head .mini{display:none!important}
+.visitor-guide-backdrop{position:fixed;inset:0;z-index:10050;background:rgba(8,18,38,.48);display:flex;align-items:flex-end;justify-content:flex-end;padding:clamp(12px,3vw,28px);backdrop-filter:blur(2px)}
+.visitor-guide-window{width:min(390px,100%);border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);box-shadow:0 20px 65px rgba(0,0,0,.24);padding:20px;animation:medexGuideIn .18s ease-out}
+.visitor-guide-window .guide-kicker{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--primary);margin-bottom:8px}
+.visitor-guide-window h2{font-size:20px;line-height:1.25;margin:0 0 8px}
+.visitor-guide-window p{font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 16px}
+.visitor-guide-progress{display:flex;gap:5px;margin:0 0 16px}.visitor-guide-progress span{height:4px;flex:1;border-radius:9px;background:var(--line)}.visitor-guide-progress span.active{background:var(--primary)}
+.visitor-guide-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.visitor-guide-actions .guide-spacer{flex:1}.visitor-guide-actions button{min-height:38px}
+.medex-guide-target{position:relative!important;z-index:10051!important;outline:3px solid var(--primary)!important;outline-offset:3px!important;border-radius:12px!important;box-shadow:0 0 0 6px rgba(var(--primary-rgb),.16)!important}
+@keyframes medexGuideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:600px){.visitor-guide-backdrop{align-items:flex-end;padding:10px}.visitor-guide-window{width:100%;padding:17px;border-radius:16px}}
+@media(prefers-reduced-motion:reduce){.visitor-guide-window{animation:none}}
+</style>
+
 </head>
 <body>
 <div class="app">
@@ -2115,6 +2133,34 @@ async function renderSemesterManager(){
   document.getElementById('app').innerHTML=layout('Semester Manager','Organize modules and flashcard modules into Semesters 1–10.',body);
 }
 
+const MEDEx_VISITOR_GUIDE_KEY='medexVisitorGuideSeen_v2';
+let medexVisitorGuideStep=0, medexVisitorGuideStarted=false;
+const medexVisitorGuideSteps=[
+ {view:'dashboard',title:'Your study dashboard',body:'Start here for your study overview and quick links to the main MedEx features.',icon:'🏠',target:'[data-view="dashboard"]'},
+ {view:'exam',title:'Practice questions',body:'Build an exam by module, subject and lecture. Answer questions and review results to find what needs more work.',icon:'📝',target:'[data-view="exam"]'},
+ {view:'flashcards',title:'Flashcards and revision',body:'Choose New cards to learn material, reveal each answer, then rate how well you remembered it to plan your next review.',icon:'🗂️',target:'[data-view="flashcards"]'},
+ {view:'tools',title:'Study Tools',body:'Use the focus timer and study-planning tools to structure your revision sessions.',icon:'🎯',target:'[data-view="tools"]'},
+ {view:'progress',title:'Progress & Accuracy',body:'Check your performance and identify topics that deserve another practice session.',icon:'📈',target:'[data-view="progress"]'},
+ {view:'ai',title:'Ask AI',body:'Ask for help understanding a medical concept or request an explanation when a question is difficult.',icon:'✨',target:'[data-view="ai"]'}
+];
+function closeVisitorGuide(){safeSetItem(MEDEx_VISITOR_GUIDE_KEY,'1');medexVisitorGuideStarted=false;document.getElementById('medexVisitorGuide')?.remove();document.querySelectorAll('.medex-guide-target').forEach(el=>el.classList.remove('medex-guide-target'));}
+function renderVisitorGuide(){
+ if(currentUser||safeGetItem(MEDEx_VISITOR_GUIDE_KEY)==='1')return;
+ const step=medexVisitorGuideSteps[medexVisitorGuideStep];if(!step)return closeVisitorGuide();
+ document.querySelectorAll('.medex-guide-target').forEach(el=>el.classList.remove('medex-guide-target'));
+ const target=document.querySelector(step.target);if(target){target.classList.add('medex-guide-target');if(window.innerWidth<=880)target.scrollIntoView({block:'nearest',behavior:'smooth'});}
+ let root=document.getElementById('medexVisitorGuide');if(!root){root=document.createElement('div');root.id='medexVisitorGuide';root.className='visitor-guide-backdrop';root.setAttribute('role','dialog');root.setAttribute('aria-modal','true');root.setAttribute('aria-label','MedEx quick guide');document.body.appendChild(root);}
+ root.innerHTML=`<section class="visitor-guide-window"><div class="guide-kicker">${step.icon} QUICK GUIDE · ${medexVisitorGuideStep+1} OF ${medexVisitorGuideSteps.length}</div><div class="visitor-guide-progress">${medexVisitorGuideSteps.map((_,i)=>`<span class="${i<=medexVisitorGuideStep?'active':''}"></span>`).join('')}</div><h2>${step.title}</h2><p>${step.body}</p><div class="visitor-guide-actions"><button class="btn" onclick="closeVisitorGuide()">Skip guide</button><span class="guide-spacer"></span>${medexVisitorGuideStep>0?'<button class="btn" onclick="visitorGuideBack()">Back</button>':''}<button class="btn primary" onclick="visitorGuideNext()">${medexVisitorGuideStep===medexVisitorGuideSteps.length-1?'Finish':'Next feature'}</button></div></section>`;
+}
+function visitorGuideGoToStep(){const step=medexVisitorGuideSteps[medexVisitorGuideStep];if(!step)return closeVisitorGuide();if(location.hash!=='#'+step.view)location.hash=step.view;render();renderVisitorGuide();}
+function visitorGuideNext(){if(medexVisitorGuideStep<medexVisitorGuideSteps.length-1){medexVisitorGuideStep++;visitorGuideGoToStep();}else closeVisitorGuide();}
+function visitorGuideBack(){if(medexVisitorGuideStep>0){medexVisitorGuideStep--;visitorGuideGoToStep();}}
+function maybeShowVisitorGuide(view){if(currentUser||safeGetItem(MEDEx_VISITOR_GUIDE_KEY)==='1'||!getVisitorName()||!getSelectedSemester())return;if(view==='dashboard'&&!medexVisitorGuideStarted){medexVisitorGuideStarted=true;medexVisitorGuideStep=0;}if(medexVisitorGuideStarted)renderVisitorGuide();}
+function removeDistractingSystemSubtitles(){
+ const noisy=/(progress|answers?|history|data|revision|favourites?|flashcards?).{0,80}(sync(?:ed|ing)?|supabase|cloud|local(?:ly)?|stored|saved)|(sync(?:ed|ing)?|supabase|cloud|local(?:ly)?|stored|saved).{0,80}(progress|answers?|history|data|revision|favourites?|flashcards?)/i;
+ document.querySelectorAll('#app p,#app small,#app .mini,#app .sub').forEach(el=>{if(el.closest('label,button,input,select,textarea,option,script,style'))return;const txt=(el.innerText||el.textContent||'').replace(/\s+/g,' ').trim();if(txt&&txt.length<260&&noisy.test(txt))el.style.setProperty('display','none','important');});
+}
+
 function render(){
   updateSidebarFoot();
   updateTopbarControls();
@@ -2175,6 +2221,8 @@ function render(){
   else if(v==='account') renderAccount();
   else renderResults();
   if(v==='settings') updatePWAInstallButton();
+  removeDistractingSystemSubtitles();
+  maybeShowVisitorGuide(v);
 }
 function go(v){
   // Leaving the Exam page intentionally ends the in-progress exam.
@@ -2364,7 +2412,7 @@ function renderDashboard(){
   const modules=getModules();
   setTimeout(()=>{updateSupportUnreadDot(false);setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));updateTopbarControls();},0);
   const welcomeTitle=currentUser ? 'Dashboard' : (getVisitorName() ? `Welcome back, ${esc(getVisitorName())}` : 'Welcome to MedEx');
-  const visitorIdentity=!currentUser ? `<div class="card visitor-welcome" style="margin-bottom:16px"><div class="category-head"><div><strong>${getVisitorName()?`Welcome back, ${esc(getVisitorName())}`:'Set your visitor name'}</strong><div class="mini" style="margin-top:4px">${getVisitorName()?'Your visitor progress and leaderboard score are synced to Supabase.':'Choose a name so MedEx can keep your visitor progress and show you correctly on the leaderboard.'}</div></div><span class="pill">Visitor</span></div><div class="visitor-name-form" style="margin-top:12px"><div class="field"><label>Visitor name</label><input id="visitorNameInput" maxlength="40" value="${esc(getVisitorName())}" placeholder="Enter your name" onkeydown="if(event.key==='Enter')saveVisitorNameFromInput()"></div><button class="btn primary" onclick="saveVisitorNameFromInput()">Save name</button></div></div>` : '';
+  const visitorIdentity=!currentUser ? `<div class="card visitor-welcome" style="margin-bottom:16px"><div class="category-head"><div><strong>${getVisitorName()?`Welcome back, ${esc(getVisitorName())}`:'Set your visitor name'}</strong><div class="mini" style="margin-top:4px">${getVisitorName()?'':'Choose a name to appear on the leaderboard.'}</div></div><span class="pill">Visitor</span></div><div class="visitor-name-form" style="margin-top:12px"><div class="field"><label>Visitor name</label><input id="visitorNameInput" maxlength="40" value="${esc(getVisitorName())}" placeholder="Enter your name" onkeydown="if(event.key==='Enter')saveVisitorNameFromInput()"></div><button class="btn primary" onclick="saveVisitorNameFromInput()">Save name</button></div></div>` : '';
   const stats=accuracyStats(bank);
   const weakModules=modules.map(m=>{const list=bank.filter(q=>q.module===m);const a=accuracyStats(list);return {name:m,list,accuracy:a.pct,attempts:a.attempts,practiced:practicedCount(list)};}).filter(x=>x.list.length).sort((a,b)=>{if(!!a.attempts!==!!b.attempts)return a.attempts?-1:1;if(a.attempts&&b.attempts&&a.accuracy!==b.accuracy)return a.accuracy-b.accuracy;return a.name.localeCompare(b.name);}).slice(0,3);
   const mistakeCount=bank.filter(q=>Number(progress[key(q)]?.wrong||0)>0).length;
@@ -2397,7 +2445,7 @@ function renderDashboard(){
   <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">RECENT ACTIVITY</span><h2>Recent exams</h2></div><button class="btn dashboard-section-link" onclick="go('history')">Full history <span aria-hidden="true">→</span></button></div><div class="card">${renderRecentExamsList(3)}</div></section>
   <button type="button" class="support-floating-btn" data-contact-medex onclick="openSupportChat()" title="Contact MedEx team" aria-label="Contact MedEx team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16v10H9l-5 3.5z"/><path d="M7 9h10M7 12h6"/></svg></button>
   <section class="dashboard-section dashboard-sync-section"><details class="dashboard-sync-details"><summary>Question bank sync & admin tools</summary><div class="card"><div id="syncStatus">Source: <b>Supabase</b>${lastSync?` · Last successful sync: ${lastSync.toLocaleString()}`:''}</div><div class="actions" style="margin-top:16px"><button class="btn primary" onclick="loadQuestions()">Refresh from Supabase</button><button class="btn" onclick="go('import')">Upload / Update Questions</button><button class="btn primary btn-lg" onclick="go('exam')">Start an Exam</button></div></div></details></section>`;
-  document.getElementById('app').innerHTML=layout(welcomeTitle,currentUser?'Your personal progress and performance.':'Your visitor progress is synced to this device and Supabase when connected.',body);
+  document.getElementById('app').innerHTML=layout(welcomeTitle,'',body);
   refreshDashboardLeaderboardPreview();
 }
 function examPathKey(type,module='',subject='',lecture=''){
