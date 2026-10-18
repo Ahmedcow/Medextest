@@ -5,7 +5,7 @@
  *  - Manifest + icons are precached; offline navigation falls back to the shell.
  *  - Cache name is a single constant to bump on release.
  */
-const VERSION='v42.5';
+const VERSION='v42.6';
 const SHELL_CACHE='medex-shell-'+VERSION;
 const RUNTIME_CACHE='medex-runtime-'+VERSION;
 const SHELL=['./','./index.html','./manifest.webmanifest','./icons/medex-192.png','./icons/medex-512.png'];

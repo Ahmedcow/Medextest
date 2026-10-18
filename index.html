@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v42.5-focus-timer">
+<meta name="medex-build" content="v42.6-flashcards-tour">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -6199,7 +6199,7 @@ if('serviceWorker' in navigator){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=42.5',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=42.6',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       watchPWARegistration(registration);
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
@@ -6669,5 +6669,405 @@ document.addEventListener('DOMContentLoaded',()=>{
   }catch(e){ console.warn('Focus timer upgrade skipped:',e&&e.message); }
 })();
 </script>
+<style id="medex-fc2-css">
+/* ===== Flashcards v2 — "Study now" flow ===== */
+.fc2-page{max-width:920px;margin:0 auto;display:grid;gap:14px}
+.fc2-hero{display:flex;gap:18px;align-items:center;justify-content:space-between;padding:22px;border:1px solid rgba(var(--primary-rgb),.3);border-radius:18px;background:linear-gradient(135deg,var(--primary-soft),var(--card) 70%);box-shadow:var(--shadow-sm)}
+.fc2-eyebrow{font:700 10.5px var(--font-sans);letter-spacing:.13em;color:var(--primary);text-transform:uppercase}
+.fc2-hero h2{font-size:clamp(22px,4.2vw,30px);line-height:1.2;margin:6px 0 4px}
+.fc2-hero p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.5;max-width:520px}
+.fc2-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.fc2-stat{padding:8px 13px;border:1px solid var(--line);border-radius:12px;background:var(--card);min-width:78px}
+.fc2-stat b{display:block;font:700 21px var(--font-mono)}
+.fc2-stat span{font-size:11px;color:var(--muted)}
+.fc2-stat.due b{color:var(--danger)}.fc2-stat.new b{color:var(--primary)}.fc2-stat.learn b{color:var(--warn)}.fc2-stat.done b{color:var(--ok)}
+.fc2-hero-actions{display:flex;flex-direction:column;gap:8px;align-items:stretch;flex:0 0 auto}
+.fc2-go{min-width:200px;min-height:56px;font-size:16px}
+.fc2-chips{display:flex;gap:8px;flex-wrap:wrap}
+.fc2-chip{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:999px;padding:9px 14px;font-size:13px;font-weight:600;min-height:40px;transition:border-color .15s,background .15s}
+.fc2-chip:hover:not(:disabled){border-color:var(--primary);background:var(--primary-soft)}
+.fc2-chip:disabled{opacity:.45;cursor:not-allowed}
+.fc2-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:6px}
+.fc2-section-head h3{font-size:19px}
+.fc2-search{max-width:230px;width:100%}
+.fc2-decks{display:grid;gap:10px}
+.fc2-deck{border:1px solid var(--line);border-radius:14px;background:var(--card);padding:14px 16px;box-shadow:var(--shadow-sm)}
+.fc2-deck-head{display:flex;align-items:center;gap:12px}
+.fc2-deck-title{flex:1;min-width:0}
+.fc2-deck-title b{display:block;font-size:15px;overflow-wrap:anywhere}
+.fc2-deck-title span{font-size:11.5px;color:var(--muted)}
+.fc2-deck-counts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.fc2-deck-counts span{font:700 11.5px var(--font-mono);padding:4px 9px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--muted)}
+.fc2-deck-counts .due.on{background:var(--danger-soft);border-color:transparent;color:var(--danger)}
+.fc2-deck-counts .new.on{background:var(--primary-soft);border-color:transparent;color:var(--primary)}
+.fc2-deck .bar{margin-top:11px;height:6px}
+.fc2-sub{margin-top:9px}
+.fc2-sub>summary{cursor:pointer;font-size:12px;color:var(--muted);list-style:none;padding:4px 0}
+.fc2-sub>summary::-webkit-details-marker{display:none}
+.fc2-sub>summary:before{content:'▸ '}
+.fc2-sub[open]>summary:before{content:'▾ '}
+.fc2-sub-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+.fc2-sub-row>span:first-child{flex:1;min-width:0;overflow-wrap:anywhere}
+.fc2-sub-row .mini{white-space:nowrap}
+.fc2-sub-row .btn{padding:6px 11px;font-size:12px}
+.fc2-empty{text-align:center;padding:30px 18px;border:1px dashed var(--line);border-radius:16px;color:var(--muted)}
+.fc2-empty b{display:block;color:var(--text);font-size:16px;margin-bottom:6px}
+.fc2-bar{height:5px;border-radius:99px;background:var(--panel2);overflow:hidden;max-width:900px;margin:0 auto 10px}
+.fc2-bar i{display:block;height:100%;background:var(--primary);border-radius:99px;transition:width .25s ease}
+.fc2-howto{font-size:12px;color:var(--muted);text-align:center}
+@media(max-width:700px){
+  .fc2-hero{flex-direction:column;align-items:stretch;padding:18px}
+  .fc2-hero-actions{width:100%}.fc2-go{width:100%}
+  .fc2-deck-head{flex-wrap:wrap}.fc2-deck-counts{justify-content:flex-start;order:3;width:100%}
+  .fc2-search{max-width:none}
+}
+
+/* ===== Guide v3 — spotlight tour that follows the user across pages ===== */
+.mt-root{position:fixed;inset:0;z-index:10060;font-family:var(--font-sans)}
+.mt-shield{position:absolute;inset:0;background:transparent}
+.mt-root.mt-center .mt-shield{background:rgba(8,18,38,.58)}
+.mt-hole{position:fixed;border-radius:14px;box-shadow:0 0 0 9999px rgba(8,18,38,.58),0 0 0 3px var(--primary),0 0 22px 4px rgba(var(--primary-rgb),.55);transition:top .3s ease,left .3s ease,width .3s ease,height .3s ease;pointer-events:none;animation:mtPulse 2s ease-in-out infinite}
+@keyframes mtPulse{50%{box-shadow:0 0 0 9999px rgba(8,18,38,.58),0 0 0 3px var(--primary),0 0 30px 8px rgba(var(--primary-rgb),.35)}}
+.mt-card{position:fixed;width:min(370px,calc(100vw - 24px));background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 24px 70px rgba(0,0,0,.4);transition:top .3s ease,left .3s ease}
+.mt-root.mt-center .mt-card{left:50%!important;top:50%!important;transform:translate(-50%,-50%)}
+.mt-kicker{display:flex;justify-content:space-between;gap:8px;font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--primary);text-transform:uppercase;margin-bottom:9px}
+.mt-page{color:var(--muted);letter-spacing:0;text-transform:none;font-weight:600}
+.mt-progress{height:4px;border-radius:9px;background:var(--line);overflow:hidden;margin-bottom:12px}
+.mt-progress i{display:block;height:100%;background:var(--primary);border-radius:9px;transition:width .3s ease}
+.mt-card h2{font-size:19px;line-height:1.25;margin:0 0 7px}
+.mt-card p{font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 14px}
+.mt-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.mt-sp{flex:1}
+.mt-actions .btn{min-height:40px}
+.mt-next{margin-top:10px;font-size:11.5px;color:var(--muted)}
+.mt-help{position:fixed;left:16px;bottom:16px;z-index:1190;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--primary);font:800 19px var(--font-sans);box-shadow:0 6px 20px rgba(0,0,0,.2);display:grid;place-items:center;cursor:pointer}
+.mt-help:hover{border-color:var(--primary)}
+.mt-menu{position:fixed;left:16px;bottom:68px;z-index:1191;width:min(260px,calc(100vw - 32px));background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:6px}
+.mt-menu button{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:0;background:transparent;color:var(--text);padding:11px 12px;border-radius:10px;font-size:13.5px;font-weight:600;min-height:44px}
+.mt-menu button:hover{background:var(--primary-soft)}
+.mt-tip{position:fixed;left:16px;bottom:72px;z-index:1185;width:min(340px,calc(100vw - 32px));background:var(--card);color:var(--text);border:1px solid rgba(var(--primary-rgb),.45);border-left:4px solid var(--primary);border-radius:14px;padding:13px 14px;box-shadow:var(--shadow);animation:mtIn .25s ease}
+@keyframes mtIn{from{opacity:0;transform:translateY(8px)}}
+.mt-tip b{display:block;font-size:13.5px;margin-bottom:4px}
+.mt-tip p{margin:0 0 9px;font-size:12.5px;line-height:1.5;color:var(--muted)}
+.mt-tip .btn{padding:6px 12px;font-size:12px}
+body:has(.quiz) .mt-help,body:has(#visitorStartName) .mt-help,body:has(.quiz) .mt-tip{display:none}
+@media(max-width:880px){
+  .mt-help{bottom:calc(76px + env(safe-area-inset-bottom))}
+  .mt-menu{bottom:calc(128px + env(safe-area-inset-bottom))}
+  .mt-tip{left:12px;right:12px;width:auto;bottom:calc(132px + env(safe-area-inset-bottom))}
+}
+@media(prefers-reduced-motion:reduce){.mt-hole,.mt-card,.mt-tip{animation:none;transition:none}}
+</style>
+
+<script id="medex-fc2-js">
+/* Flashcards v2: one-tap "Study now", deck cards, advanced tools folded away.
+   Reuses the existing scheduling engine (flashcardRecord / flashcardRatingSchedule / renderFlashcardSession). */
+(function(){
+  try{
+    if(typeof renderFlashcards!=='function'||typeof flashcardRecord!=='function')return;
+    var NEW_PER_DAY=20, SESSION_CAP=50;
+    var openFold={custom:false,manage:false}, deckQuery='';
+    var plural=function(n,w){return n+' '+w+(n===1?'':'s');};
+    var deckOf=function(c){return String(c.module||'').trim()||'General';};
+    var subjOf=function(c){return String(c.subject||'').trim()||'General';};
+    function allCards(){return flashcardScopeCards({module:'',subject:'',lecture:''});}
+    function counts(cards){
+      var now=Date.now(),r={due:0,nw:0,learning:0,total:cards.length};
+      cards.forEach(function(c){var p=flashcardRecord(c);if(p.suspended)return;
+        if(p.state==='new')r.nw++;
+        else{if(Number(p.due||0)<=now)r.due++;if(p.state==='learning'||p.state==='relearning')r.learning++;}});
+      return r;
+    }
+    function allowance(){return Math.max(0,NEW_PER_DAY-Number(flashcardDailyStats().row.newCards||0));}
+    function queue(cards,kind){
+      var now=Date.now(),live=cards.filter(function(c){return !flashcardRecord(c).suspended;});
+      var due=live.filter(function(c){var p=flashcardRecord(c);return p.state!=='new'&&Number(p.due||0)<=now;})
+        .sort(function(a,b){var pa=flashcardRecord(a),pb=flashcardRecord(b);if(!!pa.difficult!==!!pb.difficult)return pa.difficult?-1:1;return Number(pa.due||0)-Number(pb.due||0);});
+      var fresh=live.filter(function(c){return flashcardRecord(c).state==='new';});
+      if(kind==='difficult')return live.filter(function(c){return flashcardRecord(c).difficult;});
+      if(kind==='favourite')return live.filter(function(c){return flashcardRecord(c).favorite;});
+      if(kind==='all')return shuffle(live.slice()).slice(0,SESSION_CAP);
+      var room=allowance();if(!room&&!due.length)room=10; // never a dead end: offer a small extra batch
+      return due.concat(fresh.slice(0,room)).slice(0,SESSION_CAP);
+    }
+    window.fc2Fold=function(k,v){openFold[k]=!!v;};
+    window.fc2FilterDecks=function(v){
+      deckQuery=String(v||'').toLowerCase().trim();
+      document.querySelectorAll('[data-deck-name]').forEach(function(el){el.classList.toggle('hidden',!!deckQuery&&el.getAttribute('data-deck-name').indexOf(deckQuery)<0);});
+    };
+    window.fc2Start=function(kind,deck,subject){
+      var cards=allCards();
+      if(deck)cards=cards.filter(function(c){return deckOf(c)===deck;});
+      if(subject)cards=cards.filter(function(c){return subjOf(c)===subject;});
+      var list=queue(cards,kind);
+      if(!list.length){toast('No cards are ready here yet.','error');return;}
+      flashcardSession={list:list,index:0,revealed:false,ratings:{again:0,hard:0,good:0,easy:0},startedAt:Date.now(),drawingOpen:false};
+      renderFlashcardSession();
+    };
+    function decks(){
+      var map=new Map();
+      allCards().forEach(function(c){
+        var m=deckOf(c),s=subjOf(c);
+        if(!map.has(m))map.set(m,{name:m,cards:[],subjects:new Map()});
+        var d=map.get(m);d.cards.push(c);
+        if(!d.subjects.has(s))d.subjects.set(s,[]);
+        d.subjects.get(s).push(c);
+      });
+      return Array.from(map.values()).map(function(d){d.c=counts(d.cards);return d;})
+        .sort(function(a,b){return (b.c.due-a.c.due)||a.name.localeCompare(b.name);});
+    }
+    function deckHTML(d){
+      var learned=d.c.total?Math.round((d.c.total-d.c.nw)/d.c.total*100):0;
+      var ready=queue(d.cards,'mixed').length;
+      var subs='';
+      if(d.subjects.size>1){
+        subs='<details class="fc2-sub"><summary>'+plural(d.subjects.size,'subject')+'</summary>'+
+          Array.from(d.subjects.entries()).sort(function(a,b){return a[0].localeCompare(b[0]);}).map(function(e){
+            var sc=counts(e[1]),sr=queue(e[1],'mixed').length;
+            return '<div class="fc2-sub-row"><span>'+esc(e[0])+'</span><span class="mini">'+sc.due+' due · '+sc.nw+' new</span><button class="btn" '+(sr?'':'disabled')+' onclick="fc2Start(\'mixed\',\''+attrJs(d.name)+'\',\''+attrJs(e[0])+'\')">Study</button></div>';
+          }).join('')+'</details>';
+      }
+      return '<article class="fc2-deck" data-deck-name="'+esc(d.name.toLowerCase())+'"><div class="fc2-deck-head"><div class="fc2-deck-title"><b>'+esc(d.name)+'</b><span>'+plural(d.c.total,'card')+' · '+learned+'% started</span></div>'+
+        '<div class="fc2-deck-counts"><span class="due'+(d.c.due?' on':'')+'">'+d.c.due+' due</span><span class="new'+(d.c.nw?' on':'')+'">'+d.c.nw+' new</span></div>'+
+        '<button class="btn primary" '+(ready?'':'disabled')+' onclick="fc2Start(\'mixed\',\''+attrJs(d.name)+'\')">Study</button></div>'+
+        '<div class="bar"><i style="width:'+learned+'%"></i></div>'+subs+'</article>';
+    }
+    window.renderFlashcards=function(){
+      if(flashcardSession){renderFlashcardSession();return;}
+      if(SUPABASE_ENABLED&&!publicFlashcardsLoaded&&!publicFlashcardsLoading&&Date.now()-publicFlashcardsLastAttempt>30000){loadPublicFlashcards();}
+      var cards=allCards(),all=counts(cards),n=queue(cards,'mixed').length;
+      var today=Number(flashcardDailyStats().row.reviews||0);
+      var difficult=queue(cards,'difficult').length,fav=queue(cards,'favourite').length;
+      var head=!cards.length?'No flashcards yet':all.due?plural(all.due,'card')+' to review':n?'Ready to learn something new':'You are all caught up';
+      var sub=!cards.length?'Published MedEx decks appear here automatically. You can also create your own cards below.'
+        :all.due?'Review due cards first. That is what keeps them in your long-term memory.'
+        :n?'New cards are waiting. Read the question, answer in your head, then reveal and rate honestly.'
+        :'Nothing is due right now. Come back later, or review ahead from any deck.';
+      var dl=decks();
+      var deckBlock=dl.length?
+        '<div class="fc2-decks">'+dl.map(deckHTML).join('')+'</div>':
+        '<div class="fc2-empty"><b>No decks to show</b>Cards you create, import or receive from MedEx will be grouped into decks by module.</div>';
+      var body='<div class="fc2-page">'+flashcardCloudStatusHTML()+
+        '<section class="fc2-hero" id="fcStudyNow"><div><span class="fc2-eyebrow">Today</span><h2>'+esc(head)+'</h2><p>'+esc(sub)+'</p>'+
+        '<div class="fc2-stats"><div class="fc2-stat due"><b>'+all.due+'</b><span>Due</span></div><div class="fc2-stat new"><b>'+all.nw+'</b><span>New</span></div><div class="fc2-stat learn"><b>'+all.learning+'</b><span>Learning</span></div><div class="fc2-stat done"><b>'+today+'</b><span>Reviewed today</span></div></div></div>'+
+        '<div class="fc2-hero-actions"><button class="btn primary fc2-go" '+(n?'':'disabled')+' onclick="fc2Start(\'mixed\')">Study now'+(n?' · '+n:'')+'</button>'+
+        (!n&&cards.length?'<button class="btn" onclick="fc2Start(\'all\')">Review ahead</button>':'')+
+        '<button class="btn" onclick="enableMedExPhoneNotifications()">Enable reminders</button></div></section>'+
+        '<div class="fc2-chips"><button class="fc2-chip" '+(difficult?'':'disabled')+' onclick="fc2Start(\'difficult\')">⚑ Difficult · '+difficult+'</button><button class="fc2-chip" '+(fav?'':'disabled')+' onclick="fc2Start(\'favourite\')">♥ Favourites · '+fav+'</button><button class="fc2-chip" '+(cards.length?'':'disabled')+' onclick="fc2Start(\'all\')">↻ Random mix</button></div>'+
+        '<div class="fc2-section-head"><h3>Your decks</h3>'+(dl.length>6?'<input class="fc2-search" type="search" placeholder="Search decks…" value="'+esc(deckQuery)+'" oninput="fc2FilterDecks(this.value)" aria-label="Search decks">':'')+'</div>'+
+        '<div id="fcDecks">'+deckBlock+'</div>'+
+        '<div class="fc2-howto">In a session: Space reveals · 1 Again · 2 Hard · 3 Good · 4 Easy</div>'+
+        '<details class="more-details" '+(openFold.custom?'open':'')+' ontoggle="fc2Fold(\'custom\',this.open)"><summary><span>Custom session<span class="more-hint">Pick an exact module, subject or lecture</span></span></summary>'+renderFlashcardSetup()+'</details>'+
+        '<details class="more-details" '+(openFold.manage?'open':'')+' ontoggle="fc2Fold(\'manage\',this.open)"><summary><span>Create, import &amp; manage cards<span class="more-hint">Card builder, CSV import, AI generation, your full list</span></span></summary>'+renderFlashcardLibrary()+'</details></div>';
+      document.getElementById('app').innerHTML=layout('Flashcards','',body);
+      if(deckQuery)fc2FilterDecks(deckQuery);
+    };
+    // thin progress bar above the card during a session
+    var _rs=window.renderFlashcardSession;
+    window.renderFlashcardSession=function(){
+      _rs();
+      var s=flashcardSession,card=document.querySelector('.study-flashcard-card');
+      if(s&&card&&s.index<s.list.length&&!document.querySelector('.fc2-bar')){
+        card.insertAdjacentHTML('beforebegin','<div class="fc2-bar" aria-hidden="true"><i style="width:'+Math.round(s.index/s.list.length*100)+'%"></i></div>');
+      }
+    };
+    if(location.hash.replace('#','')==='flashcards')window.renderFlashcards();
+  }catch(e){console.warn('Flashcards v2 skipped:',e&&e.message);}
+})();
+</script>
+
+<script id="medex-tour-js">
+/* Guide v3: a spotlight tour that navigates between pages with the user, plus once-per-page tips
+   and a persistent "?" help button. Overrides the old single-window guide. */
+(function(){
+  'use strict';
+  try{
+    var KEY='medex_tour_v3',TIPKEY='medex_tips_seen_v1';
+    var load=function(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v&&typeof v==='object'?v:d;}catch(e){return d;}};
+    var store=function(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+    var st=load(KEY,{i:0,active:false,done:false}),seen=load(TIPKEY,{});
+    var root=null,token=0,raf=0,started=false,tipT=0,placeT=0;
+    var viewNow=function(){return location.hash.replace('#','')||'dashboard';};
+    var PAGE={dashboard:'Dashboard',exam:'Start Exam',flashcards:'Flashcards',mistakes:'Mistakes',library:'Study Library',tools:'Study Tools',progress:'Progress',ai:'AI Assistant'};
+    var STEPS=[
+      {view:'dashboard',target:'.dashboard-smart-section',icon:'✦',title:'Your next best step',body:'MedEx reads your progress and tells you what to study next: due flashcards, past mistakes or a weak topic. One tap and you are in.'},
+      {view:'dashboard',target:'.study-goal-card',icon:'🔥',title:'Daily goal and streak',body:'Answer your daily number of questions to keep your streak alive. You can change the goal in Settings.'},
+      {view:'exam',target:'#simpleExamBuilder',icon:'📝',title:'Build your own exam',body:'Choose a module, subject and lecture, set how many questions you want, then start. Questions you already answered correctly are retired, so you only see what you still need.'},
+      {view:'exam',target:'.answer-mode-list',icon:'🎯',title:'Learning mode or exam mode',body:'"Show answer immediately" is best for learning. "After submitting" simulates a real exam. During a question, use the pen on the right to draw and the flag to mark it for review.'},
+      {view:'flashcards',target:'#fcStudyNow',icon:'🗂️',title:'Flashcards: one tap to study',body:'"Study now" gives you due cards first, then a few new ones. Think of the answer, reveal it, then rate yourself: Again, Hard, Good or Easy. Honest ratings schedule the next review at the right time.'},
+      {view:'flashcards',target:'#fcDecks',icon:'📚',title:'Study by deck',body:'Each module is a deck with its due and new counts. Open a deck to study one subject at a time.'},
+      {view:'mistakes',target:'#app .card',icon:'🔍',title:'Learn from your mistakes',body:'Every wrong answer is saved here and ranked by weakest topic. Practise them until they stop appearing.'},
+      {view:'library',target:'#librarySearch',icon:'🔎',title:'Search everything',body:'Search any question or concept, save questions to your own folders and attach personal notes.'},
+      {view:'tools',target:'.focus-timer-card',icon:'⏱️',title:'Focus sessions and plans',body:'Start a focus timer here or from the top bar at any time. You can also set a study plan with an exam countdown.'},
+      {view:'progress',target:'.grid.stats',icon:'📈',title:'Track your accuracy',body:'See accuracy and progress by module, subject and lecture, and spot the lectures that need more practice.'},
+      {view:'ai',target:'#chatInput',icon:'✨',title:'Ask AI',body:'Stuck on a concept? Ask for an explanation. During an exam you can also tap Ask AI under any question.'},
+      {view:'dashboard',target:'#medexHelpBtn',icon:'👍',title:'You are ready',body:'Tap the ? button any time to replay this tour or see tips for the page you are on.'}
+    ];
+    var TIPS={
+      dashboard:['Your dashboard','Start with "Your next best step". Quick actions jump straight into an exam, flashcards, mistakes or the library.'],
+      exam:['Build an exam','Pick module, subject and lecture, choose a count, and start. Use "Advanced Smart Exam Builder" to mix several lectures.'],
+      flashcards:['Flashcards','Tap "Study now": due cards come first. Space reveals the answer, then press 1 Again, 2 Hard, 3 Good or 4 Easy.'],
+      mistakes:['Mistakes','Wrong answers are collected here, ranked by weakest topic. Use "Practice Mistakes" for a focused session.'],
+      library:['Study Library','Search questions, group them in folders and add personal notes. Notes also appear in exam reviews.'],
+      tools:['Study Tools','Start a focus session, then build a study plan with an exam date to count down to.'],
+      progress:['Progress','Open a module to see subjects and lectures. Low-accuracy lectures are the best place to practise next.'],
+      ai:['Ask AI','Ask about any concept in plain language. Short, specific questions get the clearest answers.'],
+      history:['Exam history','Review any past exam in full or retake it with the same questions.'],
+      leaderboard:['Top users','Each correct answer earns 1 XP. Tied XP shares a rank.'],
+      favorites:['Favourites','Star a question during an exam to keep it here for quick review.'],
+      settings:['Settings','Set your daily goal, change semester and switch dark mode here.'],
+      results:['Exam results','Use the topic cards to practise just the lectures you missed.']
+    };
+    function vis(el){return !!el&&el.getClientRects().length>0;}
+    function find(sel){try{var el=document.querySelector(sel);return vis(el)?el:null;}catch(e){return null;}}
+
+    function ensureRoot(){
+      if(root&&document.body.contains(root))return;
+      root=document.createElement('div');root.id='medexTour';root.className='mt-root mt-center';
+      root.setAttribute('role','dialog');root.setAttribute('aria-modal','true');root.setAttribute('aria-label','MedEx guided tour');
+      root.innerHTML='<div class="mt-shield"></div><div class="mt-hole" style="display:none"></div><section class="mt-card" aria-live="polite"></section>';
+      root.addEventListener('click',function(e){
+        var b=e.target.closest('[data-mt]');if(!b)return;
+        var a=b.getAttribute('data-mt');
+        if(a==='next')(st.i>=STEPS.length-1)?finish(true):show(st.i+1);
+        else if(a==='back')show(st.i-1);
+        else if(a==='skip')finish(false);
+      });
+      document.body.appendChild(root);
+      if(window.innerWidth<=880&&typeof setSidebar==='function')setSidebar(false);
+    }
+    function drawCard(){
+      var s=STEPS[st.i],n=STEPS.length,next=STEPS[st.i+1];
+      var hint=next&&next.view!==s.view?'<div class="mt-next">Next: '+(PAGE[next.view]||'')+' page</div>':'';
+      root.querySelector('.mt-card').innerHTML=
+        '<div class="mt-kicker"><span>'+s.icon+' Step '+(st.i+1)+' of '+n+'</span><span class="mt-page">📍 '+(PAGE[s.view]||'')+'</span></div>'+
+        '<div class="mt-progress"><i style="width:'+Math.round((st.i+1)/n*100)+'%"></i></div><h2>'+s.title+'</h2><p>'+s.body+'</p>'+
+        '<div class="mt-actions"><button class="btn" data-mt="skip">Skip tour</button><span class="mt-sp"></span>'+(st.i>0?'<button class="btn" data-mt="back">Back</button>':'')+
+        '<button class="btn primary" data-mt="next">'+(st.i===n-1?'Finish':'Next')+'</button></div>'+hint;
+      var nb=root.querySelector('[data-mt="next"]');if(nb)try{nb.focus({preventScroll:true});}catch(e){}
+    }
+    function place(){
+      if(!root||!st.active)return;
+      var s=STEPS[st.i];if(!s)return;
+      var el=viewNow()===s.view?find(s.target):null;
+      var hole=root.querySelector('.mt-hole'),card=root.querySelector('.mt-card');
+      var vw=window.innerWidth,vh=window.innerHeight;
+      if(!el){hole.style.display='none';root.classList.add('mt-center');return;}
+      root.classList.remove('mt-center');hole.style.display='block';
+      var r=el.getBoundingClientRect(),pad=8;
+      var top=Math.max(r.top-pad,6),left=Math.max(r.left-pad,6),bottom=Math.min(r.bottom+pad,vh-6),right=Math.min(r.right+pad,vw-6);
+      hole.style.top=top+'px';hole.style.left=left+'px';hole.style.width=Math.max(0,right-left)+'px';hole.style.height=Math.max(0,bottom-top)+'px';
+      var cw=card.offsetWidth,ch=card.offsetHeight,x,y;
+      if(vw<=700){
+        x=(vw-cw)/2;
+        y=((top+bottom)/2>vh*0.5)?12:(vh-ch-84);
+      }else{
+        x=Math.min(Math.max(left,12),vw-cw-12);
+        if(vh-bottom>=ch+18)y=bottom+14;
+        else if(top>=ch+18)y=top-ch-14;
+        else y=vh-ch-16;
+      }
+      card.style.left=Math.max(8,x)+'px';card.style.top=Math.max(8,y)+'px';
+    }
+    function schedulePlace(){if(raf)return;raf=requestAnimationFrame(function(){raf=0;place();});}
+    function show(i){
+      st.i=Math.max(0,Math.min(STEPS.length-1,i));st.active=true;store(KEY,st);
+      var my=++token;ensureRoot();drawCard();root.classList.add('mt-center');
+      var s=STEPS[st.i];
+      if(viewNow()!==s.view)location.hash=s.view;
+      var t0=Date.now();
+      (function poll(){
+        if(my!==token)return;
+        var el=viewNow()===s.view?find(s.target):null;
+        if(el||Date.now()-t0>2800){
+          if(el){var r=el.getBoundingClientRect();if(r.top<70||r.bottom>window.innerHeight-70){try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}}}
+          place();clearTimeout(placeT);placeT=setTimeout(place,380);return;
+        }
+        setTimeout(poll,110);
+      })();
+    }
+    function close(){token++;if(root){root.remove();root=null;}st.active=false;store(KEY,st);}
+    function finish(completed){
+      if(completed){STEPS.forEach(function(s){seen[s.view]=1;});store(TIPKEY,seen);}
+      st.done=true;close();
+      if(typeof toast==='function')toast(completed?'Tour complete. Tap ? any time for tips.':'Tour skipped. Tap ? to replay it or see page tips.','ok');
+    }
+    function restart(){hideMenu();hideTip();st={i:0,active:true,done:false};started=true;store(KEY,st);show(0);}
+
+    /* ---- once-per-page tips ---- */
+    function hideTip(){clearTimeout(tipT);var t=document.getElementById('medexTip');if(t)t.remove();}
+    function showTip(v,force){
+      var t=TIPS[v];hideTip();
+      var d=document.createElement('aside');d.id='medexTip';d.className='mt-tip';d.setAttribute('role','status');
+      var data=t||['Tip','Use the menu button (top left) to move between sections. Tap ? to replay the tour.'];
+      d.innerHTML='<b>💡 '+data[0]+'</b><p>'+data[1]+'</p><button class="btn primary" type="button">Got it</button>';
+      d.querySelector('button').addEventListener('click',hideTip);
+      document.body.appendChild(d);
+      seen[v]=1;store(TIPKEY,seen);
+      if(!force)tipT=setTimeout(hideTip,15000);
+    }
+    function maybeTip(v){
+      if(!TIPS[v]||seen[v]||v==='dashboard')return;
+      clearTimeout(tipT);
+      tipT=setTimeout(function(){if(viewNow()===v&&!st.active&&!document.querySelector('.quiz')&&!document.getElementById('medexTip'))showTip(v,false);},900);
+    }
+
+    /* ---- help button ---- */
+    function hideMenu(){var m=document.getElementById('medexHelpMenu');if(m)m.remove();}
+    function ensureHelp(){
+      if(document.getElementById('medexHelpBtn'))return;
+      var b=document.createElement('button');b.id='medexHelpBtn';b.type='button';b.className='mt-help';
+      b.setAttribute('aria-label','Guide and tips');b.setAttribute('aria-haspopup','menu');b.textContent='?';
+      b.addEventListener('click',function(e){
+        e.stopPropagation();
+        if(document.getElementById('medexHelpMenu')){hideMenu();return;}
+        var m=document.createElement('div');m.id='medexHelpMenu';m.className='mt-menu';m.setAttribute('role','menu');
+        m.innerHTML='<button role="menuitem" data-h="tip">💡 Tips for this page</button><button role="menuitem" data-h="tour">🧭 Replay the full tour</button><button role="menuitem" data-h="reset">↺ Show all tips again</button>';
+        m.addEventListener('click',function(ev){
+          var h=ev.target.closest('[data-h]');if(!h)return;ev.stopPropagation();
+          var a=h.getAttribute('data-h');hideMenu();
+          if(a==='tip')showTip(viewNow(),true);
+          else if(a==='tour')restart();
+          else{seen={};store(TIPKEY,seen);if(typeof toast==='function')toast('Page tips will appear again as you visit each page.','ok');}
+        });
+        document.body.appendChild(m);
+      });
+      document.body.appendChild(b);
+    }
+    document.addEventListener('click',function(e){if(!e.target.closest('#medexHelpMenu,#medexHelpBtn'))hideMenu();});
+    document.addEventListener('keydown',function(e){
+      if(e.key==='Escape')hideMenu();
+      if(!st.active||!root)return;
+      if(e.key==='Escape'){finish(false);}
+      else if(e.key==='ArrowRight'){e.preventDefault();(st.i>=STEPS.length-1)?finish(true):show(st.i+1);}
+      else if(e.key==='ArrowLeft'&&st.i>0){e.preventDefault();show(st.i-1);}
+    });
+    window.addEventListener('resize',schedulePlace);
+    window.addEventListener('scroll',schedulePlace,true);
+    var app=document.getElementById('app');
+    if(app&&window.MutationObserver)new MutationObserver(function(){if(st.active){clearTimeout(placeT);placeT=setTimeout(place,60);}}).observe(app,{childList:true});
+
+    /* ---- hooks the main script already calls ---- */
+    window.closeVisitorGuide=function(){finish(false);};
+    window.maybeShowVisitorGuide=function(v){
+      try{
+        var old=document.getElementById('medexVisitorGuide');if(old)old.remove();
+        document.querySelectorAll('.medex-guide-target').forEach(function(x){x.classList.remove('medex-guide-target');});
+        if(typeof exam!=='undefined'&&exam&&!exam.submitted){if(root)close();return;}
+        if(!currentUser&&(!getVisitorName()||!getSelectedSemester()))return;
+        ensureHelp();
+        if(st.active){if(!root)show(st.i);else{clearTimeout(placeT);placeT=setTimeout(place,60);}return;}
+        if(!st.done){
+          if(!started&&v==='dashboard'){started=true;setTimeout(function(){if(!st.done&&!st.active&&viewNow()==='dashboard')show(0);},500);}
+          return;
+        }
+        maybeTip(v);
+      }catch(e){console.warn('Guide error:',e&&e.message);}
+    };
+    window.openMedExGuide=restart;
+    ensureHelp();
+  }catch(e){console.warn('Guide v3 skipped:',e&&e.message);}
+})();
+</script>
+
 </body>
 </html>
