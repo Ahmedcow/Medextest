@@ -1629,7 +1629,7 @@ async function loadModuleVisibility(){
 function applyModuleVisibility(){
   if(!Array.isArray(allQuestionBank)||!allQuestionBank.length){ allQuestionBank=bank.slice(); }
   const selectedSemester=getSelectedSemester();
-  bank=isAdmin ? allQuestionBank.slice() : allQuestionBank.filter(q=>isModuleVisible(q.module) && (!selectedSemester || Number(q.semester)===Number(selectedSemester)));
+  bank=isAdmin ? allQuestionBank.slice() : allQuestionBank.filter(q=>isModuleVisible(q.module) && (!selectedSemester || q.semester==null || Number(q.semester)===Number(selectedSemester)));
 }
 
 function authCard(){
@@ -1918,7 +1918,9 @@ function sanitizeImageUrl(value){
   return '';
 }
 function normalizeQuestion(q, source=''){
-  const options = Array.isArray(q.options) ? q.options.map(x=>String(x)) : [];
+  let rawOptions=q.options;
+  if(typeof rawOptions==='string'){try{rawOptions=JSON.parse(rawOptions);}catch(_){rawOptions=[];}}
+  const options = Array.isArray(rawOptions) ? rawOptions.map(x=>String(x)) : [];
   let ci = Number.isInteger(q.correctIndex) ? q.correctIndex : Number(q.correctIndex);
   if(!Number.isInteger(ci)) ci = -1;
   return {
@@ -1966,73 +1968,132 @@ async function fetchJSON(url){
   if(!r.ok) throw new Error(`HTTP ${r.status} while loading ${url}`);
   return await r.json();
 }
+function setQuestionSyncStatus(msg,isError){
+  window.__medexQuestionSyncMsg=msg;
+  const el=document.getElementById('syncStatus');
+  if(el){el.textContent=msg;el.style.color=isError?'#b42318':'';}
+}
 async function loadQuestionsFromSupabase(){
-  if(!SUPABASE_ENABLED)return false;
+  if(!SUPABASE_ENABLED){
+    const m=window.supabase?'Supabase is not configured.':'The Supabase library failed to load (blocked network or CDN). Showing saved questions.';
+    window.__medexQuestionLoadError=m;setQuestionSyncStatus(m,true);return false;
+  }
   try{
-    const PAGE_SIZE=1000;
-    const BATCH_PAGES=4;
-    const allRows=[];
-    // Fetch the first page, then fetch remaining pages in small parallel batches.
-    // This avoids a long serial round-trip for banks with thousands of questions.
-    const first = await supabaseClient
-      .from('questions')
-      .select('id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference,image_url,semester')
-      .order('id',{ascending:true})
-      .range(0,PAGE_SIZE-1);
-    if(first.error)throw first.error;
-    if(!Array.isArray(first.data))throw new Error('Invalid questions response.');
-    allRows.push(...first.data);
-    let nextFrom=PAGE_SIZE;
-    let keepGoing=first.data.length===PAGE_SIZE;
-    while(keepGoing){
-      const starts=Array.from({length:BATCH_PAGES},(_,i)=>nextFrom+i*PAGE_SIZE);
-      const pages=await Promise.all(starts.map(async from=>{
-        const {data,error}=await supabaseClient
-          .from('questions')
-          .select('id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference,image_url,semester')
-          .order('id',{ascending:true})
-          .range(from,from+PAGE_SIZE-1);
-        if(error)throw error;
-        if(!Array.isArray(data))throw new Error('Invalid questions response.');
-        return {from,data};
-      }));
-      pages.sort((a,b)=>a.from-b.from);
-      for(const page of pages){
-        allRows.push(...page.data);
-        if(page.data.length<PAGE_SIZE){keepGoing=false;break;}
+    const COLS='id,module,subject,lecture,question,options,correct_index,explanation,difficulty,reference,image_url,semester';
+    const PAGE=250; // small pages: avoid response-size / statement-timeout failures
+    const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+    const lastErrors=[];
+    const runPage=async(from,to)=>{
+      let last;
+      for(let t=0;t<3;t++){
+        try{
+          const r=await supabaseClient.from('questions').select(COLS).order('id',{ascending:true}).range(from,to);
+          if(r.error)throw r.error;
+          return r.data||[];
+        }catch(e){last=e;await sleep(400*(t+1));}
       }
-      nextFrom+=BATCH_PAGES*PAGE_SIZE;
+      throw last;
+    };
+    // A failing range is split in halves so one bad/huge row cannot take its neighbours down with it.
+    const fetchRange=async(from,to)=>{
+      try{return await runPage(from,to);}
+      catch(e){
+        if(to-from<=0){lastErrors.push(`row ${from}: ${e.message||e}`);return [];}
+        const mid=Math.floor((from+to)/2);
+        const a=await fetchRange(from,mid), b=await fetchRange(mid+1,to);
+        return a.concat(b);
+      }
+    };
+
+    setQuestionSyncStatus('Syncing questions from Supabase…',false);
+    let total=null,countError='';
+    try{
+      const head=await supabaseClient.from('questions').select('id',{count:'exact',head:true});
+      if(head.error)countError=head.error.message||String(head.error);
+      else if(Number.isFinite(head.count))total=head.count;
+    }catch(e){countError=e.message||String(e);}
+
+    const rowsById=new Map();
+    let rawFetched=0,noId=0;
+    const addRows=rows=>rows.forEach(r=>{rawFetched++;if(r&&r.id!=null)rowsById.set(String(r.id),r);else noId++;});
+
+    if(total!==null&&total>0){
+      const starts=[];for(let f=0;f<total;f+=PAGE)starts.push(f);
+      for(let i=0;i<starts.length;i+=3){
+        const chunk=await Promise.all(starts.slice(i,i+3).map(f=>fetchRange(f,f+PAGE-1)));
+        chunk.forEach(addRows);
+        setQuestionSyncStatus(`Syncing questions… ${rowsById.size}/${total}`,false);
+      }
+    }else{
+      // Count unavailable: walk pages until one comes back empty/short.
+      for(let f=0,guard=0;guard<400;guard++,f+=PAGE){
+        const rows=await fetchRange(f,f+PAGE-1);
+        addRows(rows);
+        if(rows.length<PAGE)break;
+      }
     }
-    const data=allRows;
-    // An empty Supabase result is not a successful question-bank load.
-    // Return false so loadQuestions() can show a Supabase loading error.
-    if(data.length===0){
-      console.warn('Supabase question table returned zero rows.');
-      return false;
+
+    if(rowsById.size===0){
+      const m='Supabase returned 0 questions'+(lastErrors.length?': '+lastErrors[0]:countError?': '+countError:' (check the SELECT policy / sign-in).');
+      window.__medexQuestionLoadError=m;console.warn(m);setQuestionSyncStatus(m+' Showing saved questions.',true);return false;
     }
-    const all=data.map(q=>normalizeQuestion({
-      id:q.id,module:q.module,semester:q.semester,subject:q.subject,lecture:q.lecture,question:q.question,
-      options:q.options,correctIndex:q.correct_index,explanation:q.explanation,
-      difficulty:q.difficulty,reference:q.reference,imageUrl:q.image_url,source:'Supabase'
-    },'Supabase'));
-    const errors=validateBank(all);
-    if(errors.length)throw new Error(errors.slice(0,8).join('\n'));
-    const githubIds=new Set(all.map(q=>q.id));
-    const retainedLocal=localQuestions.filter(q=>!githubIds.has(q.id));
-    allQuestionBank=[...all,...retainedLocal];
+
+    const all=[],skipped=[];
+    rowsById.forEach(row=>{
+      const q=normalizeQuestion({
+        id:row.id,module:row.module,semester:row.semester,subject:row.subject,lecture:row.lecture,question:row.question,
+        options:row.options,correctIndex:row.correct_index,explanation:row.explanation,
+        difficulty:row.difficulty,reference:row.reference,imageUrl:row.image_url,source:'Supabase'
+      },'Supabase');
+      const err=validateQuestion(q,0);
+      if(err)skipped.push({id:row.id,reason:err}); else all.push(q);
+    });
+    if(!all.length)throw new Error('No valid questions were returned.');
+    if(skipped.length)console.warn(`Skipped ${skipped.length} malformed question(s):`,skipped.slice(0,30));
+
+    const partial=total!==null&&rowsById.size<total;
+    const loadedIds=new Set(all.map(q=>q.id));
+    // If some rows could not be fetched, keep their previously saved copies instead of losing them.
+    const keepOld=partial?allQuestionBank.filter(q=>!loadedIds.has(q.id)&&q.source==='Supabase'):[];
+    const retainedLocal=localQuestions.filter(q=>!loadedIds.has(q.id));
+    allQuestionBank=[...all,...keepOld,...retainedLocal];
     localQuestions=retainedLocal;
     applyModuleVisibility();
     sourceFiles=['Supabase'];
     lastSync=new Date();
+    const duplicateIds=rawFetched-noId-rowsById.size;
+    const unassigned=all.filter(q=>q.semester==null).length;
+    const hiddenModules=all.filter(q=>!isModuleVisible(q.module)).length;
+    const sel=getSelectedSemester();
+    const otherSemester=sel?all.filter(q=>q.semester!=null&&Number(q.semester)!==sel).length:0;
+    window.__medexQuestionLoadError=partial?`Only ${rowsById.size} of ${total} questions could be fetched. ${lastErrors[0]||''}`:'';
+    window.__medexQuestionLoadInfo={total,rawFetched,duplicateIds,noId,fetched:rowsById.size,loaded:all.length,skipped,unassigned,hiddenModules,otherSemester,selectedSemester:sel,visible:bank.length,errors:lastErrors.slice(0,10)};
+    console.info('MedEx question load:',window.__medexQuestionLoadInfo);
     safeSetItem(CONFIG.localQuestionsKey,JSON.stringify(localQuestions));
     safeSetItem(CONFIG.cacheKey,JSON.stringify({updatedAt:lastSync.toISOString(),sourceFiles,questions:allQuestionBank}));
+    if(partial){
+      setQuestionSyncStatus(`Partial sync: ${rowsById.size} of ${total} questions fetched. ${lastErrors[0]||''}`,true);
+      setTimeout(()=>toast(`Only ${rowsById.size} of ${total} questions synced. ${lastErrors[0]||'Tap Refresh to retry.'}`,'error'),600);
+    }else if(isAdmin){
+      const bits=[`${all.length} loaded from Supabase`+(total!==null?` of ${total}`:'')];
+      if(skipped.length)bits.push(`${skipped.length} malformed (skipped, see console)`);
+      if(duplicateIds>0)bits.push(`${duplicateIds} share a duplicate ID (only one kept)`);
+      if(noId)bits.push(`${noId} have no ID`);
+      if(unassigned)bits.push(`${unassigned} have no semester`);
+      setTimeout(()=>toast(bits.join(' · '),skipped.length||duplicateIds>0||noId?'error':'ok'),600);
+    }
     return true;
   }catch(e){
-    console.warn('Supabase question load failed:',e.message);
+    const m='Question sync failed: '+(e.message||e);
+    console.warn(m);
+    window.__medexQuestionLoadError=m;
+    setQuestionSyncStatus(m+'. Showing saved questions.',true);
+    setTimeout(()=>toast(m+'. Showing saved questions.','error'),600);
     return false;
   }
 }
 
+function total_visible_note(){const i=window.__medexQuestionLoadInfo;if(!i)return '.';return i.visible<allQuestionBank.length?` (${i.visible} available for your semester/modules).`:'.';}
 async function loadQuestions(){
   // Render a saved copy immediately for faster startup, then refresh from Supabase only.
   try{
@@ -2055,7 +2116,7 @@ async function loadQuestions(){
   if(ok){
     render();
     const status=document.getElementById('syncStatus');
-    if(status)status.textContent=`Loaded ${allQuestionBank.length} questions from Supabase.`;
+    if(status){ if(window.__medexQuestionLoadError)setQuestionSyncStatus(window.__medexQuestionSyncMsg||window.__medexQuestionLoadError,true); else status.textContent=`Loaded ${allQuestionBank.length} questions from Supabase`+total_visible_note(); }
     return;
   }
   // No GitHub fallback: question bank is Supabase-only.
@@ -2064,8 +2125,7 @@ async function loadQuestions(){
     applyModuleVisibility();
     render();
   }
-  const status=document.getElementById('syncStatus');
-  if(status)status.textContent='Could not load questions from Supabase. Check your connection and Supabase permissions.';
+  setQuestionSyncStatus((window.__medexQuestionLoadError||'Could not load questions from Supabase')+' Check your connection and Supabase permissions.',true);
 }
 
 function getModules(){ return [...new Set(bank.map(q=>q.module))].sort((a,b)=>a.localeCompare(b)); }
@@ -2116,13 +2176,22 @@ function semesterOptions(selected, includeAll=false){
 }
 function renderVisitorOnboarding(){
   const name=getVisitorName();
-  document.getElementById('app').innerHTML=`<div class="top"><div><h1>Welcome to MedEx</h1><div class="sub">Personalize your study space before you begin.</div></div></div><section class="card" style="max-width:680px;margin:28px auto;padding:clamp(20px,4vw,36px)"><div style="font-size:34px;margin-bottom:8px">🎓</div><h2 style="margin:0 0 8px">Choose your semester</h2><p class="mini" style="margin:0 0 20px">MedEx organizes modules and official flashcards by semester. Your choice filters the study content you see and can be changed later in Settings.</p><div class="field"><label for="visitorStartName">Your name</label><input id="visitorStartName" maxlength="40" value="${esc(name)}" placeholder="Enter your name" autocomplete="name"></div><div class="field" style="margin-top:14px"><label for="visitorStartSemester">Semester</label><select id="visitorStartSemester"><option value="">Choose semester…</option>${semesterOptions(getSelectedSemester())}</select></div><button class="btn primary" style="margin-top:20px;width:100%" onclick="completeVisitorOnboarding()">Enter MedEx</button><p class="mini" style="margin-top:12px">You can change your name or semester any time in Settings.</p></section>`;
+  document.getElementById('app').innerHTML=`<div class="top"><div><h1>Welcome to MedEx</h1><div class="sub">Personalize your study space before you begin.</div></div></div><section class="card" style="max-width:680px;margin:28px auto;padding:clamp(20px,4vw,36px)"><div style="font-size:34px;margin-bottom:8px">🎓</div><h2 style="margin:0 0 8px">Choose your semester</h2><p class="mini" style="margin:0 0 20px">MedEx organizes modules and official flashcards by semester. Your choice filters the study content you see and can be changed later in Settings.</p><div id="obBanner" class="ob-banner" role="alert"></div><div class="field" id="obNameField"><label for="visitorStartName">Your name <span style="color:var(--danger)">*</span></label><input id="visitorStartName" maxlength="40" value="${esc(name)}" placeholder="Enter your name" autocomplete="name" aria-required="true" oninput="obClear('obNameField')" onkeydown="if(event.key==='Enter')completeVisitorOnboarding()"><div class="ob-err" id="obNameErr">Please enter your name to continue.</div></div><div class="field" id="obSemField" style="margin-top:14px"><label for="visitorStartSemester">Semester <span style="color:var(--danger)">*</span></label><select id="visitorStartSemester" aria-required="true" onchange="obClear('obSemField')"><option value="">Choose semester…</option>${semesterOptions(getSelectedSemester())}</select><div class="ob-err" id="obSemErr">Please choose your semester (1–10) to continue.</div></div><button class="btn primary" style="margin-top:20px;width:100%" onclick="completeVisitorOnboarding()">Enter MedEx</button><p class="mini" style="margin-top:12px">You can change your name or semester any time in Settings.</p></section>`;
 }
+function obClear(id){document.getElementById(id)?.classList.remove('has-error');if(!document.querySelector('.field.has-error'))document.getElementById('obBanner')?.classList.remove('show');}
 async function completeVisitorOnboarding(){
   const name=document.getElementById('visitorStartName')?.value||'';
   const sem=Number(document.getElementById('visitorStartSemester')?.value);
-  if(!String(name).trim()){toast('Please enter your name.','error');return;}
-  if(!Number.isInteger(sem)||sem<1||sem>10){toast('Please choose a semester from 1 to 10.','error');return;}
+  const badName=!String(name).trim();
+  const badSem=!Number.isInteger(sem)||sem<1||sem>10;
+  document.getElementById('obNameField')?.classList.toggle('has-error',badName);
+  document.getElementById('obSemField')?.classList.toggle('has-error',badSem);
+  if(badName||badSem){
+    const banner=document.getElementById('obBanner');
+    if(banner){banner.textContent=badName&&badSem?'Please enter your name and choose your semester before entering MedEx.':badName?'Please enter your name before entering MedEx.':'Please choose your semester before entering MedEx.';banner.classList.add('show');}
+    (badName?document.getElementById('visitorStartName'):document.getElementById('visitorStartSemester'))?.focus();
+    return;
+  }
   settings.semester=sem;saveState();
   await saveVisitorName(name);
   applyModuleVisibility();
@@ -2441,6 +2510,68 @@ function smartStudyRecommendationHTML(){
   return `<section class="dashboard-section dashboard-smart-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">PERSONAL STUDY COACH</span><h2>Your next best step</h2><p>Suggested from your question progress and revision schedule.</p></div></div><div class="card dashboard-smart-card"><div><div class="dashboard-smart-kicker"><span aria-hidden="true">✦</span> Recommended for you</div><h3>${esc(p.title)}</h3><p>${esc(p.desc)}</p><div class="dashboard-smart-actions"><button class="btn primary" onclick="startSmartStudyAction('${p.type}')">${esc(p.button)} <span aria-hidden="true">→</span></button>${d.wrongQuestions&&p.type!=='mistakes'?`<button class="btn" onclick="go('mistakes')">View mistakes</button>`:''}</div></div><div class="dashboard-smart-side"><div class="dashboard-smart-metric"><b>${d.dueCards}</b><span>Flashcards due</span></div><div class="dashboard-smart-metric"><b>${d.dueQuestions}</b><span>Questions due</span></div><div class="dashboard-smart-metric"><b>${d.wrongQuestions}</b><span>Questions with mistakes</span></div></div></div></section>`;
 }
 
+
+/* ---- Dashboard drill-down: Module -> Subject -> Lecture ---- */
+let dashNav={module:'',subject:''};
+const DN_ICON={
+  module:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></svg>',
+  subject:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg>',
+  lecture:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>'
+};
+function dashNavSort(a,b){return String(a).localeCompare(String(b),undefined,{numeric:true,sensitivity:'base'});}
+function dashNavCard(level,name,list,onclick){
+  const done=practicedCount(list),total=list.length,pctDone=pct(done,total);
+  const sub=done?`${done} of ${total} answered`:`${total} question${total===1?'':'s'}`;
+  const right=done?`<div class="dn-pct"><b>${pctDone}%</b><div class="bar"><i style="width:${pctDone}%"></i></div></div>`:`<span class="dn-new">${level==='lecture'?'START':'NEW'}</span>`;
+  return `<button type="button" class="dn-card" onclick="${onclick}"><span class="dn-icon" aria-hidden="true">${DN_ICON[level]}</span><span class="dn-copy"><b>${esc(name)}</b><small>${sub}</small></span>${right}</button>`;
+}
+function dashNavHTML(){
+  const nav=dashNav;
+  let items='',title='Modules',note='Choose a module to begin',crumbs='',practice='',level='module';
+  const inModule=nav.module?bank.filter(q=>q.module===nav.module):[];
+  if(nav.module&&!inModule.length){nav.module='';nav.subject='';}
+  if(!nav.module){
+    const mods=getModules();
+    items=mods.map(m=>dashNavCard('module',m,bank.filter(q=>q.module===m),`dashNavOpen('module','${attrJs(m)}')`)).join('');
+    note=`${mods.length} module${mods.length===1?'':'s'}`;
+  }else if(!nav.subject){
+    level='subject';title=nav.module;note='Choose a subject';
+    const subs=[...new Set(inModule.map(q=>q.subject||'General'))].sort(dashNavSort);
+    items=subs.map(x=>dashNavCard('subject',x,inModule.filter(q=>(q.subject||'General')===x),`dashNavOpen('subject','${attrJs(x)}')`)).join('');
+    practice=`<button class="btn primary dn-practice" onclick="dashNavPractice()">Practice whole module</button>`;
+  }else{
+    level='lecture';title=nav.subject;note='Choose a lecture to practice';
+    const inSub=inModule.filter(q=>(q.subject||'General')===nav.subject);
+    const lecs=[...new Set(inSub.map(q=>q.lecture||'General'))].sort(dashNavSort);
+    items=lecs.map(x=>dashNavCard('lecture',x,inSub.filter(q=>(q.lecture||'General')===x),`dashNavPractice('${attrJs(x)}')`)).join('');
+    practice=`<button class="btn primary dn-practice" onclick="dashNavPractice()">Practice whole subject</button>`;
+  }
+  if(nav.module){
+    crumbs=`<nav class="dn-crumbs" aria-label="Breadcrumb"><button type="button" onclick="dashNavBack(0)">All modules</button><span>›</span>${nav.subject?`<button type="button" onclick="dashNavBack(1)">${esc(nav.module)}</button><span>›</span><b>${esc(nav.subject)}</b>`:`<b>${esc(nav.module)}</b>`}</nav>`;
+  }
+  const eyebrow=level==='module'?'YOUR QUESTION BANK':level==='subject'?'MODULE':'SUBJECT';
+  const back=nav.module?`<button type="button" class="btn dn-back" onclick="dashNavBack(${nav.subject?1:0})">← Back</button>`:'';
+  return `<div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">${eyebrow}</span><h2>${esc(title)}</h2><p>${esc(note)}</p></div><div class="dn-actions">${practice}${back}</div></div>${crumbs}<div class="dn-grid">${items||'<div class="card empty">No questions loaded yet.</div>'}</div>`;
+}
+function dashNavRefresh(){const el=document.getElementById('dashNavSection');if(el)el.innerHTML=dashNavHTML();}
+function dashNavOpen(level,value){
+  if(level==='module'){dashNav={module:value,subject:''};}
+  else{dashNav.subject=value;}
+  dashNavRefresh();
+  document.getElementById('dashNavSection')?.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+function dashNavBack(toLevel){
+  if(toLevel<=0)dashNav={module:'',subject:''};else dashNav.subject='';
+  dashNavRefresh();
+}
+function dashNavPractice(lecture){
+  const o={modules:[dashNav.module]};
+  if(dashNav.subject)o.subjects=[dashNav.subject];
+  if(lecture)o.lectures=[lecture];
+  const n=bank.filter(q=>q.module===dashNav.module&&(!dashNav.subject||(q.subject||'General')===dashNav.subject)&&(!lecture||(q.lecture||'General')===lecture)).length;
+  o.count=Math.max(1,Math.min(n||20,40));
+  startExam(null,o);
+}
 function renderDashboard(){
   const modules=getModules();
   setTimeout(()=>{updateSupportUnreadDot(false);setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));updateTopbarControls();},0);
@@ -2474,7 +2605,7 @@ function renderDashboard(){
   </div></section>
   <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">SMART REVISION</span><h2>Continue your revision</h2><p>Start with a module that needs more practice.</p></div><button class="btn dashboard-section-link" onclick="go('mistakes')">Review mistakes <span aria-hidden="true">→</span></button></div><div class="card dashboard-weak-card">${weakHTML}</div></section>
   <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">COMMUNITY</span><h2>Top students</h2><p>See the top 3 and your own rank.</p></div><button class="btn dashboard-section-link" onclick="go('leaderboard')">Full leaderboard <span aria-hidden="true">→</span></button></div><div class="card dashboard-leaderboard-card"><div class="dashboard-leaderboard-shortcut"><div class="dashboard-leaderboard-icon">🏆</div><div><strong>MedEx leaderboard</strong><div class="mini" style="margin-top:3px">Students and visitors ranked together by XP.</div></div></div><div id="dashboardLeaderboardPreview"><div class="mini" style="margin-top:10px">Loading top students…</div></div></div></section>
-  <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">YOUR QUESTION BANK</span><h2>Modules</h2><p>Jump directly into a module exam.</p></div><span class="pill">${modules.length} modules</span></div><details class="dashboard-modules-details"><summary>Browse all modules <span class="mini">${bank.length} questions</span></summary><div class="grid three dashboard-modules-grid">${allModulesHTML || '<div class="card empty">No questions loaded yet.</div>'}</div></details></section>
+  <section class="dashboard-section" id="dashNavSection">${dashNavHTML()}</section>
   <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">RECENT ACTIVITY</span><h2>Recent exams</h2></div><button class="btn dashboard-section-link" onclick="go('history')">Full history <span aria-hidden="true">→</span></button></div><div class="card">${renderRecentExamsList(3)}</div></section>
   <button type="button" class="support-floating-btn" data-contact-medex onclick="openSupportChat()" title="Contact MedEx team" aria-label="Contact MedEx team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16v10H9l-5 3.5z"/><path d="M7 9h10M7 12h6"/></svg></button>
   <section class="dashboard-section dashboard-sync-section"><details class="dashboard-sync-details"><summary>Question bank sync & admin tools</summary><div class="card"><div id="syncStatus">Source: <b>Supabase</b>${lastSync?` · Last successful sync: ${lastSync.toLocaleString()}`:''}</div><div class="actions" style="margin-top:16px"><button class="btn primary" onclick="loadQuestions()">Refresh from Supabase</button><button class="btn" onclick="go('import')">Upload / Update Questions</button><button class="btn primary btn-lg" onclick="go('exam')">Start an Exam</button></div></div></details></section>`;
@@ -3833,10 +3964,25 @@ async function loadPublicFlashcards(force=false){
   if(publicFlashcardsLoading)return false;
   publicFlashcardsLoading=true;publicFlashcardsLastAttempt=Date.now();publicFlashcardsError='';
   try{
-    const {data,error}=await supabaseClient.from('flashcards_public')
-      .select('id,front,back,module,subject,lecture,tags,deck,semester,created_at,updated_at')
-      .eq('active',true).order('created_at',{ascending:true});
-    if(error){publicFlashcardsError=error.message||'Supabase query failed.';console.warn('Public flashcards load failed:',error);return false;}
+    // Page through the table (Supabase returns at most ~1000 rows per request) and treat active=null as active.
+    const data=[],FC_PAGE=500;
+    for(let from=0,guard=0;guard<200;guard++,from+=FC_PAGE){
+      let res=null;
+      for(let t=0;t<3;t++){
+        res=await supabaseClient.from('flashcards_public')
+          .select('id,front,back,module,subject,lecture,tags,deck,semester,created_at,updated_at')
+          .or('active.eq.true,active.is.null')
+          .order('created_at',{ascending:true}).order('id',{ascending:true})
+          .range(from,from+FC_PAGE-1);
+        if(!res.error)break;
+        await new Promise(r=>setTimeout(r,400*(t+1)));
+      }
+      if(res.error){publicFlashcardsError=res.error.message||'Supabase query failed.';console.warn('Public flashcards load failed:',res.error);return false;}
+      const rows=res.data||[];
+      data.push(...rows);
+      if(rows.length<FC_PAGE)break;
+    }
+    window.__medexFlashcardLoadInfo={fetched:data.length};
     const remote=(data||[]).map(c=>({id:String(c.id),front:String(c.front||''),back:String(c.back||''),module:String(c.module||''),subject:String(c.subject||''),lecture:String(c.lecture||''),tags:Array.isArray(c.tags)?c.tags.join(', '):String(c.tags||''),deck:String(c.deck||''),semester:c.semester==null?null:Number(c.semester),source:'public',createdAt:c.created_at?Date.parse(c.created_at):Date.now(),updatedAt:c.updated_at?Date.parse(c.updated_at):Date.now()})).filter(c=>c.front&&c.back);
     const locals=flashcardCards.filter(c=>c.source!=='public');
     const byId=new Map(remote.map(c=>[c.id,c]));
@@ -3984,7 +4130,7 @@ function saveFlashcardState(){try{safeSetItem(CONFIG.flashcardStateKey,JSON.stri
 function flashcardScopeCards(filters=flashcardFilter){
   let list=flashcardCards.filter(c=>c&&c.front&&c.back);
   const sem=getSelectedSemester();
-  if(sem&&!isAdmin)list=list.filter(c=>c.source==='public'?Number(c.semester)===Number(sem):(!c.semester||Number(c.semester)===Number(sem)));
+  if(sem&&!isAdmin)list=list.filter(c=>(!c.semester||Number(c.semester)===Number(sem)));
   if(filters.module)list=list.filter(c=>String(c.module||'')===String(filters.module));
   if(filters.subject)list=list.filter(c=>String(c.subject||'')===String(filters.subject));
   if(filters.lecture)list=list.filter(c=>String(c.lecture||'')===String(filters.lecture));
@@ -6756,6 +6902,37 @@ body:has(.quiz) .mt-help,body:has(#visitorStartName) .mt-help,body:has(.quiz) .m
   .mt-tip{left:12px;right:12px;width:auto;bottom:calc(132px + env(safe-area-inset-bottom))}
 }
 @media(prefers-reduced-motion:reduce){.mt-hole,.mt-card,.mt-tip{animation:none;transition:none}}
+
+/* Dashboard drill-down (Module > Subject > Lecture) */
+.dn-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.dn-card{display:flex;align-items:center;gap:16px;width:100%;min-width:0;padding:18px;text-align:left;border:1px solid var(--line);border-radius:20px;background:var(--card);color:var(--text);box-shadow:var(--shadow-sm);cursor:pointer;transition:transform .15s var(--ease),border-color .15s var(--ease),box-shadow .15s var(--ease)}
+.dn-card:hover{transform:translateY(-2px);border-color:rgba(var(--primary-rgb),.55);box-shadow:var(--shadow)}
+.dn-card:active{transform:translateY(0) scale(.995)}
+.dn-card:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+.dn-icon{flex:0 0 52px;width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary)}
+.dn-icon svg{width:26px;height:26px}
+.dn-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.dn-copy b{font-size:16px;font-weight:600;line-height:1.25;overflow-wrap:anywhere}
+.dn-copy small{font-size:12.5px;color:var(--muted)}
+.dn-new{flex:0 0 auto;padding:7px 13px;border-radius:999px;background:var(--primary-soft);color:var(--primary);font-size:11px;font-weight:700;letter-spacing:.06em}
+.dn-pct{flex:0 0 76px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.dn-pct b{font-size:14px;color:var(--primary);font-weight:700}
+.dn-pct .bar{width:100%;margin:0}
+.dn-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 12px;font-size:13px;color:var(--muted)}
+.dn-crumbs button{background:none;border:0;padding:2px 4px;color:var(--primary);font-weight:600;cursor:pointer;border-radius:6px}
+.dn-crumbs button:hover{text-decoration:underline}
+.dn-crumbs b{color:var(--text);font-weight:600}
+.dn-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.dn-actions .btn{padding:8px 12px;font-size:12px;white-space:nowrap}
+@media(max-width:700px){.dn-grid{grid-template-columns:1fr}.dn-card{padding:14px;gap:12px}.dn-icon{flex-basis:44px;width:44px;height:44px;border-radius:14px}.dn-actions{justify-content:flex-start}}
+/* Visitor onboarding validation */
+.ob-err{display:none;margin-top:6px;font-size:12.5px;color:var(--danger);font-weight:500}
+.field.has-error .ob-err{display:block}
+.field.has-error input,.field.has-error select{border-color:var(--danger)!important;box-shadow:0 0 0 3px rgba(192,57,43,.16)}
+.ob-banner{display:none;margin:0 0 16px;padding:11px 14px;border-radius:12px;background:var(--danger-soft);color:var(--danger);border:1px solid rgba(192,57,43,.35);font-size:13px;font-weight:500}
+.ob-banner.show{display:block}
+@keyframes obShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.field.has-error{animation:obShake .28s}
 </style>
 
 <script id="medex-fc2-js">
