@@ -2519,31 +2519,58 @@ const DN_ICON={
   lecture:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>'
 };
 function dashNavSort(a,b){return String(a).localeCompare(String(b),undefined,{numeric:true,sensitivity:'base'});}
-function dashNavCard(level,name,list,onclick){
-  const done=practicedCount(list),total=list.length,pctDone=pct(done,total);
-  const sub=done?`${done} of ${total} answered`:`${total} question${total===1?'':'s'}`;
-  const right=done?`<div class="dn-pct"><b>${pctDone}%</b><div class="bar"><i style="width:${pctDone}%"></i></div></div>`:`<span class="dn-new">${level==='lecture'?'START':'NEW'}</span>`;
-  return `<button type="button" class="dn-card" onclick="${onclick}"><span class="dn-icon" aria-hidden="true">${DN_ICON[level]}</span><span class="dn-copy"><b>${esc(name)}</b><small>${sub}</small></span>${right}</button>`;
+const DN_STAT_ICON={
+  q:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.8M12 17h.01"/></svg>',
+  acc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".8" fill="currentColor"/></svg>',
+  ok:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/></svg>',
+  ex:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="18" rx="2"/><path d="M9 3.5V2h6v1.5M8.5 10h7M8.5 14h7M8.5 18h4"/></svg>'
+};
+function dashExamCounts(){
+  // How many completed exams touched each module, subject and lecture.
+  const c={};
+  const bump=k=>{c[k]=(c[k]||0)+1;};
+  let hist=[];try{hist=getHistory()||[];}catch(_){}
+  hist.forEach(h=>{
+    const seen=new Set();
+    if(Array.isArray(h.list)&&h.list.length&&h.list[0]&&typeof h.list[0]==='object'){
+      h.list.forEach(q=>{
+        const m=q.module||'General',sb=q.subject||'General',l=q.lecture||'General';
+        seen.add('m|'+m);seen.add('s|'+m+'|'+sb);seen.add('l|'+m+'|'+sb+'|'+l);
+      });
+    }else if(h.moduleFilter){
+      const m=h.moduleFilter;seen.add('m|'+m);
+      if(h.subjectFilter){seen.add('s|'+m+'|'+h.subjectFilter);if(h.lectureFilter)seen.add('l|'+m+'|'+h.subjectFilter+'|'+h.lectureFilter);}
+    }
+    seen.forEach(bump);
+  });
+  return c;
+}
+function dashNavCard(level,name,list,onclick,examKey){
+  const a=accuracyStats(list);
+  const exams=(window.__dashExamCounts||{})[examKey]||0;
+  const stat=(k,val,label)=>`<span class="dn-stat dn-${k}" title="${label}"><i aria-hidden="true">${DN_STAT_ICON[k]}</i><b>${val}</b><small>${label}</small></span>`;
+  return `<button type="button" class="dn-card" onclick="${onclick}"><span class="dn-top"><span class="dn-icon" aria-hidden="true">${DN_ICON[level]}</span><span class="dn-copy"><b>${esc(name)}</b><small>${level==='lecture'?'Tap to practice':'Tap to open'}</small></span><span class="dn-go" aria-hidden="true">›</span></span><span class="dn-stats">${stat('q',list.length,'Questions')}${stat('acc',a.attempts?a.pct+'%':'–','Accuracy')}${stat('ok',a.correct,'Correct')}${stat('ex',exams,'Exams')}</span></button>`;
 }
 function dashNavHTML(){
   const nav=dashNav;
+  window.__dashExamCounts=dashExamCounts();
   let items='',title='Modules',note='Choose a module to begin',crumbs='',practice='',level='module';
   const inModule=nav.module?bank.filter(q=>q.module===nav.module):[];
   if(nav.module&&!inModule.length){nav.module='';nav.subject='';}
   if(!nav.module){
     const mods=getModules();
-    items=mods.map(m=>dashNavCard('module',m,bank.filter(q=>q.module===m),`dashNavOpen('module','${attrJs(m)}')`)).join('');
+    items=mods.map(m=>dashNavCard('module',m,bank.filter(q=>q.module===m),`dashNavOpen('module','${attrJs(m)}')`,'m|'+m)).join('');
     note=`${mods.length} module${mods.length===1?'':'s'}`;
   }else if(!nav.subject){
     level='subject';title=nav.module;note='Choose a subject';
     const subs=[...new Set(inModule.map(q=>q.subject||'General'))].sort(dashNavSort);
-    items=subs.map(x=>dashNavCard('subject',x,inModule.filter(q=>(q.subject||'General')===x),`dashNavOpen('subject','${attrJs(x)}')`)).join('');
+    items=subs.map(x=>dashNavCard('subject',x,inModule.filter(q=>(q.subject||'General')===x),`dashNavOpen('subject','${attrJs(x)}')`,'s|'+nav.module+'|'+x)).join('');
     practice=`<button class="btn primary dn-practice" onclick="dashNavPractice()">Practice whole module</button>`;
   }else{
     level='lecture';title=nav.subject;note='Choose a lecture to practice';
     const inSub=inModule.filter(q=>(q.subject||'General')===nav.subject);
     const lecs=[...new Set(inSub.map(q=>q.lecture||'General'))].sort(dashNavSort);
-    items=lecs.map(x=>dashNavCard('lecture',x,inSub.filter(q=>(q.lecture||'General')===x),`dashNavPractice('${attrJs(x)}')`)).join('');
+    items=lecs.map(x=>dashNavCard('lecture',x,inSub.filter(q=>(q.lecture||'General')===x),`dashNavPractice('${attrJs(x)}')`,'l|'+nav.module+'|'+nav.subject+'|'+x)).join('');
     practice=`<button class="btn primary dn-practice" onclick="dashNavPractice()">Practice whole subject</button>`;
   }
   if(nav.module){
@@ -2596,7 +2623,7 @@ function renderDashboard(){
   ${visitorIdentity}
   ${dailyGoalStreakHTML()}
   <section class="dashboard-section dashboard-quick-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">YOUR STUDY SPACE</span><h2>What would you like to do?</h2></div><span class="dashboard-section-note">Pick up where you left off</span></div><div class="dashboard-actions-grid">${quickHTML}</div></section>
-  ${smartStudyRecommendationHTML()}
+  <section class="dashboard-section" id="dashNavSection">${dashNavHTML()}</section>
   <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">AT A GLANCE</span><h2>Your performance</h2></div><button class="btn dashboard-section-link" onclick="go('progress')">Detailed progress <span aria-hidden="true">→</span></button></div><div class="grid stats dashboard-stat-grid">
     <div class="card stat dashboard-stat-card"><div class="dashboard-stat-symbol">✓</div><div class="label">Correct answers</div><div class="value">${stats.correct}</div></div>
     <div class="card stat dashboard-stat-card"><div class="dashboard-stat-symbol">◷</div><div class="label">Questions attempted</div><div class="value">${stats.attempts}</div></div>
@@ -2605,7 +2632,6 @@ function renderDashboard(){
   </div></section>
   <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">SMART REVISION</span><h2>Continue your revision</h2><p>Start with a module that needs more practice.</p></div><button class="btn dashboard-section-link" onclick="go('mistakes')">Review mistakes <span aria-hidden="true">→</span></button></div><div class="card dashboard-weak-card">${weakHTML}</div></section>
   <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">COMMUNITY</span><h2>Top students</h2><p>See the top 3 and your own rank.</p></div><button class="btn dashboard-section-link" onclick="go('leaderboard')">Full leaderboard <span aria-hidden="true">→</span></button></div><div class="card dashboard-leaderboard-card"><div class="dashboard-leaderboard-shortcut"><div class="dashboard-leaderboard-icon">🏆</div><div><strong>MedEx leaderboard</strong><div class="mini" style="margin-top:3px">Students and visitors ranked together by XP.</div></div></div><div id="dashboardLeaderboardPreview"><div class="mini" style="margin-top:10px">Loading top students…</div></div></div></section>
-  <section class="dashboard-section" id="dashNavSection">${dashNavHTML()}</section>
   <section class="dashboard-section"><div class="dashboard-section-heading"><div><span class="dashboard-eyebrow">RECENT ACTIVITY</span><h2>Recent exams</h2></div><button class="btn dashboard-section-link" onclick="go('history')">Full history <span aria-hidden="true">→</span></button></div><div class="card">${renderRecentExamsList(3)}</div></section>
   <button type="button" class="support-floating-btn" data-contact-medex onclick="openSupportChat()" title="Contact MedEx team" aria-label="Contact MedEx team"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16v10H9l-5 3.5z"/><path d="M7 9h10M7 12h6"/></svg></button>
   <section class="dashboard-section dashboard-sync-section"><details class="dashboard-sync-details"><summary>Question bank sync & admin tools</summary><div class="card"><div id="syncStatus">Source: <b>Supabase</b>${lastSync?` · Last successful sync: ${lastSync.toLocaleString()}`:''}</div><div class="actions" style="margin-top:16px"><button class="btn primary" onclick="loadQuestions()">Refresh from Supabase</button><button class="btn" onclick="go('import')">Upload / Update Questions</button><button class="btn primary btn-lg" onclick="go('exam')">Start an Exam</button></div></div></details></section>`;
@@ -6933,6 +6959,20 @@ body:has(.quiz) .mt-help,body:has(#visitorStartName) .mt-help,body:has(.quiz) .m
 .ob-banner.show{display:block}
 @keyframes obShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 .field.has-error{animation:obShake .28s}
+
+.dn-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr))}
+.dn-card{flex-direction:column;align-items:stretch;gap:14px}
+.dn-top{display:flex;align-items:center;gap:14px;min-width:0}
+.dn-go{flex:0 0 auto;font-size:26px;line-height:1;color:var(--muted);transition:transform .15s var(--ease),color .15s}
+.dn-card:hover .dn-go{transform:translateX(3px);color:var(--primary)}
+.dn-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding-top:12px;border-top:1px solid var(--line)}
+.dn-stat{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;text-align:center}
+.dn-stat i{display:grid;place-items:center;width:28px;height:28px;border-radius:9px;background:var(--primary-soft);color:var(--primary)}
+.dn-stat i svg{width:16px;height:16px}
+.dn-stat b{font-size:15px;font-weight:700;line-height:1.2;margin-top:3px}
+.dn-stat small{font-size:10.5px;color:var(--muted);letter-spacing:.02em}
+.dn-ok i{background:var(--ok-soft);color:var(--ok)}
+.dn-acc i{background:var(--warn-soft);color:var(--warn)}
 </style>
 
 <script id="medex-fc2-js">
