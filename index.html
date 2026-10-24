@@ -6978,46 +6978,34 @@ body:has(.quiz) .mt-help,body:has(#visitorStartName) .mt-help,body:has(.quiz) .m
 .dn-ok i{background:var(--ok-soft);color:var(--ok)}
 .dn-acc i{background:var(--warn-soft);color:var(--warn)}
 
-/* ===== Dashboard explorer — modern pass ===== */
-#dashNavSection .dashboard-section-heading h2{background:linear-gradient(90deg,var(--text),var(--primary));-webkit-background-clip:text;background-clip:text;color:transparent}
-.dn-grid{gap:16px}
-.dn-card{position:relative;overflow:hidden;isolation:isolate;gap:16px;padding:18px;border-radius:24px;border:1px solid rgba(var(--primary-rgb),.18);
-  background:linear-gradient(155deg,var(--card) 55%,rgba(var(--primary-rgb),.09));box-shadow:0 1px 2px rgba(16,24,38,.05),0 12px 28px -18px rgba(var(--primary-rgb),.55)}
-.dn-card::after{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--primary),#6fd3c8,transparent);opacity:.9;z-index:-1}
-.dn-glow{position:absolute;z-index:-1;right:-40px;top:-50px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(var(--primary-rgb),.28),transparent 68%);transition:transform .35s var(--ease),opacity .35s;opacity:.7}
-.dn-card:hover{transform:translateY(-4px);border-color:rgba(var(--primary-rgb),.5);box-shadow:0 2px 4px rgba(16,24,38,.06),0 22px 40px -16px rgba(var(--primary-rgb),.6)}
-.dn-card:hover .dn-glow{transform:scale(1.35);opacity:1}
-.tone-b .dn-glow{background:radial-gradient(circle,rgba(99,102,241,.28),transparent 68%)}
-.tone-c .dn-glow{background:radial-gradient(circle,rgba(236,150,60,.30),transparent 68%)}
-.tone-d .dn-glow{background:radial-gradient(circle,rgba(219,90,140,.26),transparent 68%)}
-.dn-ring{--c:var(--primary);flex:0 0 62px;width:62px;height:62px;border-radius:50%;display:grid;place-items:center;padding:3px;
-  background:conic-gradient(var(--c) calc(var(--p)*1%),rgba(var(--primary-rgb),.16) 0)}
-.tone-b .dn-ring{--c:#6366f1}.tone-c .dn-ring{--c:#e8913a}.tone-d .dn-ring{--c:#d9568a}
-.dn-icon{flex:none;width:100%;height:100%;border-radius:50%;background:var(--card);color:var(--c,var(--primary));box-shadow:inset 0 0 0 1px rgba(var(--primary-rgb),.08)}
-.tone-b .dn-icon{color:#6366f1}.tone-c .dn-icon{color:#e8913a}.tone-d .dn-icon{color:#d9568a}
-.dn-icon svg{width:27px;height:27px}
-.dn-copy em{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--muted)}
-.dn-copy b{font-size:17px;font-weight:650;letter-spacing:-.01em}
+/* ===== Dashboard explorer — simple, calm ===== */
+.dn-grid{gap:12px}
+.dn-card{position:relative;gap:14px;padding:16px;border-radius:16px;border:1px solid var(--line);background:var(--card);box-shadow:none;transform:none}
+.dn-card::after,.dn-glow{display:none}
+.dn-card:hover{transform:none;border-color:rgba(var(--primary-rgb),.55);box-shadow:none;background:rgba(var(--primary-rgb),.04)}
+.dn-ring{flex:0 0 44px;width:44px;height:44px;padding:0;border-radius:12px;background:var(--primary-soft)}
+.dn-icon{width:100%;height:100%;border-radius:12px;background:transparent;box-shadow:none;color:var(--primary)}
+.dn-icon svg{width:23px;height:23px}
+.dn-copy em{display:none}
+.dn-copy b{font-size:15.5px;font-weight:600}
 .dn-copy small{font-size:12px;color:var(--muted)}
-.dn-go{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:rgba(var(--primary-rgb),.1);color:var(--primary);font-size:0;transition:transform .2s var(--ease),background .2s,color .2s}
+.dn-go{flex:0 0 auto;width:auto;height:auto;background:none;color:var(--muted);transition:color .15s}
 .dn-go svg{width:16px;height:16px}
-.dn-card:hover .dn-go{transform:rotate(45deg);background:var(--primary);color:#fff}
-.dn-stats{gap:8px;padding:0;border:0;grid-template-columns:repeat(2,minmax(0,1fr))}
-.dn-stat{flex-direction:row;align-items:center;gap:9px;text-align:left;padding:9px 11px;border-radius:14px;background:rgba(var(--primary-rgb),.07);border:1px solid rgba(var(--primary-rgb),.1)}
-.dn-stat i{flex:0 0 30px;width:30px;height:30px;border-radius:10px;background:var(--card);box-shadow:var(--shadow-sm)}
-.dn-stat>span{display:flex;flex-direction:column;min-width:0;line-height:1.15}
-.dn-stat b{margin:0;font-size:15px}
-.dn-stat small{font-size:10.5px}
-.dn-ok{background:var(--ok-soft);border-color:rgba(31,138,85,.18)}
-.dn-acc{background:var(--warn-soft);border-color:rgba(180,120,10,.2)}
-.dn-ex{background:rgba(99,102,241,.09);border-color:rgba(99,102,241,.18)}.dn-ex i{color:#6366f1}
-.dn-crumbs{padding:6px 8px;border-radius:999px;background:rgba(var(--primary-rgb),.08);width:fit-content;max-width:100%}
-.dn-crumbs button{padding:4px 10px;border-radius:999px;background:var(--card);box-shadow:var(--shadow-sm);text-decoration:none!important}
-.dn-crumbs b{padding:4px 10px;border-radius:999px;background:var(--primary);color:#fff}
-.dn-actions .btn.primary{border-radius:999px;box-shadow:0 8px 18px -10px rgba(var(--primary-rgb),.8)}
-.dn-actions .btn{border-radius:999px}
-@media(max-width:700px){.dn-card{padding:15px;border-radius:20px}.dn-ring{flex-basis:54px;width:54px;height:54px}.dn-icon svg{width:23px;height:23px}}
-@media(prefers-reduced-motion:reduce){.dn-card,.dn-glow,.dn-go{transition:none}}
+.dn-card:hover .dn-go{transform:none;background:none;color:var(--primary)}
+.dn-stats{display:flex;flex-wrap:wrap;gap:6px 16px;padding:12px 0 0;border:0;border-top:1px solid var(--line);grid-template-columns:none}
+.dn-stat{flex-direction:row;align-items:center;gap:6px;padding:0;background:none;border:0;border-radius:0}
+.dn-stat i,.dn-ok i,.dn-acc i,.dn-ex i{width:auto;height:auto;background:none;box-shadow:none;color:var(--muted)}
+.dn-stat i svg{width:15px;height:15px}
+.dn-stat>span{flex-direction:row;align-items:baseline;gap:4px}
+.dn-stat b{font-size:13.5px;font-weight:600;margin:0}
+.dn-stat small{font-size:11px;color:var(--muted)}
+.dn-ok,.dn-acc,.dn-ex{background:none;border:0}
+#dashNavSection .dashboard-section-heading h2{background:none;color:var(--text);-webkit-text-fill-color:currentColor}
+.dn-crumbs{background:none;padding:0;border-radius:0}
+.dn-crumbs button{background:none;box-shadow:none;padding:2px 4px;border-radius:6px}
+.dn-crumbs b{background:none;color:var(--text);padding:2px 4px}
+.dn-actions .btn,.dn-actions .btn.primary{border-radius:10px;box-shadow:none}
+@media(max-width:700px){.dn-card{padding:14px}.dn-ring{flex-basis:40px;width:40px;height:40px}}
 </style>
 
 <script id="medex-fc2-js">
