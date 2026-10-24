@@ -892,8 +892,9 @@ html[data-theme="dark"] .notice.ok{color:#8be3b3}
 @media(max-width:700px){
   #app:has(.dashboard-quick-section)>.dashboard-quick-section{margin-top:0}
   #app:has(.dashboard-quick-section){display:flex;flex-direction:column}
-  #app:has(.dashboard-quick-section)>.top{order:-3}
-  #app:has(.dashboard-quick-section)>.dashboard-quick-section{order:-2}
+  #app:has(.dashboard-quick-section)>.top{order:-4}
+  #app:has(.dashboard-quick-section)>.dashboard-quick-section{order:-3}
+  #app:has(.dashboard-quick-section)>#dashNavSection{order:-2}
   #app:has(.dashboard-quick-section)>.study-goal-card{order:-1}
 }
 .site-notifications-card .empty,.site-notifications-list .empty{padding:14px 10px}
@@ -973,11 +974,12 @@ html[data-theme="dark"] .notice.ok{color:#8be3b3}
 
 /* Dashboard: one clear path — next step, quick actions, daily goal; everything else is one tap away */
 #app.dash-main{display:flex;flex-direction:column}
-#app.dash-main>.top{order:-6}
-#app.dash-main>.site-notifications-card{order:-5}
-#app.dash-main>.dashboard-smart-section{order:-4;margin-top:4px}
-#app.dash-main>.dashboard-quick-section{order:-3;margin-top:4px}
-#app.dash-main>.study-goal-card{order:-2}
+#app.dash-main>.top{order:-8}
+#app.dash-main>.site-notifications-card{order:-7}
+#app.dash-main>.dashboard-smart-section{order:-6;margin-top:4px}
+#app.dash-main>.dashboard-quick-section{order:-5;margin-top:4px}
+#app.dash-main>#dashNavSection{order:-4;margin-top:4px}
+#app.dash-main>.study-goal-card{order:-3}
 #app.dash-main>.more-details{order:0}
 .dash-main .dashboard-section{margin-top:4px}
 
@@ -2514,9 +2516,9 @@ function smartStudyRecommendationHTML(){
 /* ---- Dashboard drill-down: Module -> Subject -> Lecture ---- */
 let dashNav={module:'',subject:''};
 const DN_ICON={
-  module:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></svg>',
-  subject:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></svg>',
-  lecture:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>'
+  module:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8 20 7.4v9.2l-8 4.6-8-4.6V7.4l8-4.6Z"/><path d="M12 12 4.4 7.6M12 12l7.6-4.4M12 12v9"/></svg>',
+  subject:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c3.2 0 6 1.2 6 3.5S15.2 10 12 10 6 8.8 6 6.5 8.8 3 12 3Z"/><path d="M6 6.5v5C6 13.8 8.8 15 12 15s6-1.2 6-3.5v-5"/><path d="M6 11.5v5C6 18.8 8.8 20 12 20s6-1.2 6-3.5v-5"/></svg>',
+  lecture:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="12" rx="3"/><path d="m10.2 8.4 4.2 2.1-4.2 2.1V8.4Z"/><path d="M8 20h8M12 16.5V20"/></svg>'
 };
 function dashNavSort(a,b){return String(a).localeCompare(String(b),undefined,{numeric:true,sensitivity:'base'});}
 const DN_STAT_ICON={
@@ -2545,11 +2547,13 @@ function dashExamCounts(){
   });
   return c;
 }
-function dashNavCard(level,name,list,onclick,examKey){
+function dashNavCard(level,name,list,onclick,examKey,idx){
   const a=accuracyStats(list);
+  const done=practicedCount(list),prog=pct(done,list.length);
   const exams=(window.__dashExamCounts||{})[examKey]||0;
-  const stat=(k,val,label)=>`<span class="dn-stat dn-${k}" title="${label}"><i aria-hidden="true">${DN_STAT_ICON[k]}</i><b>${val}</b><small>${label}</small></span>`;
-  return `<button type="button" class="dn-card" onclick="${onclick}"><span class="dn-top"><span class="dn-icon" aria-hidden="true">${DN_ICON[level]}</span><span class="dn-copy"><b>${esc(name)}</b><small>${level==='lecture'?'Tap to practice':'Tap to open'}</small></span><span class="dn-go" aria-hidden="true">›</span></span><span class="dn-stats">${stat('q',list.length,'Questions')}${stat('acc',a.attempts?a.pct+'%':'–','Accuracy')}${stat('ok',a.correct,'Correct')}${stat('ex',exams,'Exams')}</span></button>`;
+  const stat=(k,val,label)=>`<span class="dn-stat dn-${k}" title="${label}"><i aria-hidden="true">${DN_STAT_ICON[k]}</i><span><b>${val}</b><small>${label}</small></span></span>`;
+  const tone=['a','b','c','d'][(idx||0)%4];
+  return `<button type="button" class="dn-card tone-${tone}" onclick="${onclick}" aria-label="${esc(name)}: ${list.length} questions, ${prog}% practiced"><span class="dn-glow" aria-hidden="true"></span><span class="dn-top"><span class="dn-ring" style="--p:${prog}" title="${prog}% practiced"><span class="dn-icon" aria-hidden="true">${DN_ICON[level]}</span></span><span class="dn-copy"><em>${level==='module'?'MODULE':level==='subject'?'SUBJECT':'LECTURE'} · ${String((idx||0)+1).padStart(2,'0')}</em><b>${esc(name)}</b><small>${prog}% practiced</small></span><span class="dn-go" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></span></span><span class="dn-stats">${stat('q',list.length,'Questions')}${stat('acc',a.attempts?a.pct+'%':'–','Accuracy')}${stat('ok',a.correct,'Correct')}${stat('ex',exams,'Exams')}</span></button>`;
 }
 function dashNavHTML(){
   const nav=dashNav;
@@ -2559,18 +2563,18 @@ function dashNavHTML(){
   if(nav.module&&!inModule.length){nav.module='';nav.subject='';}
   if(!nav.module){
     const mods=getModules();
-    items=mods.map(m=>dashNavCard('module',m,bank.filter(q=>q.module===m),`dashNavOpen('module','${attrJs(m)}')`,'m|'+m)).join('');
+    items=mods.map((m,i)=>dashNavCard('module',m,bank.filter(q=>q.module===m),`dashNavOpen('module','${attrJs(m)}')`,'m|'+m,i)).join('');
     note=`${mods.length} module${mods.length===1?'':'s'}`;
   }else if(!nav.subject){
     level='subject';title=nav.module;note='Choose a subject';
     const subs=[...new Set(inModule.map(q=>q.subject||'General'))].sort(dashNavSort);
-    items=subs.map(x=>dashNavCard('subject',x,inModule.filter(q=>(q.subject||'General')===x),`dashNavOpen('subject','${attrJs(x)}')`,'s|'+nav.module+'|'+x)).join('');
+    items=subs.map((x,i)=>dashNavCard('subject',x,inModule.filter(q=>(q.subject||'General')===x),`dashNavOpen('subject','${attrJs(x)}')`,'s|'+nav.module+'|'+x,i)).join('');
     practice=`<button class="btn primary dn-practice" onclick="dashNavPractice()">Practice whole module</button>`;
   }else{
     level='lecture';title=nav.subject;note='Choose a lecture to practice';
     const inSub=inModule.filter(q=>(q.subject||'General')===nav.subject);
     const lecs=[...new Set(inSub.map(q=>q.lecture||'General'))].sort(dashNavSort);
-    items=lecs.map(x=>dashNavCard('lecture',x,inSub.filter(q=>(q.lecture||'General')===x),`dashNavPractice('${attrJs(x)}')`,'l|'+nav.module+'|'+nav.subject+'|'+x)).join('');
+    items=lecs.map((x,i)=>dashNavCard('lecture',x,inSub.filter(q=>(q.lecture||'General')===x),`dashNavPractice('${attrJs(x)}')`,'l|'+nav.module+'|'+nav.subject+'|'+x,i)).join('');
     practice=`<button class="btn primary dn-practice" onclick="dashNavPractice()">Practice whole subject</button>`;
   }
   if(nav.module){
@@ -6615,7 +6619,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     var ALWAYS=['#toast','.support-floating-btn','.top','.section-tabs','.more-details'];
     var RULES={
       dashboard:{host:null,marker:'dash-main',label:'More from your dashboard',hint:'Performance, modules, leaderboard and recent exams',
-        keep:['.dashboard-smart-section','.dashboard-quick-section','.study-goal-card']},
+        keep:['.dashboard-smart-section','.dashboard-quick-section','#dashNavSection','.study-goal-card']},
       progress:{host:null,label:'Detailed breakdown & analytics',hint:'Daily analytics, lecture and difficulty performance, reset',
         keep:['.study-goal-card','.dashboard-spaced-review','.grid.stats']},
       flashcards:{host:'.study-tools-page',label:'Create, import & manage flashcards',hint:'Card builder and your full card list',
@@ -6973,6 +6977,47 @@ body:has(.quiz) .mt-help,body:has(#visitorStartName) .mt-help,body:has(.quiz) .m
 .dn-stat small{font-size:10.5px;color:var(--muted);letter-spacing:.02em}
 .dn-ok i{background:var(--ok-soft);color:var(--ok)}
 .dn-acc i{background:var(--warn-soft);color:var(--warn)}
+
+/* ===== Dashboard explorer — modern pass ===== */
+#dashNavSection .dashboard-section-heading h2{background:linear-gradient(90deg,var(--text),var(--primary));-webkit-background-clip:text;background-clip:text;color:transparent}
+.dn-grid{gap:16px}
+.dn-card{position:relative;overflow:hidden;isolation:isolate;gap:16px;padding:18px;border-radius:24px;border:1px solid rgba(var(--primary-rgb),.18);
+  background:linear-gradient(155deg,var(--card) 55%,rgba(var(--primary-rgb),.09));box-shadow:0 1px 2px rgba(16,24,38,.05),0 12px 28px -18px rgba(var(--primary-rgb),.55)}
+.dn-card::after{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--primary),#6fd3c8,transparent);opacity:.9;z-index:-1}
+.dn-glow{position:absolute;z-index:-1;right:-40px;top:-50px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(var(--primary-rgb),.28),transparent 68%);transition:transform .35s var(--ease),opacity .35s;opacity:.7}
+.dn-card:hover{transform:translateY(-4px);border-color:rgba(var(--primary-rgb),.5);box-shadow:0 2px 4px rgba(16,24,38,.06),0 22px 40px -16px rgba(var(--primary-rgb),.6)}
+.dn-card:hover .dn-glow{transform:scale(1.35);opacity:1}
+.tone-b .dn-glow{background:radial-gradient(circle,rgba(99,102,241,.28),transparent 68%)}
+.tone-c .dn-glow{background:radial-gradient(circle,rgba(236,150,60,.30),transparent 68%)}
+.tone-d .dn-glow{background:radial-gradient(circle,rgba(219,90,140,.26),transparent 68%)}
+.dn-ring{--c:var(--primary);flex:0 0 62px;width:62px;height:62px;border-radius:50%;display:grid;place-items:center;padding:3px;
+  background:conic-gradient(var(--c) calc(var(--p)*1%),rgba(var(--primary-rgb),.16) 0)}
+.tone-b .dn-ring{--c:#6366f1}.tone-c .dn-ring{--c:#e8913a}.tone-d .dn-ring{--c:#d9568a}
+.dn-icon{flex:none;width:100%;height:100%;border-radius:50%;background:var(--card);color:var(--c,var(--primary));box-shadow:inset 0 0 0 1px rgba(var(--primary-rgb),.08)}
+.tone-b .dn-icon{color:#6366f1}.tone-c .dn-icon{color:#e8913a}.tone-d .dn-icon{color:#d9568a}
+.dn-icon svg{width:27px;height:27px}
+.dn-copy em{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--muted)}
+.dn-copy b{font-size:17px;font-weight:650;letter-spacing:-.01em}
+.dn-copy small{font-size:12px;color:var(--muted)}
+.dn-go{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:rgba(var(--primary-rgb),.1);color:var(--primary);font-size:0;transition:transform .2s var(--ease),background .2s,color .2s}
+.dn-go svg{width:16px;height:16px}
+.dn-card:hover .dn-go{transform:rotate(45deg);background:var(--primary);color:#fff}
+.dn-stats{gap:8px;padding:0;border:0;grid-template-columns:repeat(2,minmax(0,1fr))}
+.dn-stat{flex-direction:row;align-items:center;gap:9px;text-align:left;padding:9px 11px;border-radius:14px;background:rgba(var(--primary-rgb),.07);border:1px solid rgba(var(--primary-rgb),.1)}
+.dn-stat i{flex:0 0 30px;width:30px;height:30px;border-radius:10px;background:var(--card);box-shadow:var(--shadow-sm)}
+.dn-stat>span{display:flex;flex-direction:column;min-width:0;line-height:1.15}
+.dn-stat b{margin:0;font-size:15px}
+.dn-stat small{font-size:10.5px}
+.dn-ok{background:var(--ok-soft);border-color:rgba(31,138,85,.18)}
+.dn-acc{background:var(--warn-soft);border-color:rgba(180,120,10,.2)}
+.dn-ex{background:rgba(99,102,241,.09);border-color:rgba(99,102,241,.18)}.dn-ex i{color:#6366f1}
+.dn-crumbs{padding:6px 8px;border-radius:999px;background:rgba(var(--primary-rgb),.08);width:fit-content;max-width:100%}
+.dn-crumbs button{padding:4px 10px;border-radius:999px;background:var(--card);box-shadow:var(--shadow-sm);text-decoration:none!important}
+.dn-crumbs b{padding:4px 10px;border-radius:999px;background:var(--primary);color:#fff}
+.dn-actions .btn.primary{border-radius:999px;box-shadow:0 8px 18px -10px rgba(var(--primary-rgb),.8)}
+.dn-actions .btn{border-radius:999px}
+@media(max-width:700px){.dn-card{padding:15px;border-radius:20px}.dn-ring{flex-basis:54px;width:54px;height:54px}.dn-icon svg{width:23px;height:23px}}
+@media(prefers-reduced-motion:reduce){.dn-card,.dn-glow,.dn-go{transition:none}}
 </style>
 
 <script id="medex-fc2-js">
