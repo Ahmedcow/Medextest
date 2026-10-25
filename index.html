@@ -1465,7 +1465,7 @@ async function afterAuthChanged(){
   await loadPublicFlashcards(true);
   subscribeToPublicFlashcardChanges();
   await loadGlobalAnalytics();
-  render();
+  renderIfIdle();
 }
 
 async function syncLocalProgressToSupabase(){
@@ -1877,7 +1877,10 @@ function saveActiveExam(){
 function clearActiveExam(){
   safeRemoveItem(CONFIG.activeExamKey);
 }
+function examInProgress(){ return !!(typeof exam!=='undefined'&&exam&&!exam.submitted); }
+function renderIfIdle(){ if(!examInProgress()) render(); }
 function restoreActiveExam(){
+  if(examInProgress()) return true; // never overwrite a live exam with an older saved copy
   const saved=loadJSON(CONFIG.activeExamKey,null);
   if(!saved || !Array.isArray(saved.list) || !saved.list.length) return false;
   try{
@@ -1985,6 +1988,7 @@ async function loadQuestionsFromSupabase(){
     const PAGE=250; // small pages: avoid response-size / statement-timeout failures
     const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     const lastErrors=[];
+    let splitBudget=6; // after this many failed ranges stop splitting and fail fast
     const runPage=async(from,to)=>{
       let last;
       for(let t=0;t<3;t++){
@@ -2000,7 +2004,8 @@ async function loadQuestionsFromSupabase(){
     const fetchRange=async(from,to)=>{
       try{return await runPage(from,to);}
       catch(e){
-        if(to-from<=0){lastErrors.push(`row ${from}: ${e.message||e}`);return [];}
+        if(to-from<=0||splitBudget<=0){lastErrors.push(`rows ${from}-${to}: ${e.message||e}`);return [];}
+        splitBudget--;
         const mid=Math.floor((from+to)/2);
         const a=await fetchRange(from,mid), b=await fetchRange(mid+1,to);
         return a.concat(b);
@@ -2108,7 +2113,7 @@ async function loadQuestions(){
         applyModuleVisibility();
         if(parsed.sourceFiles)sourceFiles=parsed.sourceFiles;
         if(parsed.lastSync)lastSync=parsed.lastSync;
-        render();
+        renderIfIdle();
         const status=document.getElementById('syncStatus');
         if(status)status.textContent='Showing saved questions while checking Supabase…';
       }
@@ -2116,7 +2121,7 @@ async function loadQuestions(){
   }catch(e){console.warn('Could not restore cached questions:',e);}
   const ok=await loadQuestionsFromSupabase();
   if(ok){
-    render();
+    renderIfIdle();
     const status=document.getElementById('syncStatus');
     if(status){ if(window.__medexQuestionLoadError)setQuestionSyncStatus(window.__medexQuestionSyncMsg||window.__medexQuestionLoadError,true); else status.textContent=`Loaded ${allQuestionBank.length} questions from Supabase`+total_visible_note(); }
     return;
@@ -2125,7 +2130,7 @@ async function loadQuestions(){
   if(!allQuestionBank.length){
     allQuestionBank=[];
     applyModuleVisibility();
-    render();
+    renderIfIdle();
   }
   setQuestionSyncStatus((window.__medexQuestionLoadError||'Could not load questions from Supabase')+' Check your connection and Supabase permissions.',true);
 }
@@ -6477,18 +6482,19 @@ document.addEventListener('DOMContentLoaded',()=>{
         adminCheckLoaded=false;
         if(!currentUser){ remoteHistory=[]; remoteHistoryLoaded=false; }
         await checkAdminRole();
-        render();
+        renderIfIdle();
       },0);
     });
   }
   refreshAuthUser().then(async()=>{
+    restoreActiveExam(); // bring an unfinished exam back immediately, before any network work
     await loadModuleVisibility();
     await loadActiveNotifications();
     await loadWeeklyNotifications();
     await loadQuestions();
     const restored=restoreActiveExam();
     if(currentUser) await afterAuthChanged();
-    else { await loadVisitorCloudData(); await loadVisitorHistoryFromSupabase(); await loadFavorites(); await loadGlobalAnalytics(); applyModuleVisibility(); if(!restored) render(); }
+    else { await loadVisitorCloudData(); await loadVisitorHistoryFromSupabase(); await loadFavorites(); await loadGlobalAnalytics(); applyModuleVisibility(); if(!restored) renderIfIdle(); }
     setTimeout(async()=>{ updateSupportUnreadDot(await refreshSupportUnreadIndicator()); },500);
     clearInterval(window.__supportUnreadPoll);
     window.__supportUnreadPoll=setInterval(async()=>{
@@ -6978,34 +6984,37 @@ body:has(.quiz) .mt-help,body:has(#visitorStartName) .mt-help,body:has(.quiz) .m
 .dn-ok i{background:var(--ok-soft);color:var(--ok)}
 .dn-acc i{background:var(--warn-soft);color:var(--warn)}
 
-/* ===== Dashboard explorer — simple, calm ===== */
-.dn-grid{gap:12px}
-.dn-card{position:relative;gap:14px;padding:16px;border-radius:16px;border:1px solid var(--line);background:var(--card);box-shadow:none;transform:none}
+/* ===== Dashboard explorer — balanced ===== */
+.dn-grid{gap:14px}
+.dn-card{position:relative;gap:14px;padding:16px;border-radius:20px;border:1px solid var(--line);background:linear-gradient(160deg,var(--card) 62%,rgba(var(--primary-rgb),.07));box-shadow:var(--shadow-sm);transform:none;overflow:hidden}
 .dn-card::after,.dn-glow{display:none}
-.dn-card:hover{transform:none;border-color:rgba(var(--primary-rgb),.55);box-shadow:none;background:rgba(var(--primary-rgb),.04)}
-.dn-ring{flex:0 0 44px;width:44px;height:44px;padding:0;border-radius:12px;background:var(--primary-soft)}
-.dn-icon{width:100%;height:100%;border-radius:12px;background:transparent;box-shadow:none;color:var(--primary)}
+.dn-card:hover{transform:translateY(-2px);border-color:rgba(var(--primary-rgb),.5);box-shadow:0 10px 24px -16px rgba(var(--primary-rgb),.55);background:linear-gradient(160deg,var(--card) 55%,rgba(var(--primary-rgb),.1))}
+.dn-ring{--c:var(--primary);flex:0 0 52px;width:52px;height:52px;padding:3px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--p)*1%),rgba(var(--primary-rgb),.15) 0)}
+.tone-b .dn-ring,.tone-c .dn-ring,.tone-d .dn-ring{--c:var(--primary)}
+.dn-icon,.tone-b .dn-icon,.tone-c .dn-icon,.tone-d .dn-icon{width:100%;height:100%;border-radius:50%;background:var(--card);box-shadow:none;color:var(--primary)}
 .dn-icon svg{width:23px;height:23px}
-.dn-copy em{display:none}
-.dn-copy b{font-size:15.5px;font-weight:600}
+.dn-copy em{display:block;font-size:10px;letter-spacing:.12em;color:var(--muted);margin-bottom:1px}
+.dn-copy b{font-size:16px;font-weight:600}
 .dn-copy small{font-size:12px;color:var(--muted)}
-.dn-go{flex:0 0 auto;width:auto;height:auto;background:none;color:var(--muted);transition:color .15s}
-.dn-go svg{width:16px;height:16px}
-.dn-card:hover .dn-go{transform:none;background:none;color:var(--primary)}
-.dn-stats{display:flex;flex-wrap:wrap;gap:6px 16px;padding:12px 0 0;border:0;border-top:1px solid var(--line);grid-template-columns:none}
-.dn-stat{flex-direction:row;align-items:center;gap:6px;padding:0;background:none;border:0;border-radius:0}
-.dn-stat i,.dn-ok i,.dn-acc i,.dn-ex i{width:auto;height:auto;background:none;box-shadow:none;color:var(--muted)}
-.dn-stat i svg{width:15px;height:15px}
-.dn-stat>span{flex-direction:row;align-items:baseline;gap:4px}
-.dn-stat b{font-size:13.5px;font-weight:600;margin:0}
-.dn-stat small{font-size:11px;color:var(--muted)}
-.dn-ok,.dn-acc,.dn-ex{background:none;border:0}
+.dn-go{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:rgba(var(--primary-rgb),.1);color:var(--primary);transition:background .15s,color .15s}
+.dn-go svg{width:15px;height:15px}
+.dn-card:hover .dn-go{transform:none;background:var(--primary);color:#fff}
+.dn-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:0;border:0}
+.dn-stat{flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 4px;border-radius:12px;background:rgba(var(--primary-rgb),.06);border:0;text-align:center}
+.dn-stat i,.dn-ok i,.dn-acc i,.dn-ex i{width:auto;height:auto;background:none;box-shadow:none;color:var(--primary)}
+.dn-ok i{color:var(--ok)}.dn-acc i{color:var(--warn)}.dn-ex i{color:var(--muted)}
+.dn-stat i svg{width:16px;height:16px}
+.dn-stat>span{flex-direction:column;align-items:center;gap:0;line-height:1.15}
+.dn-stat b{font-size:14px;font-weight:650}
+.dn-stat small{font-size:10px;color:var(--muted)}
+.dn-ok,.dn-acc,.dn-ex{background:rgba(var(--primary-rgb),.06);border:0}
 #dashNavSection .dashboard-section-heading h2{background:none;color:var(--text);-webkit-text-fill-color:currentColor}
-.dn-crumbs{background:none;padding:0;border-radius:0}
-.dn-crumbs button{background:none;box-shadow:none;padding:2px 4px;border-radius:6px}
-.dn-crumbs b{background:none;color:var(--text);padding:2px 4px}
-.dn-actions .btn,.dn-actions .btn.primary{border-radius:10px;box-shadow:none}
-@media(max-width:700px){.dn-card{padding:14px}.dn-ring{flex-basis:40px;width:40px;height:40px}}
+.dn-crumbs{background:rgba(var(--primary-rgb),.07);padding:5px 8px;border-radius:999px}
+.dn-crumbs button{background:none;box-shadow:none;padding:3px 8px;border-radius:999px}
+.dn-crumbs b{background:var(--card);color:var(--text);padding:3px 10px;border-radius:999px;box-shadow:var(--shadow-sm)}
+.dn-actions .btn,.dn-actions .btn.primary{border-radius:999px;box-shadow:none}
+@media(max-width:700px){.dn-card{padding:14px;border-radius:18px}.dn-ring{flex-basis:46px;width:46px;height:46px}.dn-icon svg{width:20px;height:20px}.dn-stat small{font-size:9.5px}}
+@media(prefers-reduced-motion:reduce){.dn-card{transition:none}}
 </style>
 
 <script id="medex-fc2-js">
