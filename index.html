@@ -2275,7 +2275,9 @@ function render(){
   updateTopbarControls();
   const view=location.hash.replace('#','')||'dashboard';
   const allowed=['dashboard','leaderboard','exam','progress','tools','flashcards','library','materials','materialreader','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics','reports','replies','notifications','weeklynotifications','flashadmin','semesters'];
-  const v=allowed.includes(view)?view:'dashboard';
+  let v=allowed.includes(view)?view:'dashboard';
+  // A live exam owns the screen: background refreshes (question sync, auth, notifications) must never replace it.
+  if(examInProgress()&&v!=='exam'){ v='exam'; try{history.replaceState(null,'','#exam');}catch(_){} }
   if(!currentUser && (!getVisitorName() || !getSelectedSemester())){ renderVisitorOnboarding(); return; }
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   const materialsNav=document.querySelector('[data-view="materials"]'); if(materialsNav) materialsNav.style.display=isAdmin?'flex':'none';
@@ -3081,6 +3083,9 @@ function startExam(customList=null, overrides=null, customLabel=null, setupAnswe
 
   if(exam.minutes>0) startTimer(exam.minutes*60);
   saveActiveExam();
+  // Exams started from the dashboard/library used to leave the URL on the old page, so the next background render() redrew that page over the quiz.
+  if(location.hash.replace('#','')!=='exam'){ try{history.replaceState(null,'','#exam');}catch(_){ location.hash='exam'; } }
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view==='exam'));
   renderQuiz();
 }
 function startModuleExam(module){
@@ -4909,7 +4914,7 @@ function initWeeklyNotificationClickHandling(){
   },true);
   document.addEventListener('keydown',function(e){if(e.key==='Escape')closeWeeklyNotifications();});
 }
-async function refreshWeeklyNotifications(){await loadWeeklyNotifications();setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));updateTopbarControls();if(location.hash.replace('#','')==='dashboard')renderDashboard();}
+async function refreshWeeklyNotifications(){await loadWeeklyNotifications();setNotificationAppBadge(notificationUnreadCount(weeklyNotificationRows()));updateTopbarControls();if(location.hash.replace('#','')==='dashboard'&&!examInProgress())renderDashboard();}
 async function loadActiveNotifications(){
   activeNotifications=[];
   if(!SUPABASE_ENABLED)return;
@@ -7014,6 +7019,8 @@ body:has(.quiz) .mt-help,body:has(#visitorStartName) .mt-help,body:has(.quiz) .m
 .dn-crumbs b{background:var(--card);color:var(--text);padding:3px 10px;border-radius:999px;box-shadow:var(--shadow-sm)}
 .dn-actions .btn,.dn-actions .btn.primary{border-radius:999px;box-shadow:none}
 @media(max-width:700px){.dn-card{padding:14px;border-radius:18px}.dn-ring{flex-basis:46px;width:46px;height:46px}.dn-icon svg{width:20px;height:20px}.dn-stat small{font-size:9.5px}}
+.dn-stat>span{display:flex;flex-direction:column;align-items:center}
+.dn-copy em{font-style:normal}
 @media(prefers-reduced-motion:reduce){.dn-card{transition:none}}
 </style>
 
