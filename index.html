@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v42.6-flashcards-tour">
+<meta name="medex-build" content="v42.8-anatomical-heart-mesh">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -1086,8 +1086,8 @@ html[data-theme="dark"] .notice.ok{color:#8be3b3}
       <button data-view="progress"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="2.5,15 7,9.5 10.5,12.5 17.5,4"/><polyline points="12.5,4 17.5,4 17.5,9"/></svg><span>Progress & Accuracy</span></button>
       <button data-view="tools"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M6.5 7h7M6.5 10h7M6.5 13h4"/></svg><span>Study Tools</span></button>
       <button data-view="flashcards"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="12" height="14" rx="2"/><path d="M3 6v10a2 2 0 0 0 2 2h9M8 6h6M8 9.5h6M8 13h4"/></svg><span>Flashcards</span></button>
+      <button data-view="anatomy" aria-label="3D Heart Anatomy"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17.5S2.2 13 2.2 7.7A4.1 4.1 0 0 1 10 5.9a4.1 4.1 0 0 1 7.8 1.8C17.8 13 10 17.5 10 17.5Z"/><path d="M10 6v8M6.5 9.5h2M11.5 12h2"/></svg><span>3D Heart Anatomy</span></button>
       <button data-view="library"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4.5 4.5"/><path d="M6 8.5h5M8.5 6v5"/></svg><span>Study Library</span></button>
-      <button data-view="heartanatomy" id="heartAnatomyNav"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17.2 3.8 10.8A4.1 4.1 0 0 1 9.6 5l.4.4.4-.4a4.1 4.1 0 0 1 5.8 5.8Z"/><path d="M3 10h3l1.5-3 2.3 6 1.7-3H17"/></svg><span>3D Heart Anatomy</span></button>
       <button data-view="materials" style="display:none"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5h8l4 4v11H4z"/><path d="M12 2.5v4h4M6.5 10h7M6.5 13h7M6.5 16h4"/></svg><span>Lecture Materials</span></button>
       <button data-view="history"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10.5" r="7.5"/><polyline points="10,6 10,10.5 13.2,12.6"/><polyline points="3.5,2 3.5,5 6.5,5"/></svg><span>Exam History</span></button>
       <button data-view="mistakes"><svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><line x1="7.3" y1="7.3" x2="12.7" y2="12.7"/><line x1="12.7" y1="7.3" x2="7.3" y2="12.7"/></svg><span>Mistakes</span></button>
@@ -2271,11 +2271,139 @@ function removeDistractingSystemSubtitles(){
  document.querySelectorAll('#app p,#app small,#app .mini,#app .sub').forEach(el=>{if(el.closest('label,button,input,select,textarea,option,script,style'))return;const txt=(el.innerText||el.textContent||'').replace(/\s+/g,' ').trim();if(txt&&txt.length<260&&noisy.test(txt))el.style.setProperty('display','none','important');});
 }
 
+
+/* ===================== MedEx 3D Heart Anatomy Lab ===================== */
+const HEART_ANATOMY = {
+  external: [
+    {id:'right-atrium',name:'Right atrial wall',system:'Heart wall',desc:'The right atrium receives systemic venous blood. This reference mesh depicts the atrial wall; it does not include every internal landmark or the vena caval openings.'},
+    {id:'left-atrium',name:'Left atrial wall',system:'Heart wall',desc:'The left atrium receives oxygenated blood from pulmonary veins. The posterior view is useful for understanding its position; pulmonary veins are omitted from this model selection.'},
+    {id:'ventricular-wall',name:'Ventricular wall',system:'Myocardium',desc:'A combined ventricular-wall mesh surrounds the lower chambers. The source model combines both ventricular walls, so the right and left walls cannot be independently selected.'},
+    {id:'ascending-aorta',name:'Ascending aorta',system:'Great vessel',desc:'The ascending aorta carries oxygenated blood from the left ventricle. This mesh represents the ascending segment, not the entire aorta.'},
+    {id:'aortic-arch',name:'Aortic arch',system:'Great vessel',desc:'The arch continues from the ascending aorta. Branch vessels and the descending aorta are not included in this model selection.'},
+    {id:'pulmonary-trunk',name:'Pulmonary trunk',system:'Great vessel',desc:'The pulmonary trunk carries deoxygenated blood away from the right ventricle toward the lungs. The pulmonary artery trees are omitted from this mesh selection.'},
+    {id:'superior-vena-cava',name:'Superior vena cava',system:'Great vein',desc:'Returns blood from the head, neck, upper limbs and thorax to the right atrium. The inferior vena cava is not included in this selection.'},
+    {id:'left-coronary',name:'Left coronary artery tree',system:'Coronary circulation',desc:'The left coronary artery and mapped branches supply much of the left myocardium and parts of the interventricular septum. Small vessels are simplified.'},
+    {id:'right-coronary',name:'Right coronary artery tree',system:'Coronary circulation',desc:'The right coronary artery and mapped branches supply the right atrium and portions of the ventricles. Branches are grouped into one selectable tree.'}
+  ],
+  internal: [
+    {id:'right-ventricle',name:'Right ventricular cavity',system:'Ventricular cavity',desc:'This mesh represents the space of the right ventricle, not the myocardium itself. Hide the combined ventricular wall to inspect the cavity surface.'},
+    {id:'left-ventricle',name:'Left ventricular cavity',system:'Ventricular cavity',desc:'This mesh represents the space of the left ventricle, not its muscular wall. The cavity surface can be isolated or viewed with the surrounding wall hidden.'},
+    {id:'ventricular-wall',name:'Ventricular wall',system:'Myocardium',desc:'A combined ventricular-wall mesh surrounds both lower chambers. It cannot be separated into independent right- and left-ventricular wall meshes in this source model.'},
+    {id:'right-atrium',name:'Right atrial wall',system:'Heart wall',desc:'The model includes the right atrial wall but omits the detailed atrial cavity, pectinate muscles, crista terminalis and fossa ovalis.'},
+    {id:'left-atrium',name:'Left atrial wall',system:'Heart wall',desc:'The model includes the left atrial wall but not the pulmonary vein openings or detailed atrial cavity.'}
+  ]
+};
+let heart3DState={mode:'external',selected:'right-atrium',scene:null,camera:null,renderer:null,root:null,raf:0,resize:null,objects:{},drag:null,zoom:5.8,cutaway:0,clipPlane:null,view:'Anterior',hidden:new Set(),allMeshes:[],loading:false};
+function renderAnatomyLab(){
+  const body=`<div class="heartlab">
+    <section class="heartlab-hero">
+      <div><span class="heartlab-kicker">MEDEX ANATOMY LAB · INTERACTIVE 3D</span><h2>Explore the human heart</h2><p>Rotate the model, switch between external anatomy and an internal cutaway, and select a structure for a concise anatomy lesson.</p></div>
+      <div class="heartlab-hero-tag"><span class="heartlab-pulse"></span> Anatomy study mode</div>
+    </section>
+    <div class="heartlab-toolbar">
+      <div class="heartlab-mode" role="group" aria-label="Anatomy view">
+        <button class="${heart3DState.mode==='external'?'active':''}" onclick="setHeartMode('external')">◉ External anatomy</button>
+        <button class="${heart3DState.mode==='internal'?'active':''}" onclick="setHeartMode('internal')">✦ Internal structures</button>
+      </div>
+      <div class="heartlab-controls"><button class="btn" onclick="setHeartCamera('Anterior')">Anterior</button><button class="btn" onclick="setHeartCamera('Posterior')">Posterior</button><button class="btn" onclick="setHeartCamera('Left lateral')">Left lateral</button><button class="btn" onclick="heartZoom(-.6)" aria-label="Zoom out">−</button><button class="btn" onclick="heartZoom(.6)" aria-label="Zoom in">+</button><button class="btn" onclick="resetHeartView()">Reset</button></div>
+    </div>
+    <div class="heartlab-layout">
+      <section class="heartlab-viewer card">
+        <div class="heartlab-viewer-top"><span><i class="heartlab-live-dot"></i> Interactive model</span><span class="heartlab-hint">Drag to rotate · Scroll to zoom</span></div>
+        <div id="heart3DStage" class="heartlab-stage"><div class="heartlab-loading"><div class="heartlab-loader"></div><strong>Preparing anatomical mesh…</strong><span>Loading interactive model</span></div></div>
+        <div class="heartlab-cutaway"><label for="heartCutawaySlider"><strong>Movable cutaway plane</strong><span id="heartCutawayValue">Off</span></label><input id="heartCutawaySlider" type="range" min="-100" max="100" value="0" oninput="setHeartCutaway(this.value)"><div class="heartlab-cutaway-actions"><label><input type="checkbox" id="heartCavityReveal" onchange="toggleHeartCavities(this.checked)"> Reveal ventricular cavities (hide combined wall)</label><button class="btn" onclick="clearHeartCutaway()">Clear cutaway</button></div></div>
+        <div class="heartlab-viewer-foot"><span id="heartModeCaption">Anterior view · anatomical reference mesh</span><span>BodyParts3D-derived model · educational use</span></div>
+      </section>
+      <aside class="heartlab-details card">
+        <div class="heartlab-detail-head"><div><span class="heartlab-kicker">STRUCTURE GUIDE</span><h3 id="heartSelectedTitle">Apex of heart</h3></div><span id="heartSelectedIndex" class="heartlab-index">01</span></div>
+        <div id="heartSelectedMeta" class="heartlab-meta">Surface landmark</div>
+        <p id="heartSelectedDesc" class="heartlab-description">The pointed inferior tip, formed mainly by the left ventricle.</p>
+        <div class="heartlab-note"><strong>Clinical anatomy tip</strong><p id="heartClinicalTip">The apex beat is commonly assessed near the left 5th intercostal space at the midclavicular line.</p></div>
+        <div class="heartlab-list-head"><strong>Explore structures</strong><span id="heartStructureCount">13 structures</span></div>
+        <div id="heartStructureList" class="heartlab-structure-list"></div>
+      </aside>
+    </div>
+    <section class="heartlab-learning-grid">
+      <article class="heartlab-learning-card"><span class="heartlab-learning-icon">↗</span><div><strong>Blood flow pathway</strong><p>Body → venae cavae → right atrium → tricuspid valve → right ventricle → pulmonary valve → lungs → pulmonary veins → left atrium → mitral valve → left ventricle → aortic valve → aorta → body.</p></div></article>
+      <article class="heartlab-learning-card"><span class="heartlab-learning-icon">◎</span><div><strong>Explore internal geometry honestly</strong><p>Use the cutaway slider to section the mesh and reveal the included ventricular cavity surfaces. The source model does not include valve leaflets, chordae, papillary muscles, atrial cavities or a separately segmented septum; those structures are not fabricated here.</p></div></article>
+    </section>
+    <p class="heartlab-disclaimer">Model provenance: BodyParts3D, © The Database Center for Life Science, CC BY 4.0. This is a simplified adult reference model; the source project notes that expert anatomical review is pending and that valves, atrial cavities, most veins and several other structures are omitted. For education only, not diagnosis or clinical decisions. <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html" target="_blank" rel="noopener">License</a> · <a href="https://github.com/organui/heart-3d" target="_blank" rel="noopener">Model provenance and limitations</a></p>
+  </div>`;
+  document.getElementById('app').innerHTML=layout('3D Heart Anatomy','Interactive external and internal anatomy for medical students.',body);
+  renderHeartStructureList();
+  const stage=document.getElementById('heart3DStage');
+  if(!stage)return;
+  stage.innerHTML='<div class="heartlab-loading"><div class="heartlab-loader"></div><strong>Loading anatomical 3D model…</strong><span>Fetching the referenced BodyParts3D-derived mesh and viewer tools.</span></div>';
+  ensureHeartEngine();
+}
+function heartStructures(){return HEART_ANATOMY[heart3DState.mode]||HEART_ANATOMY.external;}
+function renderHeartStructureList(){
+  const list=document.getElementById('heartStructureList');if(!list)return;
+  const rows=heartStructures();const selected=rows.find(x=>x.id===heart3DState.selected)||rows[0];
+  if(selected)heart3DState.selected=selected.id;
+  const count=document.getElementById('heartStructureCount');if(count)count.textContent=rows.length+' mapped structures';
+  list.innerHTML=rows.map((s,i)=>`<button class="heartlab-structure ${s.id===heart3DState.selected?'active':''}" onclick="selectHeartStructure('${s.id}')"><span class="heartlab-structure-number">${String(i+1).padStart(2,'0')}</span><span><strong>${s.name}</strong><small>${s.system}</small></span><span class="heartlab-structure-arrow">›</span></button>`).join('');
+  updateHeartDetail(selected);
+}
+function updateHeartDetail(s){
+  if(!s)return;
+  const title=document.getElementById('heartSelectedTitle'),meta=document.getElementById('heartSelectedMeta'),desc=document.getElementById('heartSelectedDesc'),idx=document.getElementById('heartSelectedIndex');
+  if(title)title.textContent=s.name;if(meta)meta.textContent=s.system;if(desc)desc.textContent=s.desc;
+  if(idx)idx.textContent=String(Math.max(0,heartStructures().findIndex(x=>x.id===s.id)+1)).padStart(2,'0');
+  const tip=document.getElementById('heartClinicalTip');
+  if(tip){const tips={'right-atrium':'The SA node is normally near the junction of the superior vena cava and right atrium; this specific node is not segmented in this model.','left-atrium':'The left atrium forms most of the base of the heart. A posterior view best demonstrates its relationship to the pulmonary veins, which are omitted here.','ventricular-wall':'The left ventricular myocardium is normally much thicker than the right ventricular myocardium; this source mesh combines both walls.','ascending-aorta':'The right and left coronary arteries arise from the aortic root, just above the aortic valve; the root is not separately segmented here.','pulmonary-trunk':'The pulmonary trunk lies anterior to the ascending aorta near its origin.','left-coronary':'Coronary perfusion of the left ventricle occurs predominantly during diastole.','right-coronary':'Coronary dominance is defined by which coronary artery gives rise to the posterior interventricular artery.'};tip.textContent=tips[s.id]||'Use the orientation controls and cutaway plane to relate this structure to neighbouring parts. This model is incomplete and not intended for clinical decisions.';}
+  if(heart3DState.objects){Object.values(heart3DState.objects).flat().forEach(o=>{if(o.material&&o.material.emissive){o.material.emissive.setHex(o.userData.structureKey===s.id?0x5b1c22:0x000000);o.material.emissiveIntensity=o.userData.structureKey===s.id?.42:0;}});}
+}
+function selectHeartStructure(id){const s=heartStructures().find(x=>x.id===id);if(!s)return;heart3DState.selected=id;renderHeartStructureList();if(heart3DState.objects[id]){const selected=heart3DState.objects[id];if(selected.some(o=>o.visible)){heart3DState.root.userData.selected=id;}}}
+function setHeartMode(mode){if(!HEART_ANATOMY[mode])return;heart3DState.mode=mode;const valid=heartStructures();if(!valid.some(s=>s.id===heart3DState.selected))heart3DState.selected=valid[0].id;document.querySelectorAll('.heartlab-mode button').forEach(b=>b.classList.toggle('active',b.textContent.toLowerCase().includes(mode)));const cap=document.getElementById('heartModeCaption');if(cap)cap.textContent=mode==='external'?'External overview · anatomical reference mesh':'Internal exploration · ventricular cavity surfaces';if(mode==='internal'){const cb=document.getElementById('heartCavityReveal');if(cb)cb.checked=true;toggleHeartCavities(true);}else{const cb=document.getElementById('heartCavityReveal');if(cb)cb.checked=false;toggleHeartCavities(false);}renderHeartStructureList();}
+function heartZoom(delta){const s=heart3DState;if(!s.camera)return;s.zoom=Math.max(1.5,Math.min(12,s.zoom+delta));s.camera.position.setLength(s.zoom);s.camera.updateProjectionMatrix();}
+function setHeartCamera(view){const s=heart3DState;if(!s.camera||!s.root)return;s.view=view;const dist=s.zoom||5.8;const positions={'Anterior':[0,0,1],'Posterior':[0,0,-1],'Left lateral':[-1,0,0]};const v=positions[view]||positions.Anterior;s.camera.position.set(v[0]*dist,v[1]*dist,v[2]*dist);s.camera.up.set(0,1,0);s.camera.lookAt(0,0,0);const cap=document.getElementById('heartModeCaption');if(cap)cap.textContent=view+' view · '+(s.mode==='external'?'external overview':'internal exploration');}
+function resetHeartView(){const s=heart3DState;if(!s.root||!s.camera)return;s.root.rotation.set(0,0,0);s.zoom=5.8;s.view='Anterior';setHeartCamera('Anterior');clearHeartCutaway();s.hidden.clear();s.allMeshes.forEach(m=>{m.visible=true;});const cb=document.getElementById('heartCavityReveal');if(cb)cb.checked=false;setHeartMode(s.mode);}
+function setHeartCutaway(value){const s=heart3DState;if(!s.clipPlane)return;const v=Number(value)/100;s.cutaway=v;s.clipPlane.constant=-v*1.35;const active=Math.abs(v)>=.025;s.allMeshes.forEach(node=>{const mats=Array.isArray(node.material)?node.material:[node.material];mats.forEach(m=>{if(m)m.clippingPlanes=active?[s.clipPlane]:[];});});const out=document.getElementById('heartCutawayValue');if(out)out.textContent=!active?'Off':(v<0?'Left':'Right')+' side removed · '+Math.round(Math.abs(v)*100)+'%';if(s.renderer)s.renderer.render(s.scene,s.camera);}
+function clearHeartCutaway(){const slider=document.getElementById('heartCutawaySlider');if(slider)slider.value=0;setHeartCutaway(0);}
+function toggleHeartCavities(show){const s=heart3DState;['right-ventricle','left-ventricle'].forEach(id=>(s.objects[id]||[]).forEach(o=>o.visible=show));(s.objects['ventricular-wall']||[]).forEach(o=>o.visible=!show);const mode=heart3DState.mode;const cap=document.getElementById('heartModeCaption');if(cap)cap.textContent=show?'Ventricular cavity view · combined wall hidden':(mode==='external'?'External overview · anatomical reference mesh':'Internal exploration · ventricular cavity surfaces');}
+function ensureHeartEngine(){
+  if(window.__medexHeartEngineLoading)return;window.__medexHeartEngineLoading=true;
+  const loadScript=(src,done,fail)=>{const script=document.createElement('script');script.src=src;script.async=true;script.onload=done;script.onerror=fail;document.head.appendChild(script);};
+  const fail=()=>{window.__medexHeartEngineLoading=false;const st=document.getElementById('heart3DStage');if(st)st.innerHTML='<div class="heartlab-fallback"><strong>3D anatomy model could not load</strong><p>Check your internet connection or content blocker. The reference model is loaded from a public CDN and needs an internet connection.</p></div>';};
+  const loadModelLoader=()=>loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js',()=>{window.__medexHeartEngineLoading=false;if(location.hash==='#anatomy')initHeart3D();},fail);
+  if(window.THREE){if(window.THREE.GLTFLoader){window.__medexHeartEngineLoading=false;initHeart3D();}else loadModelLoader();}
+  else loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js',loadModelLoader,fail);
+}
+function heartKeyFromName(name){const n=String(name||'').toLowerCase().replace(/[_\s]+/g,'-');const aliases=[['right-atrium',['right-atrium','wall-of-right-atrium','fma9457']],['left-atrium',['left-atrium','wall-of-left-atrium','fma9531']],['ventricular-wall',['ventricular-wall','wall-of-ventricle','fma13884']],['right-ventricle',['right-ventricle','cavity-of-right-ventricle','fma9291']],['left-ventricle',['left-ventricle','cavity-of-left-ventricle','fma9466']],['ascending-aorta',['ascending-aorta','fma3736']],['aortic-arch',['aortic-arch','arch-of-aorta','fma3768']],['pulmonary-trunk',['pulmonary-trunk','fma8612']],['superior-vena-cava',['superior-vena-cava','fma4720']],['left-coronary',['left-coronary','fma50040']],['right-coronary',['right-coronary','fma50039']]];for(const [id,keys] of aliases)if(keys.some(k=>n===k||n.includes(k)))return id;return null;}
+function initHeart3D(){
+  const stage=document.getElementById('heart3DStage');if(!stage||!window.THREE||!window.THREE.GLTFLoader||location.hash!=='#anatomy'||heart3DState.loading)return;
+  heart3DState.loading=true;
+  if(heart3DState.raf)cancelAnimationFrame(heart3DState.raf);
+  if(heart3DState.renderer){try{heart3DState.renderer.dispose();heart3DState.renderer.domElement.remove();}catch(_){}heart3DState.renderer=null;}
+  stage.innerHTML='';const T=window.THREE;let renderer;
+  try{renderer=new T.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});}catch(e){heart3DState.loading=false;stage.innerHTML='<div class="heartlab-fallback"><strong>3D graphics are unavailable</strong><p>Enable WebGL or try a recent version of Chrome, Safari or Firefox.</p></div>';return;}
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.75));renderer.setSize(stage.clientWidth||640,stage.clientHeight||520);renderer.outputEncoding=T.sRGBEncoding;renderer.setClearColor(0x000000,0);renderer.localClippingEnabled=true;stage.appendChild(renderer.domElement);
+  const scene=new T.Scene();const camera=new T.PerspectiveCamera(34,(stage.clientWidth||640)/(stage.clientHeight||520),.01,1000);camera.position.set(0,0,5.8);
+  scene.add(new T.HemisphereLight(0xf7f7ff,0x44333b,2.0));const key=new T.DirectionalLight(0xffffff,2.4);key.position.set(4,6,8);scene.add(key);const fill=new T.DirectionalLight(0xc4e4ff,1.2);fill.position.set(-5,2,3);scene.add(fill);const rim=new T.DirectionalLight(0xffc0a5,1.25);rim.position.set(1,3,-5);scene.add(rim);
+  const root=new T.Group();scene.add(root);const clipPlane=new T.Plane(new T.Vector3(1,0,0),0);const objects={};const allMeshes=[];
+  heart3DState.scene=scene;heart3DState.camera=camera;heart3DState.renderer=renderer;heart3DState.root=root;heart3DState.objects=objects;heart3DState.allMeshes=allMeshes;heart3DState.clipPlane=clipPlane;heart3DState.zoom=5.8;
+  const modelUrl='https://cdn.jsdelivr.net/gh/organui/heart-3d@c72ce6654ff8e282942f97750d3104f55ef4fc3d/public/models/heart.glb';
+  const loader=new T.GLTFLoader();loader.load(modelUrl,gltf=>{
+    if(!document.getElementById('heart3DStage')){heart3DState.loading=false;return;}
+    const model=gltf.scene;let count=0;
+    model.traverse(node=>{if(!node.isMesh)return;count++;const key=heartKeyFromName(node.name);node.userData.structureKey=key||'';if(key)(objects[key]||(objects[key]=[])).push(node);allMeshes.push(node);if(node.material){const mats=Array.isArray(node.material)?node.material:[node.material];node.material=Array.isArray(node.material)?mats.map(m=>m.clone()):node.material.clone();const cloned=Array.isArray(node.material)?node.material:[node.material];cloned.forEach(m=>{m.clippingPlanes=[];m.clipShadows=true;m.side=T.DoubleSide;if(m.emissive)m.emissive.setHex(0x000000);});}node.castShadow=false;node.receiveShadow=false;});
+    if(!count){heart3DState.loading=false;stage.innerHTML='<div class="heartlab-fallback"><strong>The 3D file contained no mesh geometry.</strong><p>Try refreshing the page.</p></div>';return;}
+    root.add(model);const box=new T.Box3().setFromObject(model);const center=box.getCenter(new T.Vector3());model.position.sub(center);const size=box.getSize(new T.Vector3());const maxDim=Math.max(size.x,size.y,size.z)||1;model.scale.setScalar(3.0/maxDim);root.position.set(0,0,0);camera.position.set(0,0,5.8);camera.lookAt(0,0,0);heart3DState.zoom=5.8;
+    // Map by stable IDs where possible; unknown source meshes remain visible but are not falsely named.
+    const recognized=Object.values(objects).reduce((n,a)=>n+a.length,0);const stageLabel=document.getElementById('heartModeCaption');if(stageLabel)stageLabel.textContent='Anterior view · '+recognized+' mapped anatomical mesh group(s)';
+    heart3DState.loading=false;setHeartMode(heart3DState.mode);renderHeartStructureList();
+    let dragging=false,lastX=0,lastY=0;renderer.domElement.style.touchAction='none';renderer.domElement.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;renderer.domElement.setPointerCapture?.(e.pointerId);});renderer.domElement.addEventListener('pointermove',e=>{if(!dragging)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;root.rotation.y+=dx*.007;root.rotation.x=Math.max(-1.25,Math.min(1.25,root.rotation.x+dy*.007));});const end=()=>dragging=false;renderer.domElement.addEventListener('pointerup',end);renderer.domElement.addEventListener('pointercancel',end);renderer.domElement.addEventListener('lostpointercapture',end);renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();heartZoom(e.deltaY>0?.3:-.3);},{passive:false});
+    const raycaster=new T.Raycaster(),pointer=new T.Vector2();renderer.domElement.addEventListener('click',e=>{if(dragging)return;const r=renderer.domElement.getBoundingClientRect();pointer.x=((e.clientX-r.left)/r.width)*2-1;pointer.y=-((e.clientY-r.top)/r.height)*2+1;raycaster.setFromCamera(pointer,camera);const hits=raycaster.intersectObjects(allMeshes,true);for(const hit of hits){const k=hit.object.userData.structureKey;if(k&&heartStructures().some(x=>x.id===k)){selectHeartStructure(k);break;}}});
+    const onResize=()=>{const el=document.getElementById('heart3DStage');if(!el||heart3DState.renderer!==renderer)return;const w=el.clientWidth||640,h=el.clientHeight||520;camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);};window.removeEventListener('resize',heart3DState.resize);heart3DState.resize=onResize;window.addEventListener('resize',onResize);
+    const animate=()=>{if(!document.getElementById('heart3DStage')||heart3DState.renderer!==renderer){cancelAnimationFrame(heart3DState.raf);return;}heart3DState.raf=requestAnimationFrame(animate);renderer.render(scene,camera);};animate();
+  },undefined,err=>{heart3DState.loading=false;stage.innerHTML='<div class="heartlab-fallback"><strong>Could not load the anatomical model</strong><p>The external GLB may be blocked or unavailable. Check your connection and reload this page. No schematic substitute will be shown as if it were the real model.</p><a href="https://github.com/organui/heart-3d" target="_blank" rel="noopener">Model source and limitations</a></div>';});
+}
 function render(){
   updateSidebarFoot();
   updateTopbarControls();
   const view=location.hash.replace('#','')||'dashboard';
-  const allowed=['dashboard','leaderboard','exam','progress','tools','flashcards','library','heartanatomy','materials','materialreader','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics','reports','replies','notifications','weeklynotifications','flashadmin','semesters'];
+  const allowed=['dashboard','leaderboard','exam','progress','tools','flashcards','anatomy','library','materials','materialreader','mistakes','bank','import','ai','aiquestions','settings','account','results','history','favorites','analytics','reports','replies','notifications','weeklynotifications','flashadmin','semesters'];
   let v=allowed.includes(view)?view:'dashboard';
   // A live exam owns the screen: background refreshes (question sync, auth, notifications) must never replace it.
   if(examInProgress()&&v!=='exam'){ v='exam'; try{history.replaceState(null,'','#exam');}catch(_){} }
@@ -2314,8 +2442,8 @@ function render(){
   else if(v==='progress') renderProgress();
   else if(v==='tools') renderStudyTools();
   else if(v==='flashcards') renderFlashcards();
+  else if(v==='anatomy') renderAnatomyLab();
   else if(v==='library') renderStudyLibrary();
-  else if(v==='heartanatomy') renderHeartAnatomy();
   else if(v==='history') renderHistory();
   else if(v==='mistakes') renderMistakes();
   else if(v==='bank') renderBank();
@@ -4726,7 +4854,73 @@ function printAdminQuestionBankPDF(){
 
   try{
     w.document.open();
-    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MedEx Question book</title><style>${printCSS}</style></head><body>${skeleton(groups[0])}</body></html>`);
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MedEx Question book</title><style>${printCSS}</style></head><body>${skeleton(groups[0])}
+<style id="medex-heartlab-css">
+.heartlab{max-width:1480px;margin:0 auto;display:grid;gap:15px}
+.heartlab-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;padding:22px 24px;border:1px solid rgba(var(--primary-rgb),.26);border-radius:18px;background:radial-gradient(ellipse at 90% 0%,rgba(210,73,83,.15),transparent 40%),linear-gradient(125deg,var(--primary-soft),var(--card) 72%);box-shadow:var(--shadow-sm)}
+.heartlab-kicker{font-size:10px;letter-spacing:.14em;font-weight:800;color:var(--primary);text-transform:uppercase}
+.heartlab-hero h2{font-size:clamp(24px,3vw,34px);margin:7px 0 6px;line-height:1.15}
+.heartlab-hero p{margin:0;max-width:680px;color:var(--muted);font-size:13.5px;line-height:1.6}
+.heartlab-hero-tag{display:flex;align-items:center;gap:8px;white-space:nowrap;padding:9px 12px;border:1px solid var(--line);border-radius:999px;background:var(--card);font-size:11px;font-weight:700;color:var(--muted)}
+.heartlab-pulse,.heartlab-live-dot{width:8px;height:8px;display:inline-block;border-radius:50%;background:#d34c5a;box-shadow:0 0 0 4px rgba(211,76,90,.12)}
+.heartlab-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.heartlab-mode{display:flex;gap:5px;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.heartlab-mode button{border:0;background:transparent;color:var(--muted);padding:10px 13px;border-radius:8px;font-size:12px;font-weight:750}
+.heartlab-mode button.active{background:var(--primary);color:white;box-shadow:0 2px 7px rgba(var(--primary-rgb),.22)}
+.heartlab-controls{display:flex;gap:6px}.heartlab-controls .btn{min-width:39px;padding:8px 11px}
+.heartlab-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(320px,.75fr);gap:14px;align-items:stretch}
+.heartlab-viewer{padding:0;overflow:hidden;min-width:0;display:flex;flex-direction:column}
+.heartlab-viewer-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);font-size:11px;font-weight:800}
+.heartlab-viewer-top>span:first-child{display:flex;align-items:center;gap:8px}
+.heartlab-live-dot{width:6px;height:6px;box-shadow:none;background:var(--ok)}
+.heartlab-hint{font-size:10.5px;color:var(--muted);font-weight:500}
+.heartlab-stage{position:relative;width:100%;height:clamp(390px,55vw,600px);min-height:360px;overflow:hidden;background:radial-gradient(ellipse at 50% 42%,rgba(175,63,78,.13),transparent 45%),linear-gradient(150deg,var(--card),var(--bg));}
+.heartlab-stage canvas{display:block;width:100%;height:100%;cursor:grab;outline:none}
+.heartlab-stage canvas:active{cursor:grabbing}
+.heartlab-loading,.heartlab-fallback{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:25px;color:var(--text)}
+.heartlab-loading strong,.heartlab-fallback strong{font-size:14px}.heartlab-loading span,.heartlab-fallback p{font-size:12px;line-height:1.5;color:var(--muted);max-width:360px;margin:0}
+.heartlab-loader{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--primary);border-radius:50%;animation:heartlab-spin .8s linear infinite}
+@keyframes heartlab-spin{to{transform:rotate(360deg)}}
+.heartlab-viewer-foot{display:flex;justify-content:space-between;gap:10px;padding:11px 15px;border-top:1px solid var(--line);color:var(--muted);font-size:10.5px}
+.heartlab-details{padding:17px;display:flex;flex-direction:column;min-width:0}
+.heartlab-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.heartlab-detail-head h3{font-size:21px;line-height:1.25;margin-top:4px}
+.heartlab-index{display:grid;place-items:center;min-width:36px;height:36px;border-radius:11px;background:var(--primary-soft);color:var(--primary);font:800 12px var(--font-mono)}
+.heartlab-meta{font-size:11px;color:var(--primary);font-weight:800;margin-top:8px}
+.heartlab-description{font-size:12.5px;line-height:1.65;color:var(--text);margin:10px 0 13px}
+.heartlab-note{padding:11px 12px;border:1px solid rgba(var(--primary-rgb),.2);border-radius:11px;background:var(--primary-soft);margin-bottom:14px}
+.heartlab-note strong{font-size:11px;color:var(--primary2)}
+.heartlab-note p{margin:5px 0 0;font-size:11.5px;line-height:1.55;color:var(--text)}
+.heartlab-list-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 0 8px;border-top:1px solid var(--line)}
+.heartlab-list-head strong{font-size:12px}.heartlab-list-head span{font-size:10px;color:var(--muted)}
+.heartlab-structure-list{display:grid;gap:5px;max-height:300px;overflow:auto;padding-right:2px}
+.heartlab-structure{display:grid;grid-template-columns:27px minmax(0,1fr) 12px;align-items:center;gap:9px;text-align:left;width:100%;padding:8px;border:1px solid transparent;border-radius:10px;background:var(--bg);color:var(--text)}
+.heartlab-structure:hover{border-color:var(--line)}
+.heartlab-structure.active{background:var(--primary-soft);border-color:rgba(var(--primary-rgb),.42)}
+.heartlab-structure-number{display:grid;place-items:center;width:26px;height:26px;border-radius:8px;background:var(--card);font:700 9px var(--font-mono);color:var(--muted)}
+.heartlab-structure.active .heartlab-structure-number{background:var(--primary);color:white}
+.heartlab-structure strong{display:block;font-size:11px;line-height:1.35}.heartlab-structure small{display:block;font-size:9.5px;color:var(--muted);margin-top:2px}
+.heartlab-structure-arrow{color:var(--muted);font-size:19px}
+.heartlab-learning-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.heartlab-learning-card{display:flex;gap:12px;padding:15px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.heartlab-learning-icon{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:var(--primary-soft);color:var(--primary);font-size:21px;font-weight:800}
+.heartlab-learning-card strong{font-size:12px}.heartlab-learning-card p{margin:5px 0 0;color:var(--muted);font-size:11px;line-height:1.6}
+.heartlab-disclaimer{margin:0;color:var(--muted);font-size:10.5px;line-height:1.5}
+@media(max-width:1000px){.heartlab-layout{grid-template-columns:minmax(0,1fr)}.heartlab-details{min-height:0}.heartlab-structure-list{max-height:270px}.heartlab-stage{height:clamp(380px,68vw,560px)}}
+@media(max-width:650px){.heartlab-hero{align-items:flex-start;flex-direction:column;padding:18px}.heartlab-hero-tag{align-self:flex-start}.heartlab-toolbar{align-items:stretch}.heartlab-mode{width:100%}.heartlab-mode button{flex:1;padding:10px 7px;font-size:10.5px}.heartlab-controls{justify-content:flex-end}.heartlab-stage{height:390px;min-height:350px}.heartlab-viewer-top{align-items:flex-start}.heartlab-hint{max-width:130px;text-align:right}.heartlab-viewer-foot{font-size:9px}.heartlab-learning-grid{grid-template-columns:1fr}.heartlab-details{padding:14px}}
+@media(prefers-reduced-motion:reduce){.heartlab-loader{animation:none}}
+
+.heartlab-cutaway{padding:13px 15px 14px;border-top:1px solid var(--line);background:var(--card)}
+.heartlab-cutaway>label{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:var(--text)}
+.heartlab-cutaway>label span{font-size:11px;font-weight:750;color:var(--primary)}
+.heartlab-cutaway input[type=range]{width:100%;margin:12px 0 8px;accent-color:var(--primary)}
+.heartlab-cutaway-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
+.heartlab-cutaway-actions label{display:flex;align-items:center;gap:7px}.heartlab-cutaway-actions input{accent-color:var(--primary)}
+.heartlab-disclaimer a{color:var(--primary);font-weight:700;text-decoration:underline}
+.heartlab-controls{flex-wrap:wrap}
+</style>
+
+</body></html>`);
     w.document.close();
 
     const paginate=()=>{
@@ -6387,7 +6581,7 @@ if('serviceWorker' in navigator){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=42.6',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=42.8',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       watchPWARegistration(registration);
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
@@ -6540,7 +6734,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     var by=function(v){return nav.querySelector(':scope > button[data-view="'+v+'"]');};
     var groups=[
       {id:'practice',label:'Practice',views:['exam','mistakes','favorites','library']},
-      {id:'learn',label:'Learn',views:['flashcards','tools','ai','heartanatomy','materials']},
+      {id:'learn',label:'Learn',views:['flashcards','tools','ai','materials']},
       {id:'track',label:'Track progress',views:['progress','history','leaderboard']},
       {id:'account',label:'Account',views:['settings','account']},
       {id:'admin',label:'Admin',views:['bank','import','aiquestions','semesters','flashadmin','analytics','reports','replies','notifications','weeklynotifications']}
@@ -6568,11 +6762,11 @@ document.addEventListener('DOMContentLoaded',()=>{
     /* ---- section tabs ---- */
     var SECTIONS={
       practice:[['exam','Start exam'],['mistakes','Mistakes'],['favorites','Favourites'],['library','Library']],
-      learn:[['flashcards','Flashcards'],['tools','Study tools'],['ai','AI assistant'],['heartanatomy','3D Heart']],
+      learn:[['flashcards','Flashcards'],['tools','Study tools'],['ai','AI assistant']],
       track:[['progress','Progress'],['history','History'],['leaderboard','Top users']]
     };
     var LABEL={practice:'Practice',learn:'Learn',track:'Track progress'};
-    var VIEW_SECTION={exam:'practice',mistakes:'practice',favorites:'practice',library:'practice',flashcards:'learn',tools:'learn',ai:'learn',heartanatomy:'learn',progress:'track',history:'track',leaderboard:'track',results:'track'};
+    var VIEW_SECTION={exam:'practice',mistakes:'practice',favorites:'practice',library:'practice',flashcards:'learn',tools:'learn',ai:'learn',progress:'track',history:'track',leaderboard:'track',results:'track'};
     var CHIP={results:'history'};
     var view=function(){return location.hash.replace('#','')||'dashboard';};
     var go=function(v){ if(typeof window.go==='function')window.go(v); else location.hash=v; };
@@ -7337,108 +7531,5 @@ body:has(.quiz) .mt-help,body:has(#visitorStartName) .mt-help,body:has(.quiz) .m
 })();
 </script>
 
-
-<!-- MEDEX HEART ANATOMY EXPLORER: standalone, theme-aware learning page -->
-<style>
-.heart-atlas{--ha-ink:#e8f1f5;--ha-muted:#a3b6c2;--ha-panel:#101e2b;--ha-border:rgba(174,204,220,.16);color:var(--text)}
-.heart-atlas *{min-width:0}
-.heart-atlas .ha-hero{position:relative;overflow:hidden;padding:clamp(20px,3vw,32px);border-radius:20px;background:radial-gradient(ellipse at 85% 15%,rgba(30,173,183,.22),transparent 36%),linear-gradient(135deg,#0a1925,#123445 62%,#0b2431);color:#edf8fb;border:1px solid rgba(99,191,203,.22);margin-bottom:16px}
-.heart-atlas .ha-kicker{font:700 10px var(--font-mono);letter-spacing:.16em;color:#69d5d8;text-transform:uppercase}
-.heart-atlas .ha-hero h2{font-size:clamp(25px,3.3vw,38px);margin:8px 0 9px;color:#f4fbff}
-.heart-atlas .ha-hero p{max-width:760px;color:#bfd0da;font-size:13px;line-height:1.65;margin:0}
-.heart-atlas .ha-pillrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:16px}
-.heart-atlas .ha-pill{padding:6px 9px;border:1px solid rgba(173,226,231,.24);border-radius:999px;color:#d9f5f5;font-size:10px;background:rgba(255,255,255,.055)}
-.heart-atlas .ha-workspace{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.85fr);gap:14px;align-items:stretch}
-.heart-atlas .ha-viewer-card,.heart-atlas .ha-panel{border:1px solid var(--line);border-radius:16px;background:var(--card);overflow:hidden;box-shadow:var(--shadow-sm)}
-.heart-atlas .ha-viewer-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;border-bottom:1px solid var(--line);background:var(--bg);flex-wrap:wrap}
-.heart-atlas .ha-viewer-head strong{font-size:13px}
-.heart-atlas .ha-mode-tabs{display:flex;gap:5px;padding:4px;border:1px solid var(--line);border-radius:11px;background:var(--card)}
-.heart-atlas .ha-mode-tabs button{border:0;border-radius:8px;background:transparent;padding:8px 10px;color:var(--muted);font-size:11px;font-weight:800}
-.heart-atlas .ha-mode-tabs button[aria-pressed=true]{background:var(--primary-soft);color:var(--primary)}
-.heart-atlas .ha-viewer-stage{position:relative;background:radial-gradient(ellipse at 50% 45%,#1c3646 0%,#0b1721 65%,#09121a 100%);min-height:440px;height:min(59vw,620px);max-height:660px}
-.heart-atlas model-viewer{display:block;width:100%;height:100%;min-height:440px;--poster-color:transparent;background:transparent;outline:none}
-.heart-atlas .ha-load-status{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:#c4d6e0;text-align:center;padding:24px;font-size:12px;pointer-events:none;background:linear-gradient(180deg,rgba(9,18,26,.08),rgba(9,18,26,.25))}
-.heart-atlas .ha-load-status[hidden]{display:none}
-.heart-atlas .ha-loader{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.18);border-top-color:#67d5d6;animation:ha-spin .8s linear infinite}
-@keyframes ha-spin{to{transform:rotate(360deg)}}
-.heart-atlas .ha-view-controls{display:flex;flex-wrap:wrap;gap:7px;padding:11px 13px;border-top:1px solid var(--line);background:var(--card)}
-.heart-atlas .ha-view-controls .btn{font-size:11px;padding:8px 10px}
-.heart-atlas .ha-model-caption{padding:0 13px 12px;color:var(--muted);font-size:10px;line-height:1.5}
-.heart-atlas .ha-panel{padding:16px}
-.heart-atlas .ha-panel h3{font-size:19px;margin-bottom:5px}
-.heart-atlas .ha-muted{font-size:11px;color:var(--muted);line-height:1.55}
-.heart-atlas .ha-search{width:100%;margin:12px 0 10px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);font-size:12px}
-.heart-atlas .ha-structure-list{display:grid;gap:6px;max-height:330px;overflow:auto;padding-right:2px}
-.heart-atlas .ha-structure{display:flex;align-items:center;gap:9px;text-align:left;width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--card);color:var(--text)}
-.heart-atlas .ha-structure:hover,.heart-atlas .ha-structure.active{border-color:var(--primary);background:var(--primary-soft)}
-.heart-atlas .ha-dot{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--ha-color,#27a4b7)}
-.heart-atlas .ha-structure b{display:block;font-size:11px}
-.heart-atlas .ha-structure small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
-.heart-atlas .ha-detail{margin-top:12px;padding:13px;border:1px solid rgba(var(--primary-rgb),.24);border-radius:12px;background:var(--primary-soft)}
-.heart-atlas .ha-detail .ha-detail-label{font:700 9px var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--primary)}
-.heart-atlas .ha-detail h4{font-size:16px;margin:5px 0;color:var(--text)}
-.heart-atlas .ha-detail p{font-size:12px;line-height:1.65;margin:0;color:var(--text)}
-.heart-atlas .ha-detail .ha-clinical{margin-top:9px;padding-top:9px;border-top:1px solid rgba(var(--primary-rgb),.22);color:var(--muted);font-size:11px;line-height:1.55}
-.heart-atlas .ha-bottom-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
-.heart-atlas .ha-learning-card{padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
-.heart-atlas .ha-learning-card .ha-card-icon{font-size:21px}
-.heart-atlas .ha-learning-card h3{font-size:15px;margin:8px 0 6px}
-.heart-atlas .ha-learning-card p{font-size:11px;line-height:1.65;color:var(--muted);margin:0}
-.heart-atlas .ha-flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}
-.heart-atlas .ha-flow span{font-size:10px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
-.heart-atlas .ha-disclaimer{margin-top:12px;color:var(--muted);font-size:10px;line-height:1.6}
-@media(max-width:900px){.heart-atlas .ha-workspace{grid-template-columns:1fr}.heart-atlas .ha-viewer-stage,.heart-atlas model-viewer{height:68vw;min-height:340px;max-height:540px}.heart-atlas .ha-structure-list{max-height:260px}.heart-atlas .ha-bottom-grid{grid-template-columns:1fr 1fr}}
-@media(max-width:560px){.heart-atlas .ha-hero{padding:20px 17px}.heart-atlas .ha-viewer-stage,.heart-atlas model-viewer{height:92vw;min-height:310px;max-height:430px}.heart-atlas .ha-bottom-grid{grid-template-columns:1fr}.heart-atlas .ha-viewer-head{align-items:flex-start;flex-direction:column}.heart-atlas .ha-mode-tabs{width:100%}.heart-atlas .ha-mode-tabs button{flex:1}}
-@media(prefers-reduced-motion:reduce){.heart-atlas .ha-loader{animation:none}}
-</style>
-<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
-<script>
-const MEDEX_HEART_MODELS={
- external:'https://cdn.jsdelivr.net/gh/organui/heart-3d@c72ce6654ff8e282942f97750d3104f55ef4fc3d/public/models/heart.glb',
- internal:'https://grab3d.com/dl/human-heart-cutaway/human-heart-cutaway-light.glb'
-};
-const MEDEX_HEART_STRUCTURES={
- external:[
-  {id:'aorta',name:'Aorta',sub:'Systemic outflow',color:'#d84b4b',desc:'The largest artery. It receives oxygenated blood from the left ventricle and distributes it to the systemic circulation.',clinical:'The aortic root contains the aortic valve and the origins of the coronary arteries. The arch gives rise to the major arteries supplying the head, neck and upper limbs.'},
-  {id:'pulmonary',name:'Pulmonary trunk & arteries',sub:'Right ventricular outflow',color:'#328bd1',desc:'The pulmonary trunk leaves the right ventricle and divides into right and left pulmonary arteries, carrying deoxygenated blood to the lungs.',clinical:'The pulmonary arteries are unusual because they carry deoxygenated blood. The pulmonary trunk lies anterior to the ascending aorta.'},
-  {id:'svc',name:'Superior vena cava',sub:'Venous return',color:'#438fca',desc:'Returns deoxygenated blood from the head, neck, upper limbs and thorax to the right atrium.',clinical:'It is formed by the union of the right and left brachiocephalic veins and enters the superior part of the right atrium.'},
-  {id:'ivc',name:'Inferior vena cava',sub:'Venous return',color:'#438fca',desc:'Returns blood from the abdomen, pelvis and lower limbs to the right atrium.',clinical:'It passes through the caval opening of the diaphragm at approximately T8.'},
-  {id:'ra',name:'Right atrium',sub:'Receives systemic venous blood',color:'#3f8dc6',desc:'Receives blood from the superior and inferior venae cavae and the coronary sinus, then passes it through the tricuspid valve to the right ventricle.',clinical:'The crista terminalis separates the smooth sinus venarum from the pectinate-muscle region of the atrium.'},
-  {id:'rv',name:'Right ventricle',sub:'Pumps blood to the lungs',color:'#4a9fd0',desc:'Pumps deoxygenated blood through the pulmonary valve into the pulmonary trunk. Its wall is thinner than the left ventricular wall.',clinical:'Internal landmarks include trabeculae carneae, papillary muscles, chordae tendineae and the moderator band.'},
-  {id:'la',name:'Left atrium',sub:'Receives pulmonary venous blood',color:'#c95c73',desc:'Receives oxygenated blood from usually four pulmonary veins and delivers it through the mitral valve to the left ventricle.',clinical:'Most of the left atrium is smooth-walled; pectinate muscles are mainly confined to the auricle.'},
-  {id:'lv',name:'Left ventricle',sub:'Pumps blood to the body',color:'#c94d4d',desc:'Generates the pressure needed for systemic circulation and ejects oxygenated blood through the aortic valve.',clinical:'Its myocardium is substantially thicker than the right ventricular wall. The cavity is roughly conical in long-axis view.'},
-  {id:'coronary',name:'Coronary arteries',sub:'Myocardial blood supply',color:'#df6a5b',desc:'The right and left coronary arteries arise from the aortic sinuses and supply the myocardium.',clinical:'The left coronary artery commonly divides into the anterior interventricular (LAD) and circumflex arteries. Coronary dominance depends on the origin of the posterior interventricular artery.'},
-  {id:'apex',name:'Apex of the heart',sub:'Inferolateral tip',color:'#dc7777',desc:'Formed mainly by the left ventricle and directed downwards, forwards and to the left.',clinical:'In a typical adult it is palpable near the left fifth intercostal space at the midclavicular line, with normal anatomical variation.'},
-  {id:'base',name:'Base of the heart',sub:'Posterior aspect',color:'#ad7b9e',desc:'Formed mainly by the left atrium, with a smaller contribution from the right atrium; it faces posteriorly.',clinical:'The pulmonary veins enter the left atrium at the base. The oesophagus lies posterior to the left atrium.'}
- ],
- internal:[
-  {id:'ra',name:'Right atrium',sub:'Systemic venous receiving chamber',color:'#3f8dc6',desc:'Receives blood from the SVC, IVC and coronary sinus. Blood crosses the tricuspid valve into the right ventricle.',clinical:'The fossa ovalis is a remnant of the fetal foramen ovale on the interatrial septum.'},
-  {id:'tricuspid',name:'Tricuspid valve',sub:'Right atrioventricular valve',color:'#54a6cb',desc:'Usually has anterior, posterior and septal leaflets. It prevents systolic regurgitation from the right ventricle into the right atrium.',clinical:'Chordae tendineae connect the leaflets to papillary muscles; these support valve closure but do not actively open the valve.'},
-  {id:'rv',name:'Right ventricle',sub:'Pulmonary pump',color:'#4a9fd0',desc:'Receives blood through the tricuspid valve and ejects it through the pulmonary valve. It contains trabeculae carneae and papillary muscles.',clinical:'The moderator band is a characteristic muscular band in the right ventricle and carries part of the right bundle branch.'},
-  {id:'pulmonaryvalve',name:'Pulmonary valve',sub:'Right ventricular outflow',color:'#438fca',desc:'A semilunar valve with three cusps that prevents backflow from the pulmonary trunk into the right ventricle.',clinical:'Unlike the atrioventricular valves, it has no chordae tendineae or papillary muscles.'},
-  {id:'la',name:'Left atrium',sub:'Pulmonary venous receiving chamber',color:'#c95c73',desc:'Receives oxygenated blood from the pulmonary veins and passes it through the mitral valve into the left ventricle.',clinical:'The left atrium forms most of the posterior base of the heart.'},
-  {id:'mitral',name:'Mitral (bicuspid) valve',sub:'Left atrioventricular valve',color:'#c85b76',desc:'Has anterior and posterior leaflets and prevents systolic regurgitation from the left ventricle into the left atrium.',clinical:'The anterior leaflet is in fibrous continuity with the aortic valve; the valve is supported by chordae tendineae and papillary muscles.'},
-  {id:'lv',name:'Left ventricle',sub:'Systemic pressure pump',color:'#c94d4d',desc:'Its thick myocardium produces the pressure required to propel blood through the aortic valve into the aorta.',clinical:'The left ventricle has two major papillary muscles and prominent trabeculae carneae; its wall is normally much thicker than the right ventricular wall.'},
-  {id:'aorticvalve',name:'Aortic valve',sub:'Left ventricular outflow',color:'#d84b4b',desc:'A semilunar valve, usually with right coronary, left coronary and non-coronary cusps. It prevents diastolic backflow from the aorta.',clinical:'The right and left coronary arteries arise from the corresponding aortic sinuses, just above the valve.'},
-  {id:'septum',name:'Interventricular septum',sub:'Separates the ventricles',color:'#c28b6b',desc:'A muscular and membranous partition between the right and left ventricles. It supports ventricular geometry and contains parts of the conduction system.',clinical:'The membranous part is a common site for congenital ventricular septal defects.'},
-  {id:'chordae',name:'Chordae tendineae',sub:'Valve support apparatus',color:'#d7c6a6',desc:'Tendinous cords connecting atrioventricular valve leaflets to papillary muscles. They help prevent prolapse of the leaflets during ventricular systole.',clinical:'Chordae are present at the mitral and tricuspid valves, not at the pulmonary or aortic semilunar valves.'},
-  {id:'papillary',name:'Papillary muscles',sub:'Ventricular muscle projections',color:'#d48c87',desc:'Contract with the ventricular myocardium and tension the chordae tendineae during systole to limit atrioventricular leaflet prolapse.',clinical:'Papillary muscle dysfunction or rupture after myocardial infarction can cause acute severe mitral regurgitation.'}
- ]
-};
-let medexHeartMode='external',medexHeartSelected='aorta';
-function renderHeartAnatomy(){
- const body=`<div class="heart-atlas"><section class="ha-hero"><div class="ha-kicker">MEDEX · ANATOMY ATLAS</div><h2>Explore the human heart in 3D</h2><p>Study the heart as a spatial organ: rotate and zoom the model, switch between an external overview and an internal cutaway, and use the structure guide for anatomy, function and high-yield relations.</p><div class="ha-pillrow"><span class="ha-pill">Interactive 3D · drag to rotate</span><span class="ha-pill">Mouse wheel / pinch to zoom</span><span class="ha-pill">External + cutaway views</span><span class="ha-pill">Medical-student focused</span></div></section><section class="ha-workspace"><div class="ha-viewer-card"><div class="ha-viewer-head"><strong id="haViewTitle">External anatomy · overall relationships</strong><div class="ha-mode-tabs" role="group" aria-label="Heart anatomy mode"><button type="button" data-ha-mode="external" aria-pressed="${medexHeartMode==='external'}" onclick="setHeartAnatomyMode('external')">External anatomy</button><button type="button" data-ha-mode="internal" aria-pressed="${medexHeartMode==='internal'}" onclick="setHeartAnatomyMode('internal')">Internal cutaway</button></div></div><div class="ha-viewer-stage"><model-viewer id="medexHeartModel" src="${MEDEX_HEART_MODELS[medexHeartMode]}" alt="Interactive three-dimensional anatomical model of the human heart" camera-controls touch-action="pan-y" interaction-prompt="auto" shadow-intensity="1" exposure="1.05" environment-image="neutral" camera-orbit="0deg 75deg 2.7m" min-camera-orbit="auto 15deg 0.8m" max-camera-orbit="auto 150deg 8m" field-of-view="30deg" loading="eager" reveal="auto" aria-label="Interactive 3D heart model"><div slot="progress-bar" style="height:3px;background:#66d5d8;width:0"></div></model-viewer><div class="ha-load-status" id="haLoadStatus"><span class="ha-loader"></span><b>Loading 3D anatomy…</b><span>The model may take a moment on a slow connection.</span></div></div><div class="ha-view-controls"><button class="btn" onclick="heartCameraPreset('0deg 75deg 2.7m')">Anterior view</button><button class="btn" onclick="heartCameraPreset('180deg 75deg 2.7m')">Posterior view</button><button class="btn" onclick="heartCameraPreset('90deg 75deg 2.7m')">Left lateral</button><button class="btn" onclick="heartCameraPreset('0deg 75deg 1.7m')">Zoom in</button><button class="btn" onclick="heartCameraPreset('0deg 75deg 3.8m')">Zoom out</button><button class="btn" onclick="resetHeartCamera()">Reset view</button></div><div class="ha-model-caption" id="haModelCaption">External model: BodyParts3D-derived model, CC BY 4.0. Use rotation and zoom to inspect the spatial relationships of the great vessels and cardiac surfaces.</div></div><aside class="ha-panel"><h3>Structure explorer</h3><div class="ha-muted">Select a structure to review its role and an exam-relevant anatomical point. The guide is synchronized with the selected view.</div><input class="ha-search" id="haStructureSearch" type="search" placeholder="Search structures…" oninput="filterHeartStructures(this.value)" aria-label="Search heart structures"><div class="ha-structure-list" id="haStructureList"></div><article class="ha-detail" id="haStructureDetail" aria-live="polite"></article></aside></section><section class="ha-bottom-grid"><article class="ha-learning-card"><div class="ha-card-icon">🩸</div><h3>Follow the blood flow</h3><p>Trace the normal pathway through the chambers and valves. Remember that pulmonary arteries carry deoxygenated blood, while pulmonary veins carry oxygenated blood.</p><div class="ha-flow"><span>Venae cavae</span><b>→</b><span>Right atrium</span><b>→</b><span>Tricuspid</span><b>→</b><span>Right ventricle</span><b>→</b><span>Pulmonary valve</span><b>→</b><span>Lungs</span><b>→</b><span>Pulmonary veins</span><b>→</b><span>Left atrium</span><b>→</b><span>Mitral</span><b>→</b><span>Left ventricle</span><b>→</b><span>Aortic valve</span><b>→</b><span>Aorta</span></div></article><article class="ha-learning-card"><div class="ha-card-icon">🧭</div><h3>Orientation checkpoints</h3><p><b>Anterior:</b> mainly right ventricle. <b>Inferior:</b> mainly left ventricle and right ventricle. <b>Base:</b> mainly left atrium. <b>Apex:</b> left ventricle. Use the camera presets to compare views.</p></article><article class="ha-learning-card"><div class="ha-card-icon">🎯</div><h3>High-yield anatomy</h3><p>Compare the thickness of the ventricular walls, distinguish atrioventricular from semilunar valves, and relate the left atrium to the oesophagus and the coronary arteries to the aortic root.</p></article></section><div class="ha-disclaimer">Educational anatomy resource only; not intended for diagnosis or clinical decision-making. The 3D models are third-party assets and their geometry may simplify structures. Use your anatomy course materials and instructor guidance for detailed practical identification. External model: BodyParts3D / OrganUI explorer, CC BY 4.0. Internal cutaway model: Grab3D, CC0 1.0.</div></div>`;
- document.getElementById('app').innerHTML=layout('3D Heart Anatomy','Interactive external and internal heart anatomy for medical students.',body);
- setTimeout(()=>{const mv=document.getElementById('medexHeartModel');const status=document.getElementById('haLoadStatus');if(!mv)return;const loaded=()=>{if(status)status.hidden=true;};const failed=()=>{if(status){status.innerHTML='<b>3D model could not load</b><span>Check your internet connection, then retry.</span><button class="btn" type="button" onclick="retryHeartModel()">Retry model</button>';status.style.pointerEvents='auto';}};mv.addEventListener('load',loaded,{once:true});mv.addEventListener('error',failed,{once:true});if(mv.loaded)loaded();renderHeartStructureList();renderHeartStructureDetail();},0);
-}
-function setHeartAnatomyMode(mode){if(!MEDEX_HEART_MODELS[mode])return;medexHeartMode=mode;medexHeartSelected=MEDEX_HEART_STRUCTURES[mode][0].id;const mv=document.getElementById('medexHeartModel');const status=document.getElementById('haLoadStatus');document.querySelectorAll('[data-ha-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.haMode===mode)));const title=document.getElementById('haViewTitle');if(title)title.textContent=mode==='external'?'External anatomy · overall relationships':'Internal anatomy · chambers, valves and septum';const caption=document.getElementById('haModelCaption');if(caption)caption.textContent=mode==='external'?'External model: BodyParts3D-derived model, CC BY 4.0. Rotate to inspect the cardiac surfaces and great vessels.':'Cutaway model: Grab3D, CC0 1.0. This is a separate cutaway asset intended to expose chambers, valves and internal structures.';if(status){status.hidden=false;status.innerHTML='<span class="ha-loader"></span><b>Loading selected 3D model…</b><span>The first load of the cutaway model may take longer.</span>';status.style.pointerEvents='none';}if(mv){mv.src=MEDEX_HEART_MODELS[mode];mv.addEventListener('load',()=>{if(status)status.hidden=true;},{once:true});mv.addEventListener('error',()=>{if(status){status.innerHTML='<b>3D model could not load</b><span>Check your connection and retry.</span><button class="btn" type="button" onclick="retryHeartModel()">Retry model</button>';status.style.pointerEvents='auto';}},{once:true});}const search=document.getElementById('haStructureSearch');if(search)search.value='';renderHeartStructureList();renderHeartStructureDetail();}
-function renderHeartStructureList(){const root=document.getElementById('haStructureList');if(!root)return;const items=MEDEX_HEART_STRUCTURES[medexHeartMode];root.innerHTML=items.map(x=>`<button type="button" class="ha-structure ${x.id===medexHeartSelected?'active':''}" style="--ha-color:${x.color}" onclick="selectHeartStructure('${x.id}')"><span class="ha-dot"></span><span><b>${x.name}</b><small>${x.sub}</small></span></button>`).join('');}
-function selectHeartStructure(id){if(!MEDEX_HEART_STRUCTURES[medexHeartMode].some(x=>x.id===id))return;medexHeartSelected=id;renderHeartStructureList();renderHeartStructureDetail();}
-function renderHeartStructureDetail(){const root=document.getElementById('haStructureDetail');if(!root)return;const x=MEDEX_HEART_STRUCTURES[medexHeartMode].find(a=>a.id===medexHeartSelected)||MEDEX_HEART_STRUCTURES[medexHeartMode][0];if(!x)return;root.innerHTML=`<div class="ha-detail-label">Selected structure · ${medexHeartMode==='external'?'external':'internal'} anatomy</div><h4>${x.name}</h4><p>${x.desc}</p><div class="ha-clinical"><b>Exam / clinical correlation</b><br>${x.clinical}</div>`;}
-function filterHeartStructures(q){const term=String(q||'').toLowerCase().trim();const root=document.getElementById('haStructureList');if(!root)return;root.innerHTML=MEDEX_HEART_STRUCTURES[medexHeartMode].filter(x=>(x.name+' '+x.sub+' '+x.desc+' '+x.clinical).toLowerCase().includes(term)).map(x=>`<button type="button" class="ha-structure ${x.id===medexHeartSelected?'active':''}" style="--ha-color:${x.color}" onclick="selectHeartStructure('${x.id}')"><span class="ha-dot"></span><span><b>${x.name}</b><small>${x.sub}</small></span></button>`).join('')||'<div class="mini" style="padding:12px">No matching structure. Try another term.</div>';}
-function heartCameraPreset(orbit){const mv=document.getElementById('medexHeartModel');if(mv)mv.cameraOrbit=orbit;}
-function resetHeartCamera(){const mv=document.getElementById('medexHeartModel');if(!mv)return;mv.cameraOrbit='0deg 75deg 2.7m';mv.fieldOfView='30deg';mv.cameraTarget='auto auto auto';}
-function retryHeartModel(){const mv=document.getElementById('medexHeartModel');if(!mv)return;const status=document.getElementById('haLoadStatus');if(status){status.hidden=false;status.innerHTML='<span class="ha-loader"></span><b>Retrying 3D model…</b>';status.style.pointerEvents='none';}mv.src='';setTimeout(()=>{mv.src=MEDEX_HEART_MODELS[medexHeartMode];mv.addEventListener('load',()=>{if(status)status.hidden=true;},{once:true});mv.addEventListener('error',()=>{if(status){status.innerHTML='<b>3D model could not load</b><span>Check your internet connection and retry.</span><button class="btn" type="button" onclick="retryHeartModel()">Retry model</button>';status.style.pointerEvents='auto';}},{once:true});},100);}
-</script>
 </body>
 </html>
