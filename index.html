@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v42.8-source-heart-model-cutaway">
+<meta name="medex-build" content="v42.9-anatomy-reference-upgrade">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -2334,6 +2334,15 @@ function renderAnatomyLab(){
     <section class="heartlab-learning-grid">
       <article class="heartlab-learning-card"><span class="heartlab-learning-icon">↗</span><div><strong>Blood flow pathway</strong><p>Body → venae cavae → right atrium → tricuspid valve → right ventricle → pulmonary valve → lungs → pulmonary veins → left atrium → mitral valve → left ventricle → aortic valve → aorta → body.</p></div></article>
       <article class="heartlab-learning-card"><span class="heartlab-learning-icon">◎</span><div><strong>How to study this model</strong><p>Start with the four chambers, trace the great vessels, then switch to internal structures to compare the AV valves, semilunar valves and interventricular septum.</p></div></article>
+    </section>
+    <section class="heartlab-reference-panel" aria-label="Advanced heart anatomy study resources">
+      <div class="heartlab-reference-heading"><div><span class="heartlab-kicker">ADVANCED STUDY · VERIFIED SOURCE LINKS</span><h3>Go deeper than the surface model</h3><p>The interactive mesh is useful for orientation. Use dedicated references below for detailed internal anatomy and variant anatomy.</p></div></div>
+      <div class="heartlab-reference-grid">
+        <a class="heartlab-reference-card" href="https://3d.nih.gov/collections/heart-library" target="_blank" rel="noopener noreferrer"><span class="heartlab-reference-tag">MRI-derived · expert collaboration</span><strong>NIH 3D Heart Library</strong><p>Explore a curated collection of heart models, including congenital anatomy. Check each model's individual licence and description before reuse.</p><span class="heartlab-reference-link">Open NIH Heart Library ↗</span></a>
+        <a class="heartlab-reference-card" href="https://github.com/organui/heart-3d" target="_blank" rel="noopener noreferrer"><span class="heartlab-reference-tag">Current interactive mesh source</span><strong>Open-source heart viewer</strong><p>Inspect the source code, model preparation notes, structure mapping and attribution for the mesh used in this MedEx viewer.</p><span class="heartlab-reference-link">Inspect source project ↗</span></a>
+        <a class="heartlab-reference-card" href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/desc.html" target="_blank" rel="noopener noreferrer"><span class="heartlab-reference-tag">Anatomical mesh dataset</span><strong>BodyParts3D / DBCLS</strong><p>Review the underlying anatomical dataset and its attribution/licensing conditions.</p><span class="heartlab-reference-link">Read dataset information ↗</span></a>
+      </div>
+      <div class="heartlab-study-cues"><article><strong>Valve checkpoint</strong><p>Tricuspid and mitral valves are atrioventricular valves; pulmonary and aortic valves are semilunar valves. These structures are taught in the guide but are <em>not</em> represented as separate meshes here.</p></article><article><strong>Conduction checkpoint</strong><p>Trace SA node → AV node → AV bundle (His) → right and left bundle branches → Purkinje network. The conduction system is not modelled in this mesh.</p></article><article><strong>Clinical anatomy checkpoint</strong><p>Coronary dominance is defined by the artery giving rise to the posterior interventricular branch. Do not infer dominance or diagnose disease from this illustrative mesh.</p></article></div>
     </section>
     <p class="heartlab-disclaimer"><strong>Model provenance & limits:</strong> This viewer uses a source-derived BodyParts3D mesh (DBCLS, CC BY 4.0), not procedural heart-shaped primitives. It contains atrial walls, a combined ventricular wall, two ventricular cavity surfaces, selected great vessels and coronary artery trees. Valves, detailed papillary muscles, chordae, trabeculae, inferior vena cava and pulmonary veins are not included. Expert anatomical review of this web model is pending; use a faculty-validated atlas for formal assessment and never for clinical decisions. <a href="https://dbarchive.biosciencedbc.jp/en/bodyparts3d/desc.html" target="_blank" rel="noopener">Source dataset</a> · <a href="https://github.com/organui/heart-3d" target="_blank" rel="noopener">Model preparation & attribution</a>.</p>
   </div>`;
@@ -4930,6 +4939,20 @@ function printAdminQuestionBankPDF(){
 .heartlab-cutaway-row input[type=range]{flex:1;min-width:130px;accent-color:var(--primary)}
 .heartlab-axis{display:flex;gap:4px;flex-wrap:wrap}.heartlab-axis button{border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:8px;padding:6px 8px;font-size:10px;font-weight:700;cursor:pointer}.heartlab-axis button.active{background:var(--primary-soft);border-color:var(--primary);color:var(--primary)}
 .heartlab-cutaway-help{font-size:10px;line-height:1.45;color:var(--muted)}.heartlab-list-actions{display:flex;gap:5px}.heartlab-list-actions .btn{padding:5px 8px;font-size:10px}
+
+.heartlab-reference-panel{margin-top:16px;padding:18px;border:1px solid var(--border);border-radius:16px;background:var(--card);}
+.heartlab-reference-heading h3{margin:5px 0 6px;font-size:19px;color:var(--text)}
+.heartlab-reference-heading p{margin:0;color:var(--muted);font-size:12px;line-height:1.6;max-width:760px}
+.heartlab-reference-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.heartlab-reference-card{display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid var(--border);border-radius:12px;text-decoration:none!important;color:var(--text)!important;background:var(--surface,rgba(12,35,55,.28));transition:border-color .18s,transform .18s}
+.heartlab-reference-card:hover{border-color:var(--primary);transform:translateY(-2px)}
+.heartlab-reference-tag{font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:var(--primary);font-weight:800}
+.heartlab-reference-card strong{font-size:13px}.heartlab-reference-card p,.heartlab-study-cues p{font-size:11px;line-height:1.6;color:var(--muted);margin:0}
+.heartlab-reference-link{font-size:11px;color:var(--primary);font-weight:750;margin-top:auto;padding-top:3px}
+.heartlab-study-cues{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.heartlab-study-cues article{padding:12px;border-radius:10px;background:var(--surface,rgba(12,35,55,.22));border:1px solid var(--border)}
+.heartlab-study-cues strong{font-size:12px;display:block;margin-bottom:6px;color:var(--text)}
+@media(max-width:760px){.heartlab-reference-grid,.heartlab-study-cues{grid-template-columns:1fr}.heartlab-reference-panel{padding:13px}}
 .heartlab-disclaimer{font-size:11px;line-height:1.6;color:var(--muted);padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--card)}.heartlab-disclaimer a{color:var(--primary);text-decoration:underline}
 @media(max-width:760px){.heartlab-cutaway-row{align-items:stretch}.heartlab-axis{width:100%}.heartlab-axis button{flex:1}.heartlab-cutaway-row input[type=range]{width:100%;flex-basis:100%}.heartlab-controls{flex-wrap:wrap}}
 .heartlab{max-width:1480px;margin:0 auto;display:grid;gap:15px}
