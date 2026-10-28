@@ -7794,8 +7794,8 @@ function uploadPart(gl,part){const g=part.geom;if(!g.n)computeNormals(g);
   let c=[0,0,0];for(let k=0;k<g.p.length;k+=3){c[0]+=g.p[k];c[1]+=g.p[k+1];c[2]+=g.p[k+2];}const nn=g.p.length/3;part.center=[c[0]/nn,c[1]/nn,c[2]/nn];
   /* release CPU copies of big geometry */ part.nTri=N/3;}
 
-/* ---------- scan-based heart (BodyParts3D mesh asset) ---------- */
-const BP_URL='heart-bp3d.bin?v=2';
+/* ---------- MXH1 heart geometry asset (legacy mesh or direct procedural meshes) ---------- */
+const BP_URL='heart-bp3d.bin?v=3';
 function bpFetch(progress){
   return fetch(BP_URL).then(r=>{
     if(!r.ok)throw new Error('heart asset HTTP '+r.status);
@@ -7819,12 +7819,14 @@ function bpParse(buf){
       aux[i*2]=fb[i]===255?-1:fb[i]/250;aux[i*2+1]=Math.max(0.2,ab[i]/255);}
     const ni=e.nt*3,idx=e.it==='u16'?new Uint16Array(buf.slice(base+e.idx,base+e.idx+ni*2)):new Uint32Array(buf.slice(base+e.idx,base+e.idx+ni*4));
     M[e.k]={p,n,aux,i:idx};});
-  return {hdr,M};
+  const directParts=hdr.mode==='direct'?hdr.parts.map(e=>Object.assign({},e.meta||{},{id:e.k,geom:M[e.k]})):null;
+  return {hdr,M,directParts};
 }
 function buildHeartBP(progress,done){
   bpFetch(f=>progress(f*0.85)).then(buf=>{progress(0.88);setTimeout(()=>{let r;try{r=bpAssemble(bpParse(buf));}catch(e){return done(e);}progress(1);done(null,r);},0);}).catch(e=>done(e));
 }
 function bpAssemble(D){
+  if(D.directParts){const {hdr,directParts}=D;return {parts:directParts,C:hdr.palette||{},model:'bp',generated:!!hdr.generated,flowPaths:hdr.flow||{},lm:hdr.lm||{},credit:hdr.credit,stats:{tris:directParts.reduce((a,p)=>a+(p.geom.i.length/3),0)}};}
   const {hdr,M}=D,lm=hdr.lm,parts=[];
   const C={myo:[0.70,0.24,0.22],myoA:[0.76,0.34,0.30],inL:[0.80,0.36,0.34],inR:[0.62,0.40,0.62],
     aorta:[0.84,0.30,0.26],aoIn:[0.72,0.26,0.24],pa:[0.46,0.55,0.84],paIn:[0.34,0.40,0.70],vein:[0.38,0.48,0.80],veinIn:[0.28,0.34,0.62],
@@ -8564,7 +8566,7 @@ function renderAnatomy3D(){
 }
 window.renderAnatomy3D=renderAnatomy3D;window.__AN=AN;
 
-function anDiscText(){return AN.heart&&AN.heart.model==='bp'?'Anatomical model reconstructed from the <b>BodyParts3D</b> human anatomy dataset (Life Science Integrated Database Center, CC BY-SA 2.1 JP; Mitsuhashi et al., Nucleic Acids Res 2009). Chamber regions, aortic valve, conduction course and flow paths are derived/schematic. Always confirm details against an atlas (e.g. Netter, Gray’s).':'Procedurally generated teaching model (not a patient scan): proportions are idealised. Always confirm details against an atlas (e.g. Netter, Gray’s).';}
+function anDiscText(){return AN.heart&&AN.heart.generated?'Original MedEx procedural teaching model, built from generated chamber surfaces and individual vascular, valve and internal structures. Proportions are idealised; this is not a patient scan or a clinically validated model. Confirm details against an anatomical atlas.':AN.heart&&AN.heart.model==='bp'?'Anatomical model reconstructed from the <b>BodyParts3D</b> human anatomy dataset (Life Science Integrated Database Center, CC BY-SA 2.1 JP; Mitsuhashi et al., Nucleic Acids Res 2009). Chamber regions, aortic valve, conduction course and flow paths are derived/schematic. Always confirm details against an atlas (e.g. Netter, Gray’s).':'Procedurally generated teaching model (not a patient scan): proportions are idealised. Always confirm details against an atlas (e.g. Netter, Gray’s).';}
 
 })();
 </script>
