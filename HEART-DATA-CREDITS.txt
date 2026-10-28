@@ -10,3 +10,7 @@ Derived from BodyParts3D (release 3.0):
 Modifications: meshes re-oriented/scaled, vessels trimmed, heart wall partitioned into chamber regions,
 simplified (quadric decimation), ambient-occlusion and epicardial-fat shading baked, flow and conduction
 paths added. This derived data is distributed under the same CC BY-SA 2.1 JP licence.
+
+
+Additional processing in this updated file:
+  Vertex normals were recalculated from each mesh's triangle geometry using area-weighted face normals, then blended with the source normals (75% recalculated / 25% source) to smooth lighting while retaining some of the original shading character. Geometry, triangle indices, mesh-part definitions, and the existing ambient-occlusion/epicardial-fat data were preserved. The binary container and original filename are unchanged.
