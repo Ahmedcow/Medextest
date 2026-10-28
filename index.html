@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v43.0-anatomy-scan">
+<meta name="medex-build" content="v43.1-anatomy-scan">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -6387,7 +6387,7 @@ if('serviceWorker' in navigator){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=43.0',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=43.1',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       watchPWARegistration(registration);
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
@@ -7024,46 +7024,56 @@ body:has(.quiz) .mt-help,body:has(#visitorStartName) .mt-help,body:has(.quiz) .m
 .dn-stat>span{display:flex;flex-direction:column;align-items:center}
 .dn-copy em{font-style:normal}
 @media(prefers-reduced-motion:reduce){.dn-card{transition:none}}
-/* ===== Heart Anatomy 3D ===== */
-.an3{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
-.an3-left{min-width:0}
-.an3-stage{position:relative;height:clamp(420px,72vh,760px);border-radius:20px;overflow:hidden;background:radial-gradient(120% 90% at 50% 35%,#16303f 0%,#0b1822 70%);border:1px solid var(--line);touch-action:none}
+/* ===== Heart Anatomy 3D (full-page viewer, floating tool windows) ===== */
+.main:has(.an3){padding:0!important;max-width:none!important}
+.an3{position:relative;height:calc(100vh - var(--topbar-h));height:calc(100dvh - var(--topbar-h));min-height:420px}
+#an3Hold{position:absolute;inset:0}
+.an3-stage{position:absolute;inset:0;overflow:hidden;background:radial-gradient(120% 90% at 50% 38%,#18364a 0%,#0b1822 72%);touch-action:none}
 .an3-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
 .an3-canvas:active{cursor:grabbing}
 .an3-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .an3-lab{position:absolute;left:0;top:0;pointer-events:auto;margin:-10px 0 0 10px;padding:3px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.28);background:rgba(8,18,26,.72);color:#e8f4f8;font-size:11px;font-weight:600;white-space:nowrap;cursor:pointer;backdrop-filter:blur(4px);will-change:transform}
 .an3-lab::before{content:"";position:absolute;left:-10px;top:50%;width:7px;height:7px;margin-top:-3.5px;border-radius:50%;background:#5fe0d0;box-shadow:0 0 0 3px rgba(95,224,208,.25)}
 .an3-lab:hover{background:rgba(20,60,70,.9)}
-.an3-views{position:absolute;left:10px;top:10px;display:flex;gap:4px;flex-wrap:wrap;max-width:calc(100% - 20px)}
-.an3-views button,.an3-tools button{padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(8,18,26,.7);color:#dbeaf0;font-size:12px;font-weight:600;cursor:pointer;backdrop-filter:blur(4px)}
+.an3-views{position:absolute;left:12px;top:12px;display:flex;gap:4px;flex-wrap:wrap;max-width:calc(100% - 84px)}
+.an3-views button,.an3-tools button{padding:7px 11px;border-radius:10px;border:1px solid rgba(255,255,255,.2);background:rgba(8,18,26,.7);color:#dbeaf0;font-size:12px;font-weight:600;cursor:pointer;backdrop-filter:blur(4px)}
 .an3-views button:hover,.an3-tools button:hover{background:rgba(30,70,80,.85)}
-.an3-tools{position:absolute;left:10px;bottom:34px;right:10px;display:flex;gap:6px;flex-wrap:wrap}
+.an3-tools{position:absolute;left:12px;bottom:30px;right:12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
 .an3-tools button.on{background:var(--primary);border-color:var(--primary);color:#fff}
-.an3-hint{position:absolute;left:12px;right:12px;bottom:10px;font-size:11px;color:rgba(220,235,240,.65);pointer-events:none}
-.an3-legend{position:absolute;right:12px;top:12px;display:none;align-items:center;gap:6px;font-size:11px;color:#dbeaf0;background:rgba(8,18,26,.7);padding:5px 9px;border-radius:10px}
+.an3-hint{position:absolute;left:12px;right:12px;bottom:8px;font-size:11px;color:rgba(220,235,240,.6);pointer-events:none;text-align:center}
+.an3-legend{position:absolute;left:12px;top:104px;display:none;align-items:center;gap:6px;font-size:11px;color:#dbeaf0;background:rgba(8,18,26,.7);padding:5px 9px;border-radius:10px}
 .an3-legend i,.an3-leg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 3px 0 6px}
 .an3-legend i.b,.an3-leg i.b{background:#5a8cff}.an3-legend i.r,.an3-leg i.r{background:#ff4a3d}
 .an3-leg{font-size:11px;color:var(--muted)}
+.an3-fab{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:8px;z-index:6}
+.an3-fab button{width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(8,18,26,.78);color:#e5f2f6;display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(6px);box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.an3-fab button svg{width:21px;height:21px}
+.an3-fab button:hover{background:rgba(30,70,80,.9)}
+.an3-fab button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.an3-win{position:absolute;right:68px;top:12px;bottom:70px;width:min(360px,calc(100% - 90px));display:flex;flex-direction:column;background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:16px;box-shadow:0 14px 40px rgba(0,0,0,.4);z-index:7;overflow:hidden}
+.an3-win[hidden]{display:none}
+.an3-whead{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--line);font-size:14px}
+.an3-whead button{border:0;background:none;color:var(--muted);font-size:16px;cursor:pointer;padding:2px 6px}
+.an3-wbody{padding:12px;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.an3-banner{position:absolute;left:12px;top:54px;z-index:5;max-width:calc(100% - 90px)}
+.an3-banner:empty{display:none}
+.an3-ban{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-start;padding:8px 14px;border-radius:14px;background:rgba(8,18,26,.82);color:#e8f4f8;border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(6px);font-size:13px}
+.an3-ban .an3-chk{margin:0;color:#cfe3ea}
+.an3-ban .btn{padding:5px 11px;font-size:12px}
+.an3-ban.ok{border-color:#3ab57a}.an3-ban.bad{border-color:#e0675d}
 .an3-fallback{position:absolute;inset:0;display:grid;place-content:center;text-align:center;padding:24px;color:#dbeaf0}
-.an3-disc{font-size:11.5px;color:var(--muted);margin:8px 4px 0}
-.an3-side{display:flex;flex-direction:column;gap:12px;min-width:0}
-.an3-card,.an3-block{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
-.an3-card h3{margin:2px 0 6px;font-size:18px;font-family:var(--font-serif)}
+.an3-block{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+@media(max-width:720px){
+  .an3{height:calc(100vh - var(--topbar-h) - 66px);height:calc(100dvh - var(--topbar-h) - 66px - env(safe-area-inset-bottom))}
+  .an3-win{right:8px;left:8px;width:auto;top:auto;bottom:62px;max-height:62%}
+  .an3-views{max-width:calc(100% - 70px)}
+  .an3-banner{top:96px;max-width:calc(100% - 24px)}
+  .an3-tools{bottom:26px}.an3-tools button{padding:6px 9px}
+  .an3-fab button{width:42px;height:42px}
+}
 .an3-eyebrow{font-size:10.5px;letter-spacing:.12em;font-weight:700;color:var(--primary)}
-.an3-sum{margin:0 0 8px;font-size:13.5px;line-height:1.5}
-.an3-sec{border-top:1px solid var(--line);padding:8px 0 2px}
-.an3-sec summary{cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
-.an3-sec p,.an3-sec li{font-size:13px;line-height:1.5;margin:6px 0}
-.an3-sec ul{margin:4px 0;padding-left:18px}
 .an3-muted{color:var(--muted);font-size:12.5px;margin:6px 0}
-.an3-note{font-size:12px;color:var(--primary);margin:8px 0 0}
 .an3-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
-.an3-feedback{padding:9px 12px;border-radius:10px;font-size:13px;margin-bottom:10px}
-.an3-feedback.ok{background:var(--ok-soft);color:var(--ok)}.an3-feedback.bad{background:var(--danger-soft);color:var(--danger)}
-.an3-tabs{display:flex;gap:4px;padding:4px;border-radius:12px;background:rgba(var(--primary-rgb),.08)}
-.an3-tabs button{flex:1;padding:8px 6px;border:0;border-radius:9px;background:none;color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer}
-.an3-tabs button.on{background:var(--card);color:var(--primary);box-shadow:var(--shadow-sm)}
-.an3-tabbody{display:flex;flex-direction:column;gap:10px;max-height:46vh;overflow:auto;padding-right:2px}
 .an3-search{width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:13px}
 .an3-grp{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:2px 8px}
 .an3-grp summary{cursor:pointer;padding:8px 2px;font-size:13px;font-weight:700;display:flex;justify-content:space-between}
@@ -7081,8 +7091,6 @@ body:has(.quiz) .mt-help,body:has(#visitorStartName) .mt-help,body:has(.quiz) .m
 .an3-seg button.on{background:var(--primary);color:#fff;border-color:var(--primary)}
 .an3-score{font-size:22px;margin:6px 0 10px}
 .an3-fallback[hidden]{display:none}
-@media(max-width:1000px){.an3{grid-template-columns:1fr}.an3-stage{height:min(62vh,520px);min-height:360px}.an3-tabbody{max-height:none}}
-
 .an3-loading{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:12px;color:#cfe3ea;font-size:13px;pointer-events:none}.an3-loading[hidden]{display:none}.an3-loading .bar{width:180px;height:5px;border-radius:5px;background:rgba(255,255,255,.14);overflow:hidden}.an3-loading i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4cc3e8,#7ee0c3);transition:width .2s}
 
 </style>
@@ -7603,9 +7611,9 @@ function heartFields(){
 }
 
 /* ---------- tiny WebGL renderer ---------- */
-const VS=`attribute vec3 aPos;attribute vec3 aNrm;attribute vec2 aAux;uniform mat4 uVP;uniform mat4 uV;varying vec3 vW;varying vec3 vN;varying vec2 vA;
-void main(){vW=aPos;vA=aAux;vN=(uV*vec4(aNrm,0.0)).xyz;gl_Position=uVP*vec4(aPos,1.0);}`;
-const FS=`precision highp float;varying vec3 vW;varying vec3 vN;varying vec2 vA;
+const VS=`attribute vec3 aPos;attribute vec3 aNrm;attribute vec2 aAux;attribute float aReg;uniform mat4 uVP;uniform mat4 uV;varying vec3 vW;varying vec3 vN;varying vec2 vA;varying float vR;
+void main(){vW=aPos;vA=aAux;vR=aReg;vN=(uV*vec4(aNrm,0.0)).xyz;gl_Position=uVP*vec4(aPos,1.0);}`;
+const FS=`precision highp float;varying vec3 vW;varying vec3 vN;varying vec2 vA;varying float vR;
 uniform vec3 uCol;uniform vec3 uInner;uniform vec3 uGlowCol;uniform float uAlpha;uniform float uShin;uniform float uSpec;uniform float uGlow;uniform float uPickMode;uniform float uClipOn;uniform float uTex;uniform float uBump;
 uniform vec4 uClip;uniform vec3 uPick;uniform mat4 uV;
 float hs(vec3 p){p=fract(p*0.3183099+vec3(0.1,0.2,0.3));p*=17.0;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
@@ -7613,6 +7621,7 @@ float vn(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.0-2.0*f);
  return mix(mix(mix(hs(i),hs(i+vec3(1,0,0)),f.x),mix(hs(i+vec3(0,1,0)),hs(i+vec3(1,1,0)),f.x),f.y),mix(mix(hs(i+vec3(0,0,1)),hs(i+vec3(1,0,1)),f.x),mix(hs(i+vec3(0,1,1)),hs(i+vec3(1,1,1)),f.x),f.y),f.z);}
 float fbm(vec3 p){return vn(p)*0.65+vn(p*2.3)*0.35;}
 void main(){
+ if(vR<0.0)discard;
  if(uClipOn>0.5&&dot(vW,uClip.xyz)>uClip.w)discard;
  if(uPickMode>0.5){gl_FragColor=vec4(uPick,1.0);return;}
  vec3 n=normalize(vN);vec3 base=uCol;bool back=!gl_FrontFacing;
@@ -7641,19 +7650,19 @@ const PFS=`precision mediump float;uniform vec3 uCol;void main(){vec2 q=gl_Point
 function compile(gl,type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s;}
 function program(gl,vs,fs){const p=gl.createProgram();gl.attachShader(p,compile(gl,gl.VERTEX_SHADER,vs));gl.attachShader(p,compile(gl,gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(p));
   const u={};const n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);for(let i=0;i<n;i++){const a=gl.getActiveUniform(p,i);u[a.name]=gl.getUniformLocation(p,a.name);}return {p,u};}
-/* vertex layout: pos3 nrm3 fat ao = 8 floats */
-function packVerts(pos,nrm,aux){const n=pos.length/3,d=new Float32Array(n*8);for(let i=0;i<n;i++){d[i*8]=pos[i*3];d[i*8+1]=pos[i*3+1];d[i*8+2]=pos[i*3+2];d[i*8+3]=nrm[i*3];d[i*8+4]=nrm[i*3+1];d[i*8+5]=nrm[i*3+2];d[i*8+6]=aux?aux[i*2]:0;d[i*8+7]=aux?aux[i*2+1]:1;}return d;}
+/* vertex layout: pos3 nrm3 fat ao reg = 9 floats */
+function packVerts(pos,nrm,aux,reg){const n=pos.length/3,d=new Float32Array(n*9);for(let i=0;i<n;i++){d[i*9]=pos[i*3];d[i*9+1]=pos[i*3+1];d[i*9+2]=pos[i*3+2];d[i*9+3]=nrm[i*3];d[i*9+4]=nrm[i*3+1];d[i*9+5]=nrm[i*3+2];d[i*9+6]=aux?aux[i*2]:0;d[i*9+7]=aux?aux[i*2+1]:1;d[i*9+8]=reg?reg[i]:1;}return d;}
 function uploadPart(gl,part){const g=part.geom;if(!g.n)computeNormals(g);
-  const ix=g.i,N=ix.length;let data=packVerts(g.p,g.n,g.aux),vbo=gl.createBuffer(),ibo=null;
+  const ix=g.i,N=ix.length;let data=packVerts(g.p,g.n,g.aux,g.reg),vbo=gl.createBuffer(),ibo=null;
   if(gl.__u32){ibo=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibo);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(ix),gl.STATIC_DRAW);}
-  else{const d2=new Float32Array(N*8);for(let k=0;k<N;k++)d2.set(data.subarray(ix[k]*8,ix[k]*8+8),k*8);data=d2;}
+  else{const d2=new Float32Array(N*9);for(let k=0;k<N;k++)d2.set(data.subarray(ix[k]*9,ix[k]*9+9),k*9);data=d2;}
   gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);
   part.vbo=vbo;part.ibo=ibo;part.count=N;
   let c=[0,0,0];for(let k=0;k<g.p.length;k+=3){c[0]+=g.p[k];c[1]+=g.p[k+1];c[2]+=g.p[k+2];}const nn=g.p.length/3;part.center=[c[0]/nn,c[1]/nn,c[2]/nn];
   /* release CPU copies of big geometry */ part.nTri=N/3;}
 
 /* ---------- scan-based heart (BodyParts3D mesh asset) ---------- */
-const BP_URL='heart-bp3d.bin?v=1';
+const BP_URL='heart-bp3d.bin?v=5';
 function bpFetch(progress){
   return fetch(BP_URL).then(r=>{
     if(!r.ok)throw new Error('heart asset HTTP '+r.status);
@@ -7676,7 +7685,8 @@ function bpParse(buf){
       let x=nq[i*3],y=nq[i*3+1],z=nq[i*3+2];const l=Math.hypot(x,y,z)||1;n[i*3]=x/l;n[i*3+1]=y/l;n[i*3+2]=z/l;
       aux[i*2]=fb[i]===255?-1:fb[i]/250;aux[i*2+1]=Math.max(0.2,ab[i]/255);}
     const ni=e.nt*3,idx=e.it==='u16'?new Uint16Array(buf.slice(base+e.idx,base+e.idx+ni*2)):new Uint32Array(buf.slice(base+e.idx,base+e.idx+ni*4));
-    M[e.k]={p,n,aux,i:idx};});
+    let reg=null;if(e.reg!=null&&e.reg>=0){const rb=new Int8Array(buf.slice(base+e.reg,base+e.reg+nv));reg=new Float32Array(nv);for(let i=0;i<nv;i++)reg[i]=rb[i]/127;}
+    M[e.k]={p,n,aux,i:idx,reg};});
   return {hdr,M};
 }
 function buildHeartBP(progress,done){
@@ -7695,7 +7705,7 @@ function bpAssemble(D){
   const lab=(g,t,d)=>({t,a:anchor(g,d),n:d});
   const has=k=>!!M[k];
   /* chambers: closed myocardial shell split by region */
-  const W=(color,inner)=>({color,inner,wall:true,stencil:true,tex:0.16,bump:0.55,shin:26,spec:0.26});
+  const W=(color,inner)=>({color,inner,wall:true,stencil:true,tex:0.06,bump:0.22,shin:30,spec:0.3});
   const wallDefs=[['ra','Right atrium',C.myoA,C.inR,[-1,0,0.3]],['rauricle','Right auricle',C.myoA,C.inR,[-0.2,0.6,1]],['rv','Right ventricle',C.myo,C.inR,[-0.2,-0.2,1]],
     ['rvot','RV outflow tract (conus arteriosus)',C.myo,C.inR,[0.1,0.7,1]],['la','Left atrium',C.myoA,C.inL,[0.3,0.4,-1]],['lauricle','Left auricle',C.myoA,C.inL,[1,0.5,0.6]],['lv','Left ventricle',C.myo,C.inL,[1,-0.3,0.2]]];
   const lt={rvot:'Conus arteriosus'};
@@ -7704,7 +7714,7 @@ function bpAssemble(D){
   if(has('ias'))P('ias','Interatrial septum & fossa ovalis','chambers',M.ias,Object.assign(W(C.fossa,C.fossa),{internal:true}));
   parts.forEach(p=>{if(p.internal){let c=[0,0,0];const g=p.geom,n=g.p.length/3;for(let i=0;i<g.p.length;i+=3){c[0]+=g.p[i];c[1]+=g.p[i+1];c[2]+=g.p[i+2];}p.label={t:p.id==='ivs'?'Interventricular septum':'Interatrial septum',a:[c[0]/n,c[1]/n,c[2]/n]};}});
   /* vessels (single-surface tubes: no stencil cap, translucent in X-ray) */
-  const V=(color,inner,extra)=>Object.assign({color,inner,wall:true,tex:0.06,bump:0.3,shin:44,spec:0.38},extra||{});
+  const V=(color,inner,extra)=>Object.assign({color,inner,wall:true,tex:0.03,bump:0.12,shin:46,spec:0.4},extra||{});
   const art=[['ascao','Ascending aorta',[0.2,0.1,1],'Ascending aorta'],['archao','Aortic arch',[0,1,0.3],'Aortic arch'],['descao','Descending thoracic aorta',[0,0.1,-1],'Descending aorta'],['brach','Brachiocephalic trunk',[0,0.3,1],null],
     ['lcca','Left common carotid artery',[0,0.3,1],null],['rcca','Right common carotid artery',[-0.2,0.3,1],null],['lsa','Left subclavian artery',[0.5,1,0],null],['rsa','Right subclavian artery',[-0.5,1,0],null]];
   art.forEach(([id,name,d,lb])=>{if(!has(id))return;const p=P(id,name,'arteries',M[id],V(C.aorta,C.aoIn));if(lb)p.label=lab(M[id],lb,d);});
@@ -7727,10 +7737,20 @@ function bpAssemble(D){
   const cen=g=>{let c=[0,0,0];const n=g.p.length/3;for(let i=0;i<g.p.length;i+=3){c[0]+=g.p[i];c[1]+=g.p[i+1];c[2]+=g.p[i+2];}return [c[0]/n,c[1]/n,c[2]/n];};
   [['tricuspid','Tricuspid valve','Tricuspid valve'],['mitral','Mitral (bicuspid) valve','Mitral valve'],['pulmonic','Pulmonary valve','Pulmonary valve']].forEach(([id,name,t])=>{
     if(!has(id))return;const p=P(id,name,'valves',M[id],Object.assign({},VL));p.label={t,a:cen(M[id])};});
-  /* aortic valve: not in the scan model -> three semilunar cusps built on the aortic root */
-  const aoc=lm.aoc,aR=lm.aoR2*0.92,an=v3.norm(lm.aon),ac=[aoc[0]-an[0]*0.18,aoc[1]-an[1]*0.18,aoc[2]-an[2]*0.18];
-  {const g=[torusGeom(ac,an,aR,0.045,36,8)];for(let k=0;k<3;k++)g.push(cuspGeom(ac,an,aR*0.95,k*Math.PI*2/3+0.12,(k+1)*Math.PI*2/3-0.12,aR*0.85,0.12));
-    const p=P('aortic','Aortic valve','valves',merge(g),Object.assign({},VL,{inner:[0.85,0.8,0.65]}));p.label={t:'Aortic valve',a:ac};}
+  /* aortic valve: absent from the scan data -> the real pulmonary-valve mesh (same semilunar design) re-seated on the aortic root */
+  if(has('pulmonic')){
+    const g=M.pulmonic,pc=lm.pvl_c;let ax=v3.norm(lm.pvl_pca);if(v3.dot(ax,v3.norm(lm.pvl_ax))<0)ax=v3.mul(ax,-1);
+    const an=v3.norm(lm.aon),R=lm.aoR2*0.95,s=R/Math.max(0.2,lm.pvl_R),ac=[lm.aoc[0]-an[0]*0.22,lm.aoc[1]-an[1]*0.22,lm.aoc[2]-an[2]*0.22];
+    /* rotation taking ax -> an (Rodrigues) */
+    const k=v3.cross(ax,an),sn=v3.len(k),cs=v3.dot(ax,an);let Rm;
+    if(sn<1e-6)Rm=[1,0,0,0,1,0,0,0,1];else{const u=v3.mul(k,1/sn),x=u[0],y=u[1],z=u[2],t=1-cs;
+      Rm=[cs+x*x*t,x*y*t-z*sn,x*z*t+y*sn,y*x*t+z*sn,cs+y*y*t,y*z*t-x*sn,z*x*t-y*sn,z*y*t+x*sn,cs+z*z*t];}
+    const rot=(p)=>[Rm[0]*p[0]+Rm[1]*p[1]+Rm[2]*p[2],Rm[3]*p[0]+Rm[4]*p[1]+Rm[5]*p[2],Rm[6]*p[0]+Rm[7]*p[1]+Rm[8]*p[2]];
+    const n=g.p.length/3,P2=new Float32Array(n*3),N2=new Float32Array(n*3);
+    for(let i=0;i<n;i++){const q=rot([g.p[i*3]-pc[0],g.p[i*3+1]-pc[1],g.p[i*3+2]-pc[2]]),m=rot([g.n[i*3],g.n[i*3+1],g.n[i*3+2]]);
+      P2[i*3]=ac[0]+q[0]*s;P2[i*3+1]=ac[1]+q[1]*s;P2[i*3+2]=ac[2]+q[2]*s;N2[i*3]=m[0];N2[i*3+1]=m[1];N2[i*3+2]=m[2];}
+    const p=P('aortic','Aortic valve','valves',{p:P2,n:N2,aux:g.aux,i:g.i},Object.assign({},VL));p.label={t:'Aortic valve',a:ac};
+  }
   const PM={color:C.pap,inner:C.pap,tex:0.2,bump:0.3,internal:true,shin:30,spec:0.25};
   if(has('lvpap')){const p=P('lvpap','LV papillary muscles','internal',M.lvpap,Object.assign({},PM));p.label={t:'Papillary muscles',a:cen(M.lvpap)};}
   if(has('rvpap')){const p=P('rvpap','RV papillary muscles','internal',M.rvpap,Object.assign({},PM));p.label={t:'RV papillary muscles',a:cen(M.rvpap)};}
@@ -8082,7 +8102,7 @@ const AN_QUIZ=['ra','rv','la','lv','rauricle','lauricle','ascao','archao','desca
 
 /* ---------- Anatomy 3D page ---------- */
 const AN={ready:false,failed:false,sel:null,layers:{chambers:true,arteries:true,veins:true,coronary:true,valves:true,internal:true,conduction:true,landmarks:false},
-  xray:false,xrayA:0.2,cut:{on:false,axis:'z',pos:0.2,flip:false},focus:true,flow:false,labels:true,auto:false,tab:'list',filter:'',
+  xray:false,xrayA:0.2,cut:{on:false,axis:'z',pos:0.2,flip:false},focus:true,flow:false,labels:true,auto:false,tab:null,filter:'',
   cam:{yaw:0.35,pitch:0.12,dist:11,t:[0.25,0.1,-0.25]},camT:null,quiz:{on:false,target:null,score:0,total:0,state:'idle',msg:''},open:{}};
 const AN_VIEWS={front:{yaw:0,pitch:0.05},back:{yaw:Math.PI,pitch:0.05},right:{yaw:-Math.PI/2,pitch:0.05},left:{yaw:Math.PI/2,pitch:0.05},top:{yaw:0,pitch:1.35},bottom:{yaw:0,pitch:-1.35}};
 const AN_HOME={yaw:0.35,pitch:0.12,dist:11,t:[0.25,0.1,-0.25]};
@@ -8097,7 +8117,7 @@ function anInitGL(){
   if(!gl){AN.failed=true;return false;}
   try{
     AN.gl=gl;gl.__u32=!!gl.getExtension('OES_element_index_uint');AN.prog=program(gl,VS,FS);AN.pprog=program(gl,PVS,PFS);
-    AN.locP=gl.getAttribLocation(AN.prog.p,'aPos');AN.locN=gl.getAttribLocation(AN.prog.p,'aNrm');AN.locA=gl.getAttribLocation(AN.prog.p,'aAux');
+    AN.locP=gl.getAttribLocation(AN.prog.p,'aPos');AN.locN=gl.getAttribLocation(AN.prog.p,'aNrm');AN.locA=gl.getAttribLocation(AN.prog.p,'aAux');AN.locR=gl.getAttribLocation(AN.prog.p,'aReg');
     AN.pLoc=gl.getAttribLocation(AN.pprog.p,'aPos');AN.pbuf=gl.createBuffer();AN.capBuf=gl.createBuffer();
     AN.parts=[];AN.ready=false;AN.progress=0;
     buildHeartAsync(f=>{AN.progress=f;const b=AN.stage&&AN.stage.querySelector('.an3-loading i');if(b)b.style.width=Math.round(f*100)+'%';},(err,H)=>{
@@ -8143,8 +8163,11 @@ function anBuildLabels(){
 function anEye(){const c=AN.cam,cp=Math.cos(c.pitch);return [c.t[0]+c.dist*Math.sin(c.yaw)*cp,c.t[1]+c.dist*Math.sin(c.pitch),c.t[2]+c.dist*Math.cos(c.yaw)*cp];}
 function anMats(){const cv=AN.canvas,eye=anEye(),V=mat4Look(eye,AN.cam.t,[0,1,0]),P=mat4Persp(0.62,cv.width/Math.max(1,cv.height),0.5,80);return {V,P,VP:mat4Mul(P,V),eye};}
 function anCutPlane(){const a=AN_AXES[AN.cut.axis],s=AN.cut.flip?-1:1;return [a.n[0]*s,a.n[1]*s,a.n[2]*s,AN.cut.pos*s];}
-function anPartAlpha(p,sel){let a=p.alpha;if(AN.xray&&p.wall)a*=AN.xrayA;if(sel&&AN.focus&&!sel.has(p.id)&&!(AN.quiz.on&&AN.quiz.state==='asking'))a*=0.14;return a;}
-function anBind(p){const gl=AN.gl;gl.bindBuffer(gl.ARRAY_BUFFER,p.vbo);gl.vertexAttribPointer(AN.locP,3,gl.FLOAT,false,32,0);gl.vertexAttribPointer(AN.locN,3,gl.FLOAT,false,32,12);gl.vertexAttribPointer(AN.locA,2,gl.FLOAT,false,32,24);if(p.ibo)gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,p.ibo);}
+function anIsolating(){return !!(AN.sel&&AN.focus&&!(AN.quiz.on&&AN.quiz.state==='asking'));}
+function anPartAlpha(p,sel){let a=p.alpha;const isSel=!!(sel&&sel.has(p.id));
+  if(sel&&AN.focus&&!isSel&&!(AN.quiz.on&&AN.quiz.state==='asking')){if(!AN.quiz.on)return 0;a*=0.14;}
+  if(AN.xray&&p.wall&&!(isSel&&AN.focus&&!AN.quiz.on))a*=AN.xrayA;return a;}
+function anBind(p){const gl=AN.gl;gl.bindBuffer(gl.ARRAY_BUFFER,p.vbo);gl.vertexAttribPointer(AN.locP,3,gl.FLOAT,false,36,0);gl.vertexAttribPointer(AN.locN,3,gl.FLOAT,false,36,12);gl.vertexAttribPointer(AN.locA,2,gl.FLOAT,false,36,24);gl.vertexAttribPointer(AN.locR,1,gl.FLOAT,false,36,32);if(p.ibo)gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,p.ibo);}
 function anDraw(p){const gl=AN.gl;if(p.ibo)gl.drawElements(gl.TRIANGLES,p.count,gl.UNSIGNED_INT,0);else gl.drawArrays(gl.TRIANGLES,0,p.count);}
 function anDrawCap(){
   const gl=AN.gl,pr=AN.prog,sp=AN.parts.filter(p=>p.stencil);
@@ -8156,31 +8179,31 @@ function anDrawCap(){
   gl.colorMask(true,true,true,true);gl.enable(gl.DEPTH_TEST);gl.depthMask(true);
   gl.stencilFunc(gl.NOTEQUAL,0,255);gl.stencilOp(gl.KEEP,gl.KEEP,gl.KEEP);
   const cp=anCutPlane(),n=[cp[0],cp[1],cp[2]],c0=[0.25,0.1,-0.25],k=v3.dot(n,c0)-cp[3],c=v3.sub(c0,v3.mul(n,k)),[a,e1,e2]=basis(n),S=7;
-  const V=[[-1,-1],[1,-1],[1,1],[-1,-1],[1,1],[-1,1]],d=new Float32Array(6*8);
-  V.forEach((q,i)=>{const p=v3.add(c,v3.add(v3.mul(e1,q[0]*S),v3.mul(e2,q[1]*S)));d.set([p[0],p[1],p[2],n[0],n[1],n[2],0,1],i*8);});
+  const V=[[-1,-1],[1,-1],[1,1],[-1,-1],[1,1],[-1,1]],d=new Float32Array(6*9);
+  V.forEach((q,i)=>{const p=v3.add(c,v3.add(v3.mul(e1,q[0]*S),v3.mul(e2,q[1]*S)));d.set([p[0],p[1],p[2],n[0],n[1],n[2],0,1,1],i*9);});
   gl.bindBuffer(gl.ARRAY_BUFFER,AN.capBuf);gl.bufferData(gl.ARRAY_BUFFER,d,gl.DYNAMIC_DRAW);
-  gl.vertexAttribPointer(AN.locP,3,gl.FLOAT,false,32,0);gl.vertexAttribPointer(AN.locN,3,gl.FLOAT,false,32,12);gl.vertexAttribPointer(AN.locA,2,gl.FLOAT,false,32,24);
+  gl.vertexAttribPointer(AN.locP,3,gl.FLOAT,false,36,0);gl.vertexAttribPointer(AN.locN,3,gl.FLOAT,false,36,12);gl.vertexAttribPointer(AN.locA,2,gl.FLOAT,false,36,24);gl.vertexAttribPointer(AN.locR,1,gl.FLOAT,false,36,32);
   gl.uniform1f(pr.u.uPickMode,0);gl.uniform1f(pr.u.uClipOn,0);const cc=AN.capCol||[0.80,0.30,0.27];gl.uniform3f(pr.u.uCol,cc[0],cc[1],cc[2]);gl.uniform3f(pr.u.uInner,cc[0],cc[1],cc[2]);gl.uniform1f(pr.u.uAlpha,1);
-  gl.uniform1f(pr.u.uShin,16);gl.uniform1f(pr.u.uSpec,0.12);gl.uniform1f(pr.u.uTex,0.16);gl.uniform1f(pr.u.uBump,0.45);gl.uniform1f(pr.u.uGlow,0);
+  gl.uniform1f(pr.u.uShin,16);gl.uniform1f(pr.u.uSpec,0.12);gl.uniform1f(pr.u.uTex,0.06);gl.uniform1f(pr.u.uBump,0.2);gl.uniform1f(pr.u.uGlow,0);
   gl.disable(gl.CULL_FACE);gl.drawArrays(gl.TRIANGLES,0,6);
   gl.disable(gl.STENCIL_TEST);gl.uniform1f(pr.u.uClipOn,1);
 }
 function anDrawParts(pick,excludeWalls){
   const gl=AN.gl,pr=AN.prog,m=AN.mats,sel=AN.quiz.on&&AN.quiz.state==='asking'?null:anSelSet();
   gl.useProgram(pr.p);gl.uniformMatrix4fv(pr.u.uVP,false,m.VP);gl.uniformMatrix4fv(pr.u.uV,false,m.V);
-  gl.enableVertexAttribArray(AN.locP);gl.enableVertexAttribArray(AN.locN);gl.enableVertexAttribArray(AN.locA);
+  gl.enableVertexAttribArray(AN.locP);gl.enableVertexAttribArray(AN.locN);gl.enableVertexAttribArray(AN.locA);gl.enableVertexAttribArray(AN.locR);
   const cp=anCutPlane();gl.uniform1f(pr.u.uClipOn,AN.cut.on?1:0);gl.uniform4f(pr.u.uClip,cp[0],cp[1],cp[2],cp[3]);
   gl.uniform1f(pr.u.uPickMode,pick?1:0);gl.uniform3f(pr.u.uGlowCol,0.55,0.92,1.0);
   const t=performance.now()/1000,list=[];
-  AN.parts.forEach(p=>{if(!AN.layers[p.layer])return;const a=anPartAlpha(p,sel);if(pick){if(a<0.5)return;if(excludeWalls&&p.wall)return;}list.push({p,a});});
+  AN.parts.forEach(p=>{if(!AN.layers[p.layer])return;const a=anPartAlpha(p,sel);if(a<=0.001)return;if(pick){if(a<0.5)return;if(excludeWalls&&p.wall)return;}list.push({p,a});});
   const setU=(p,a)=>{gl.uniform3fv(pr.u.uCol,p.color);gl.uniform3fv(pr.u.uInner,p.inner);gl.uniform1f(pr.u.uAlpha,a);gl.uniform1f(pr.u.uShin,p.shin);gl.uniform1f(pr.u.uSpec,p.spec);gl.uniform1f(pr.u.uTex,p.tex);gl.uniform1f(pr.u.uBump,p.bump||0);
-    const on=sel&&sel.has(p.id);gl.uniform1f(pr.u.uGlow,on?0.5+0.22*Math.sin(t*4):0);};
+    const on=sel&&sel.has(p.id)&&!(AN.focus&&!AN.quiz.on);gl.uniform1f(pr.u.uGlow,on?0.5+0.22*Math.sin(t*4):0);};
   if(pick){gl.disable(gl.BLEND);gl.disable(gl.CULL_FACE);list.forEach(({p})=>{anBind(p);gl.uniform3f(pr.u.uPick,p.idx/255,0,0);anDraw(p);});return;}
   gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
   const op=list.filter(x=>x.a>=0.99),tr=list.filter(x=>x.a<0.99);
   gl.disable(gl.CULL_FACE);gl.depthMask(true);
   if(!AN.dbgCap)op.forEach(({p,a})=>{anBind(p);setU(p,1);anDraw(p);});
-  if(AN.cut.on){anDrawCap();gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);}
+  if(AN.cut.on&&!(sel&&AN.focus&&!AN.quiz.on)){anDrawCap();gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);}
   tr.forEach(x=>{const c=x.p.center,e=m.eye;x.d=(c[0]-e[0])**2+(c[1]-e[1])**2+(c[2]-e[2])**2;});tr.sort((a,b)=>b.d-a.d);
   gl.depthMask(false);gl.enable(gl.CULL_FACE);
   tr.forEach(({p,a})=>{anBind(p);setU(p,a);gl.cullFace(gl.FRONT);anDraw(p);gl.cullFace(gl.BACK);anDraw(p);});
@@ -8248,7 +8271,7 @@ function anSelect(id,o){
   o=o||{};
   if(AN.quiz.on&&AN.quiz.state==='asking'){anQuizAnswer(id);return;}
   AN.sel=id;const info=anInfo(id);const ids=info&&info.hl?info.hl:[id];
-  ids.forEach(i=>{const p=anPart(i);if(p){if(!AN.layers[p.layer])AN.layers[p.layer]=true;if(p.internal&&!AN.xray&&!AN.cut.on){AN.xray=true;AN.xrayNote=true;}}});
+  ids.forEach(i=>{const p=anPart(i);if(p){if(!AN.layers[p.layer])AN.layers[p.layer]=true;if(p.internal&&!AN.xray&&!AN.cut.on&&!AN.focus){AN.xray=true;AN.xrayNote=true;}}});
   if(id!=='overview'){const ps=ids.map(anPart).filter(Boolean);if(ps.length&&o.focus!==false){const c=[0,0,0];ps.forEach(p=>{c[0]+=p.center[0];c[1]+=p.center[1];c[2]+=p.center[2];});c[0]/=ps.length;c[1]/=ps.length;c[2]/=ps.length;
       anGoto({t:[AN_HOME.t[0]+(c[0]-AN_HOME.t[0])*0.55,AN_HOME.t[1]+(c[1]-AN_HOME.t[1])*0.55,AN_HOME.t[2]+(c[2]-AN_HOME.t[2])*0.55],dist:Math.min(AN.cam.dist,9.5)});}}
   anSync();
@@ -8309,14 +8332,25 @@ function anLayersHTML(){
 function anQuizHTML(){const q=AN.quiz;
   if(!q.on)return `<div class="an3-block"><h4>Test yourself</h4><p class="an3-muted">The app names a structure and you tap it on the 3D model – chambers, vessels, valves, coronary arteries and the conduction system. Internal structures switch on X-ray automatically.</p><button class="btn primary" data-act="qstart">Start quiz</button></div>`;
   return `<div class="an3-block"><h4>Quiz in progress</h4><div class="an3-score"><b>${q.score}</b> / ${q.total} correct</div><button class="btn" data-act="qstop">End quiz</button></div>`;}
+function anBannerHTML(){
+  const q=AN.quiz;
+  if(q.on&&q.state==='asking')return `<div class="an3-ban"><span class="an3-eyebrow">QUIZ</span><b>Tap the: ${anEsc(anName(q.target))}</b><button class="btn" data-act="qhint">Hint</button><button class="btn" data-act="qskip">Skip</button></div>`;
+  if(q.on&&q.state==='answered')return `<div class="an3-ban ${q.ok?'ok':'bad'}"><span>${anEsc(q.msg)}</span><button class="btn primary" data-act="qnext">Next</button></div>`;
+  if(AN.sel)return `<div class="an3-ban"><b>${anEsc(anName(AN.sel))}</b><label class="an3-chk"><input type="checkbox" data-act="focus" ${AN.focus?'checked':''}> Isolate</label><button class="btn" data-act="clear">Show everything</button></div>`;
+  return '';
+}
+const AN_WINS={list:['Structures','M4 6h16M4 12h16M4 18h10'],layers:['Layers & tools','M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5'],quiz:['Quiz','M9 9a3 3 0 1 1 4.5 2.6c-.9.6-1.5 1.2-1.5 2.4M12 18h.01'],about:['About & credits','M12 8h.01M11 12h1v5h1']};
+function anWinBody(k){return k==='list'?anListHTML():k==='layers'?anLayersHTML():k==='quiz'?anQuizHTML():`<div class="an3-block"><h4>About this model</h4><p class="an3-muted">${anDiscText()}</p></div>`;}
 function anSync(){
   if(!AN.root)return;
-  const info=document.getElementById('an3Info');if(info)info.innerHTML=anInfoHTML();
-  const tab=document.getElementById('an3Tab');
-  if(tab&&!AN.keepTab){tab.innerHTML=AN.tab==='list'?anListHTML():AN.tab==='layers'?anLayersHTML():anQuizHTML();}
-  document.querySelectorAll('#an3Tabs [data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===AN.tab));
-  const tb=AN.stage;if(tb){const set=(a,on)=>{const e=tb.querySelector(`[data-act="${a}"]`);if(e)e.classList.toggle('on',!!on);};set('auto',AN.auto);set('labels',AN.labels);set('xray',AN.xray);set('cut',AN.cut.on);set('flow',AN.flowOn);
-    tb.querySelector('.an3-legend').style.display=AN.flowOn?'flex':'none';}
+  const st=AN.stage;if(!st)return;
+  const ban=st.querySelector('.an3-banner');if(ban)ban.innerHTML=anBannerHTML();
+  const w=st.querySelector('.an3-win');
+  if(w){if(!AN.tab){w.hidden=true;}else{w.hidden=false;w.querySelector('.an3-wtitle').textContent=AN_WINS[AN.tab][0];
+      if(!AN.keepTab){w.querySelector('.an3-wbody').innerHTML=anWinBody(AN.tab);}}}
+  st.querySelectorAll('.an3-fab [data-win]').forEach(b=>b.classList.toggle('on',b.dataset.win===AN.tab));
+  const set=(a,on)=>{const e=st.querySelector(`.an3-tools [data-act="${a}"]`);if(e)e.classList.toggle('on',!!on);};set('auto',AN.auto);set('labels',AN.labels);set('xraybtn',AN.xray);set('cutbtn',AN.cut.on);set('flowbtn',AN.flowOn);
+  st.querySelector('.an3-legend').style.display=AN.flowOn?'flex':'none';
 }
 function anAct(e){
   const el=e.target.closest('[data-act]');if(!el)return;const a=el.dataset.act,t=e.type;
@@ -8324,10 +8358,10 @@ function anAct(e){
   if(t==='change'&&['xa','cutpos','filter'].includes(a))return;
   if(t==='click'&&(el.tagName==='INPUT'))return;
   switch(a){
-   case'sel':anSelect(el.dataset.id,{});break;
+   case'sel':anSelect(el.dataset.id,{});if(window.innerWidth<720){AN.tab=null;anSync();}break;
    case'clear':anClear();break;
    case'focus':AN.focus=el.checked;anSync();break;
-   case'filter':AN.filter=el.value;{const b=document.getElementById('an3Tab');const pos=el.selectionStart;b.innerHTML=anListHTML();const n=b.querySelector('.an3-search');n.focus();try{n.setSelectionRange(pos,pos);}catch(_){}}break;
+   case'filter':AN.filter=el.value;{const b=AN.stage.querySelector('.an3-wbody');const pos=el.selectionStart;b.innerHTML=anListHTML();const n=b.querySelector('.an3-search');n.focus();try{n.setSelectionRange(pos,pos);}catch(_){}}break;
    case'layer':AN.layers[el.dataset.k]=el.checked;if(AN.sel){const p=anPart(AN.sel);if(p&&!AN.layers[p.layer]){AN.sel=null;}}anSync();break;
    case'xray':AN.xray=el.checked;AN.xrayNote=false;if(AN.xray&&AN.cut.on)AN.cut.on=false;anSync();break;
    case'xa':AN.xrayA=el.value/100;break;
@@ -8339,12 +8373,13 @@ function anAct(e){
    case'labels':AN.labels=el.checked||(el.classList&&!el.classList.contains('on'));if(el.tagName==='INPUT')AN.labels=el.checked;anSync();break;
    case'auto':AN.auto=el.tagName==='INPUT'?el.checked:!AN.auto;anSync();break;
    case'reset':anReset();break;
-   case'qstart':anQuizStart();AN.tab='quiz';anSync();break;
+   case'qstart':anQuizStart();AN.tab=null;anSync();break;
    case'qstop':anQuizStop();break;
    case'qnext':anQuizNext();break;
    case'qskip':anQuizNext();break;
    case'qhint':{const p=anPart(AN.quiz.target);if(p){AN.hint=true;anGoto({t:[AN_HOME.t[0]+(p.center[0]-AN_HOME.t[0])*0.4,AN_HOME.t[1]+(p.center[1]-AN_HOME.t[1])*0.4,AN_HOME.t[2]+(p.center[2]-AN_HOME.t[2])*0.4]});AN.sel=AN.quiz.target;anSync();setTimeout(()=>{if(AN.quiz.state==='asking'){AN.sel=null;anSync();}},1600);}break;}
-   case'tab':AN.tab=el.dataset.tab;AN.keepTab=false;anSync();break;
+   case'win':AN.tab=AN.tab===el.dataset.win?null:el.dataset.win;AN.keepTab=false;anSync();break;
+   case'winclose':AN.tab=null;anSync();break;
    case'view':anView(el.dataset.v);break;
    case'xraybtn':AN.xray=!AN.xray;if(AN.xray)AN.cut.on=false;anSync();break;
    case'cutbtn':anSetCut(!AN.cut.on);break;
@@ -8357,6 +8392,9 @@ function anCreateStage(){
   const st=document.createElement('div');st.className='an3-stage';st.innerHTML=`<canvas class="an3-canvas" aria-label="Interactive 3D model of the heart" role="img"></canvas><div class="an3-labels"></div>
   <div class="an3-views" role="group" aria-label="View"><button data-act="view" data-v="front">Front</button><button data-act="view" data-v="back">Back</button><button data-act="view" data-v="right">Right</button><button data-act="view" data-v="left">Left</button><button data-act="view" data-v="top">Top</button><button data-act="view" data-v="bottom">Bottom</button></div>
   <div class="an3-tools"><button data-act="cutbtn" title="Open the heart with a cut plane">✂ Open heart</button><button data-act="xraybtn" title="Transparent walls">◐ X-ray</button><button data-act="flowbtn" title="Animate blood flow">♥ Flow</button><button data-act="labels" title="Labels">🏷 Labels</button><button data-act="auto" title="Auto-rotate">⟳ Rotate</button><button data-act="home" title="Reset camera">⌂</button></div>
+  <div class="an3-banner"></div>
+  <div class="an3-fab" role="group" aria-label="Tools">${Object.keys(AN_WINS).map(k=>`<button type="button" data-act="win" data-win="${k}" title="${AN_WINS[k][0]}" aria-label="${AN_WINS[k][0]}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${AN_WINS[k][1]}"/></svg></button>`).join('')}</div>
+  <div class="an3-win" hidden role="dialog" aria-label="Heart tools"><div class="an3-whead"><b class="an3-wtitle"></b><button type="button" data-act="winclose" aria-label="Close">✕</button></div><div class="an3-wbody"></div></div>
   <div class="an3-legend"><i class="b"></i>Deoxygenated<i class="r"></i>Oxygenated</div>
   <div class="an3-hint">Drag to rotate · scroll / pinch to zoom · right-drag to pan · tap a structure</div>
   <div class="an3-loading"><div class="bar"><i></i></div><span>Building 3D heart…</span></div>
@@ -8388,15 +8426,13 @@ function anRight(){const e=anEye(),z=v3.norm(v3.sub(e,AN.cam.t));return v3.norm(
 function renderAnatomy3D(){
   const app=document.getElementById('app');
   if(AN.sel&&!anPart(AN.sel)&&!anInfo(AN.sel))AN.sel=null;
-  app.innerHTML=layout('Heart Anatomy 3D','Interactive 3D model – surface anatomy, chambers with wall thickness, valves, coronary arteries, conduction system and a true cut-away view.',
-   `<div class="an3" id="an3Root"><div class="an3-left"><div id="an3Hold"></div><p class="an3-disc">${anDiscText()}</p></div>
-    <aside class="an3-side"><div id="an3Info"></div><div class="an3-tabs" id="an3Tabs" role="tablist"><button data-act="tab" data-tab="list" role="tab">Structures</button><button data-act="tab" data-tab="layers" role="tab">Layers & tools</button><button data-act="tab" data-tab="quiz" role="tab">Quiz</button></div><div class="an3-tabbody" id="an3Tab"></div></aside></div>`);
+  app.innerHTML='<div id="toast" class="notice hidden"></div><div class="an3" id="an3Root"><div id="an3Hold"></div></div>';
   AN.root=document.getElementById('an3Root');
   if(!AN.stage)anCreateStage();
   document.getElementById('an3Hold').appendChild(AN.stage);
   const fb=AN.stage.querySelector('.an3-fallback');
   if(!AN.gl&&!AN.failed)anInitGL();
-  if(AN.failed){fb.hidden=false;fb.innerHTML='<b>3D view unavailable</b><p>Your browser or device could not start WebGL'+(AN.err?' ('+anEsc(AN.err)+')':'')+'. Try updating the browser or enabling hardware acceleration. The structure guide on the right still works.</p>';AN.parts=AN.parts||[];}
+  if(AN.failed){fb.hidden=false;fb.innerHTML='<b>3D view unavailable</b><p>Your browser or device could not start WebGL'+(AN.err?' ('+anEsc(AN.err)+')':'')+'. Try updating the browser or enabling hardware acceleration. </p>';AN.parts=AN.parts||[];}
   else fb.hidden=true;
   if(!AN.parts)AN.parts=[];
   AN.root.addEventListener('click',anAct);AN.root.addEventListener('input',anAct);AN.root.addEventListener('change',anAct);
