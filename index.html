@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v43.0-anatomy-scan">
+<meta name="medex-build" content="v43.1-anatomy-lab">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -7084,6 +7084,148 @@ body:has(.quiz) .mt-help,body:has(#visitorStartName) .mt-help,body:has(.quiz) .m
 @media(max-width:1000px){.an3{grid-template-columns:1fr}.an3-stage{height:min(62vh,520px);min-height:360px}.an3-tabbody{max-height:none}}
 
 .an3-loading{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:12px;color:#cfe3ea;font-size:13px;pointer-events:none}.an3-loading[hidden]{display:none}.an3-loading .bar{width:180px;height:5px;border-radius:5px;background:rgba(255,255,255,.14);overflow:hidden}.an3-loading i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4cc3e8,#7ee0c3);transition:width .2s}
+
+
+
+/* ===== MedEx Heart Anatomy Lab: focused visual and responsive upgrade ===== */
+.an3{
+  grid-template-columns:minmax(0,1fr) minmax(320px,365px);
+  gap:18px;
+  align-items:stretch;
+}
+.an3-left{min-width:0;display:flex;flex-direction:column}
+.an3-stage{
+  height:clamp(500px,76vh,820px);
+  min-height:500px;
+  border-radius:24px;
+  border:1px solid rgba(111,190,204,.24);
+  background:
+    radial-gradient(ellipse at 50% 42%,rgba(30,91,111,.42) 0%,rgba(13,34,47,.9) 43%,#07131c 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 22px 55px rgba(3,13,20,.18);
+  isolation:isolate;
+}
+.an3-stage::after{
+  content:"MEDEx  ·  ANATOMY LAB";
+  position:absolute;right:15px;bottom:54px;
+  color:rgba(218,241,246,.28);font:700 9px/1 var(--font-mono);
+  letter-spacing:.16em;pointer-events:none;z-index:1;
+}
+.an3-canvas{outline:none}
+.an3-views{
+  left:14px;top:14px;gap:6px;max-width:calc(100% - 28px);
+  padding:5px;border:1px solid rgba(222,244,249,.11);
+  border-radius:15px;background:rgba(5,15,22,.56);
+  box-shadow:0 8px 24px rgba(0,0,0,.14);
+}
+.an3-views button,.an3-tools button{
+  min-height:34px;padding:7px 11px;border-radius:10px;
+  border-color:rgba(222,244,249,.15);background:rgba(11,28,38,.82);
+  transition:background .16s ease,border-color .16s ease,transform .16s ease;
+}
+.an3-views button:hover,.an3-tools button:hover{
+  border-color:rgba(89,214,210,.65);background:rgba(22,65,77,.94);
+  transform:translateY(-1px);
+}
+.an3-views button:focus-visible,.an3-tools button:focus-visible,.an3-lab:focus-visible{
+  outline:2px solid #68ded1;outline-offset:2px;
+}
+.an3-tools{
+  left:14px;right:14px;bottom:38px;gap:7px;
+  padding:8px;border:1px solid rgba(222,244,249,.1);
+  border-radius:16px;background:rgba(5,15,22,.66);
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+}
+.an3-tools button{flex:0 0 auto}
+.an3-tools button.on{
+  background:linear-gradient(135deg,#0c8997,#126a78);
+  border-color:#50c9c8;color:#fff;
+  box-shadow:0 0 0 1px rgba(80,201,200,.16),0 4px 12px rgba(12,124,140,.2);
+}
+.an3-hint{
+  left:17px;right:17px;bottom:13px;font-size:11px;
+  color:rgba(222,240,244,.72);letter-spacing:.01em;
+}
+.an3-labels{z-index:3}
+.an3-lab{
+  padding:5px 10px;margin:-11px 0 0 11px;
+  border-color:rgba(122,222,217,.38);
+  background:rgba(5,19,27,.88);color:#f0fbfc;
+  box-shadow:0 3px 12px rgba(0,0,0,.16);
+  font-size:11px;line-height:1.25;
+}
+.an3-lab::before{background:#73e1d4;box-shadow:0 0 0 3px rgba(115,225,212,.2)}
+.an3-disc{
+  margin:10px 4px 0;padding:10px 12px;
+  border:1px solid var(--line);border-radius:12px;
+  background:var(--card);line-height:1.55;
+}
+.an3-side{gap:10px;min-height:0}
+.an3-card,.an3-block{
+  border-radius:18px;padding:16px 17px;
+  box-shadow:var(--shadow-sm);
+}
+.an3-card h3{font-size:20px;line-height:1.25}
+.an3-eyebrow{letter-spacing:.14em}
+.an3-sum{font-size:13.5px;line-height:1.65}
+.an3-sec{padding:10px 0 3px}
+.an3-sec summary{display:flex;align-items:center;gap:8px;min-height:25px}
+.an3-sec summary:hover{color:var(--primary)}
+.an3-sec p,.an3-sec li{font-size:13px;line-height:1.65}
+.an3-tabs{
+  position:sticky;top:calc(var(--topbar-h) + 8px);z-index:5;
+  gap:5px;padding:5px;border:1px solid var(--line);
+  background:var(--bg);box-shadow:0 5px 16px rgba(0,0,0,.035);
+}
+.an3-tabs button{min-height:39px;font-size:12px}
+.an3-tabs button.on{border:1px solid rgba(var(--primary-rgb),.18)}
+.an3-tabbody{
+  max-height:min(52vh,620px);padding:1px 3px 5px 0;
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+}
+.an3-search{
+  min-height:43px;border-radius:12px;
+  box-shadow:0 2px 6px rgba(0,0,0,.025);
+}
+.an3-grp{border-radius:13px;padding:3px 10px}
+.an3-grp summary{min-height:37px}
+.an3-item{min-height:37px;padding:8px 10px;border-radius:9px}
+.an3-item.on{box-shadow:inset 3px 0 0 var(--primary)}
+.an3-fallback{z-index:6}
+.an3-loading{z-index:7}
+.an3-feedback{line-height:1.5}
+@media(min-width:1250px){
+  .an3{grid-template-columns:minmax(0,1fr) 370px;gap:20px}
+  .an3-stage{height:clamp(600px,78vh,880px)}
+  .an3-tabbody{max-height:min(57vh,700px)}
+}
+@media(max-width:1050px){
+  .an3{grid-template-columns:minmax(0,1fr) 320px;gap:12px}
+  .an3-stage{height:clamp(470px,70vh,720px);min-height:470px}
+  .an3-views button,.an3-tools button{font-size:11px;padding:6px 9px}
+}
+@media(max-width:800px){
+  .an3{grid-template-columns:minmax(0,1fr);gap:13px}
+  .an3-stage{height:min(72svh,700px);min-height:470px;border-radius:20px}
+  .an3-side{display:grid;grid-template-columns:minmax(0,1fr)}
+  .an3-tabs{position:static}
+  .an3-tabbody{max-height:none;overflow:visible}
+}
+@media(max-width:520px){
+  .an3-stage{height:68svh;min-height:430px;border-radius:17px}
+  .an3-views{left:8px;top:8px;right:8px;max-width:none;gap:4px;padding:4px}
+  .an3-views button{min-height:31px;padding:5px 8px;font-size:10.5px}
+  .an3-tools{left:8px;right:8px;bottom:35px;gap:5px;padding:6px}
+  .an3-tools button{min-height:32px;padding:6px 8px;font-size:10.5px}
+  .an3-hint{font-size:10px;left:10px;right:10px}
+  .an3-stage::after{right:10px;bottom:58px;font-size:8px}
+  .an3-lab{font-size:10px;padding:4px 8px}
+  .an3-card,.an3-block{padding:14px;border-radius:15px}
+  .an3-card h3{font-size:19px}
+  .an3-disc{font-size:11px;padding:9px 10px}
+}
+@media(prefers-reduced-motion:reduce){
+  .an3-views button,.an3-tools button,.an3-tabs button{transition:none}
+}
 
 </style>
 
