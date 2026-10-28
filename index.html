@@ -7795,7 +7795,7 @@ function uploadPart(gl,part){const g=part.geom;if(!g.n)computeNormals(g);
   /* release CPU copies of big geometry */ part.nTri=N/3;}
 
 /* ---------- MXH1 heart geometry asset (legacy mesh or direct procedural meshes) ---------- */
-const BP_URL='heart-bp3d.bin?v=3';
+const BP_URL='heart-bp3d.bin?v=4';
 function bpFetch(progress){
   return fetch(BP_URL).then(r=>{
     if(!r.ok)throw new Error('heart asset HTTP '+r.status);

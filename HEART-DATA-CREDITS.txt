@@ -1,10 +1,12 @@
-MedEx Heart Anatomy 3D — Asset Credits and Scope
+heart-bp3d.bin — 3D heart anatomy data used by MedEx "Heart 3D"
 
-Asset: heart-bp3d.bin
-Generator: MedEx Procedural Heart v1 (2026)
+Derived from BodyParts3D (release 3.0):
+  BodyParts3D, Copyright (C) 2008 Life Science Integrated Database Center
+  licensed by CC Display-Inheritance 2.1 Japan
+  https://creativecommons.org/licenses/by-sa/2.1/jp/
+  Mitsuhashi N, et al. BodyParts3D: 3D structure database for anatomical concepts.
+  Nucleic Acids Res. 2009;37:D782-D785. doi:10.1093/nar/gkn613  (data DOI 10.18908/lsdba.nbdc00837-000)
 
-This asset contains original, procedurally generated teaching geometry created from signed-distance chamber surfaces, curved vessel surfaces, and constructed meshes for valves, coronary branches, papillary muscles, chordae tendineae, trabeculae, and the conduction system. The current binary does not contain the earlier BodyParts3D mesh geometry and does not embed a third-party model.
-
-Important scope note: the geometry is an idealised educational visualization. It is not derived from a patient scan, has not been clinically validated, and must not be used for diagnosis, procedural planning, or clinical decision-making. Verify anatomical details against a trusted anatomy atlas and subject-matter expert review before using it as an authoritative teaching reference.
-
-MedEx project: https://github.com/Ahmedcow/Medextest
+Modifications: meshes re-oriented/scaled, vessels trimmed, heart wall partitioned into chamber regions,
+simplified (quadric decimation), ambient-occlusion and epicardial-fat shading baked, flow and conduction
+paths added. This derived data is distributed under the same CC BY-SA 2.1 JP licence.
