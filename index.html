@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/medex-192.png">
 <link rel="apple-touch-icon" href="./icons/medex-512.png">
 <title>MedEX — Medical Examination Platform</title>
-<meta name="medex-build" content="v43.2-anatomy-picking">
+<meta name="medex-build" content="v43.0-anatomy-scan">
 
 <!-- Vercel Web Analytics: enabled when deployed on Vercel -->
 <script>
@@ -7085,148 +7085,6 @@ body:has(.quiz) .mt-help,body:has(#visitorStartName) .mt-help,body:has(.quiz) .m
 
 .an3-loading{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:12px;color:#cfe3ea;font-size:13px;pointer-events:none}.an3-loading[hidden]{display:none}.an3-loading .bar{width:180px;height:5px;border-radius:5px;background:rgba(255,255,255,.14);overflow:hidden}.an3-loading i{display:block;height:100%;width:0;background:linear-gradient(90deg,#4cc3e8,#7ee0c3);transition:width .2s}
 
-
-
-/* ===== MedEx Heart Anatomy Lab: focused visual and responsive upgrade ===== */
-.an3{
-  grid-template-columns:minmax(0,1fr) minmax(320px,365px);
-  gap:18px;
-  align-items:stretch;
-}
-.an3-left{min-width:0;display:flex;flex-direction:column}
-.an3-stage{
-  height:clamp(500px,76vh,820px);
-  min-height:500px;
-  border-radius:24px;
-  border:1px solid rgba(111,190,204,.24);
-  background:
-    radial-gradient(ellipse at 50% 42%,rgba(30,91,111,.42) 0%,rgba(13,34,47,.9) 43%,#07131c 100%);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 22px 55px rgba(3,13,20,.18);
-  isolation:isolate;
-}
-.an3-stage::after{
-  content:"MEDEx  ·  ANATOMY LAB";
-  position:absolute;right:15px;bottom:54px;
-  color:rgba(218,241,246,.28);font:700 9px/1 var(--font-mono);
-  letter-spacing:.16em;pointer-events:none;z-index:1;
-}
-.an3-canvas{outline:none}
-.an3-views{
-  left:14px;top:14px;gap:6px;max-width:calc(100% - 28px);
-  padding:5px;border:1px solid rgba(222,244,249,.11);
-  border-radius:15px;background:rgba(5,15,22,.56);
-  box-shadow:0 8px 24px rgba(0,0,0,.14);
-}
-.an3-views button,.an3-tools button{
-  min-height:34px;padding:7px 11px;border-radius:10px;
-  border-color:rgba(222,244,249,.15);background:rgba(11,28,38,.82);
-  transition:background .16s ease,border-color .16s ease,transform .16s ease;
-}
-.an3-views button:hover,.an3-tools button:hover{
-  border-color:rgba(89,214,210,.65);background:rgba(22,65,77,.94);
-  transform:translateY(-1px);
-}
-.an3-views button:focus-visible,.an3-tools button:focus-visible,.an3-lab:focus-visible{
-  outline:2px solid #68ded1;outline-offset:2px;
-}
-.an3-tools{
-  left:14px;right:14px;bottom:38px;gap:7px;
-  padding:8px;border:1px solid rgba(222,244,249,.1);
-  border-radius:16px;background:rgba(5,15,22,.66);
-  box-shadow:0 8px 24px rgba(0,0,0,.12);
-}
-.an3-tools button{flex:0 0 auto}
-.an3-tools button.on{
-  background:linear-gradient(135deg,#0c8997,#126a78);
-  border-color:#50c9c8;color:#fff;
-  box-shadow:0 0 0 1px rgba(80,201,200,.16),0 4px 12px rgba(12,124,140,.2);
-}
-.an3-hint{
-  left:17px;right:17px;bottom:13px;font-size:11px;
-  color:rgba(222,240,244,.72);letter-spacing:.01em;
-}
-.an3-labels{z-index:3}
-.an3-lab{
-  padding:5px 10px;margin:-11px 0 0 11px;
-  border-color:rgba(122,222,217,.38);
-  background:rgba(5,19,27,.88);color:#f0fbfc;
-  box-shadow:0 3px 12px rgba(0,0,0,.16);
-  font-size:11px;line-height:1.25;
-}
-.an3-lab::before{background:#73e1d4;box-shadow:0 0 0 3px rgba(115,225,212,.2)}
-.an3-disc{
-  margin:10px 4px 0;padding:10px 12px;
-  border:1px solid var(--line);border-radius:12px;
-  background:var(--card);line-height:1.55;
-}
-.an3-side{gap:10px;min-height:0}
-.an3-card,.an3-block{
-  border-radius:18px;padding:16px 17px;
-  box-shadow:var(--shadow-sm);
-}
-.an3-card h3{font-size:20px;line-height:1.25}
-.an3-eyebrow{letter-spacing:.14em}
-.an3-sum{font-size:13.5px;line-height:1.65}
-.an3-sec{padding:10px 0 3px}
-.an3-sec summary{display:flex;align-items:center;gap:8px;min-height:25px}
-.an3-sec summary:hover{color:var(--primary)}
-.an3-sec p,.an3-sec li{font-size:13px;line-height:1.65}
-.an3-tabs{
-  position:sticky;top:calc(var(--topbar-h) + 8px);z-index:5;
-  gap:5px;padding:5px;border:1px solid var(--line);
-  background:var(--bg);box-shadow:0 5px 16px rgba(0,0,0,.035);
-}
-.an3-tabs button{min-height:39px;font-size:12px}
-.an3-tabs button.on{border:1px solid rgba(var(--primary-rgb),.18)}
-.an3-tabbody{
-  max-height:min(52vh,620px);padding:1px 3px 5px 0;
-  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
-}
-.an3-search{
-  min-height:43px;border-radius:12px;
-  box-shadow:0 2px 6px rgba(0,0,0,.025);
-}
-.an3-grp{border-radius:13px;padding:3px 10px}
-.an3-grp summary{min-height:37px}
-.an3-item{min-height:37px;padding:8px 10px;border-radius:9px}
-.an3-item.on{box-shadow:inset 3px 0 0 var(--primary)}
-.an3-fallback{z-index:6}
-.an3-loading{z-index:7}
-.an3-feedback{line-height:1.5}
-@media(min-width:1250px){
-  .an3{grid-template-columns:minmax(0,1fr) 370px;gap:20px}
-  .an3-stage{height:clamp(600px,78vh,880px)}
-  .an3-tabbody{max-height:min(57vh,700px)}
-}
-@media(max-width:1050px){
-  .an3{grid-template-columns:minmax(0,1fr) 320px;gap:12px}
-  .an3-stage{height:clamp(470px,70vh,720px);min-height:470px}
-  .an3-views button,.an3-tools button{font-size:11px;padding:6px 9px}
-}
-@media(max-width:800px){
-  .an3{grid-template-columns:minmax(0,1fr);gap:13px}
-  .an3-stage{height:min(72svh,700px);min-height:470px;border-radius:20px}
-  .an3-side{display:grid;grid-template-columns:minmax(0,1fr)}
-  .an3-tabs{position:static}
-  .an3-tabbody{max-height:none;overflow:visible}
-}
-@media(max-width:520px){
-  .an3-stage{height:68svh;min-height:430px;border-radius:17px}
-  .an3-views{left:8px;top:8px;right:8px;max-width:none;gap:4px;padding:4px}
-  .an3-views button{min-height:31px;padding:5px 8px;font-size:10.5px}
-  .an3-tools{left:8px;right:8px;bottom:35px;gap:5px;padding:6px}
-  .an3-tools button{min-height:32px;padding:6px 8px;font-size:10.5px}
-  .an3-hint{font-size:10px;left:10px;right:10px}
-  .an3-stage::after{right:10px;bottom:58px;font-size:8px}
-  .an3-lab{font-size:10px;padding:4px 8px}
-  .an3-card,.an3-block{padding:14px;border-radius:15px}
-  .an3-card h3{font-size:19px}
-  .an3-disc{font-size:11px;padding:9px 10px}
-}
-@media(prefers-reduced-motion:reduce){
-  .an3-views button,.an3-tools button,.an3-tabs button{transition:none}
-}
-
 </style>
 
 <script id="medex-fc2-js">
@@ -7761,11 +7619,11 @@ void main(){
  if(back){n=-n;base=uInner;}
  bool inn=vA.x<-0.5;if(inn&&!back)base=uInner;float fat=(back||inn)?0.0:vA.x,ao=vA.y;
  /* procedural relief: muscle grain / fat lobules */
- float bs=uBump*(1.0+fat*2.2)*0.62;
+ float bs=uBump*(1.0+fat*2.2);
  if(bs>0.0){vec3 P=vW*(back?22.0:15.0)*(1.0+fat*0.9);float e=0.4;float c=fbm(P);
   vec3 g=vec3(fbm(P+vec3(e,0,0))-c,fbm(P+vec3(0,e,0))-c,fbm(P+vec3(0,0,e))-c);
-  vec3 gv=(uV*vec4(g,0.0)).xyz;n=normalize(n-gv*bs*1.15);}
- base*=0.96+0.08*fbm(vW*3.2);base*=1.0+(vn(vW*5.0)-0.5)*uTex;
+  vec3 gv=(uV*vec4(g,0.0)).xyz;n=normalize(n-gv*bs*1.7);}
+ base*=1.0+(vn(vW*5.0)-0.5)*uTex;
  if(fat>0.02){float lump=vn(vW*18.0);vec3 fatCol=mix(vec3(0.93,0.76,0.34),vec3(0.98,0.88,0.52),lump);base=mix(base,fatCol,clamp(fat*1.15,0.0,1.0));}
  vec3 L1=normalize(vec3(0.35,0.6,0.72));vec3 L2=normalize(vec3(-0.7,-0.2,0.5));vec3 L3=normalize(vec3(0.0,-0.4,-0.9));
  float nl=dot(n,L1);float d1=max(nl,0.0);float wrap=clamp((nl+0.45)/1.45,0.0,1.0);
@@ -7773,7 +7631,7 @@ void main(){
  vec3 V=vec3(0.0,0.0,1.0);vec3 Hh=normalize(L1+V);float ndh=max(dot(n,Hh),0.0);
  float sp=(pow(ndh,uShin)*uSpec+pow(ndh,uShin*5.0)*uSpec*0.9)*(1.0-fat*0.75);
  float rim=pow(1.0-max(dot(n,V),0.0),3.0);
- vec3 sss=vec3(0.55,0.10,0.07)*pow(1.0-d1,2.0)*0.42*(1.0-fat*0.6);
+ vec3 sss=vec3(0.55,0.10,0.07)*pow(1.0-d1,2.0)*0.34*(1.0-fat*0.6);
  vec3 col=base*((0.30+0.22*hemi)*ao+0.62*d1*(0.55+0.45*ao)+0.30*d2*ao+0.10*max(dot(n,L3),0.0))+base*sss*ao+vec3(sp)*(0.4+0.6*ao)+rim*0.12*mix(base,vec3(1.0),0.5);
  col=mix(col,col*vec3(1.0,0.82,0.78),back?0.35:0.0);
  col=mix(col,uGlowCol,uGlow*(0.30+0.7*rim));col+=uGlowCol*uGlow*0.14;
@@ -7794,8 +7652,8 @@ function uploadPart(gl,part){const g=part.geom;if(!g.n)computeNormals(g);
   let c=[0,0,0];for(let k=0;k<g.p.length;k+=3){c[0]+=g.p[k];c[1]+=g.p[k+1];c[2]+=g.p[k+2];}const nn=g.p.length/3;part.center=[c[0]/nn,c[1]/nn,c[2]/nn];
   /* release CPU copies of big geometry */ part.nTri=N/3;}
 
-/* ---------- MXH1 heart geometry asset (legacy mesh or direct procedural meshes) ---------- */
-const BP_URL='heart-bp3d.bin?v=4';
+/* ---------- scan-based heart (BodyParts3D mesh asset) ---------- */
+const BP_URL='heart-bp3d.bin?v=1';
 function bpFetch(progress){
   return fetch(BP_URL).then(r=>{
     if(!r.ok)throw new Error('heart asset HTTP '+r.status);
@@ -7819,14 +7677,12 @@ function bpParse(buf){
       aux[i*2]=fb[i]===255?-1:fb[i]/250;aux[i*2+1]=Math.max(0.2,ab[i]/255);}
     const ni=e.nt*3,idx=e.it==='u16'?new Uint16Array(buf.slice(base+e.idx,base+e.idx+ni*2)):new Uint32Array(buf.slice(base+e.idx,base+e.idx+ni*4));
     M[e.k]={p,n,aux,i:idx};});
-  const directParts=hdr.mode==='direct'?hdr.parts.map(e=>Object.assign({},e.meta||{},{id:e.k,geom:M[e.k]})):null;
-  return {hdr,M,directParts};
+  return {hdr,M};
 }
 function buildHeartBP(progress,done){
   bpFetch(f=>progress(f*0.85)).then(buf=>{progress(0.88);setTimeout(()=>{let r;try{r=bpAssemble(bpParse(buf));}catch(e){return done(e);}progress(1);done(null,r);},0);}).catch(e=>done(e));
 }
 function bpAssemble(D){
-  if(D.directParts){const {hdr,directParts}=D;return {parts:directParts,C:hdr.palette||{},model:'bp',generated:!!hdr.generated,flowPaths:hdr.flow||{},lm:hdr.lm||{},credit:hdr.credit,stats:{tris:directParts.reduce((a,p)=>a+(p.geom.i.length/3),0)}};}
   const {hdr,M}=D,lm=hdr.lm,parts=[];
   const C={myo:[0.70,0.24,0.22],myoA:[0.76,0.34,0.30],inL:[0.80,0.36,0.34],inR:[0.62,0.40,0.62],
     aorta:[0.84,0.30,0.26],aoIn:[0.72,0.26,0.24],pa:[0.46,0.55,0.84],paIn:[0.34,0.40,0.70],vein:[0.38,0.48,0.80],veinIn:[0.28,0.34,0.62],
@@ -8319,7 +8175,7 @@ function anDrawParts(pick,excludeWalls){
   AN.parts.forEach(p=>{if(!AN.layers[p.layer])return;const a=anPartAlpha(p,sel);if(pick){if(a<0.5)return;if(excludeWalls&&p.wall)return;}list.push({p,a});});
   const setU=(p,a)=>{gl.uniform3fv(pr.u.uCol,p.color);gl.uniform3fv(pr.u.uInner,p.inner);gl.uniform1f(pr.u.uAlpha,a);gl.uniform1f(pr.u.uShin,p.shin);gl.uniform1f(pr.u.uSpec,p.spec);gl.uniform1f(pr.u.uTex,p.tex);gl.uniform1f(pr.u.uBump,p.bump||0);
     const on=sel&&sel.has(p.id);gl.uniform1f(pr.u.uGlow,on?0.5+0.22*Math.sin(t*4):0);};
-  if(pick){gl.disable(gl.BLEND);gl.disable(gl.DITHER);gl.disable(gl.CULL_FACE);gl.depthMask(true);list.forEach(({p})=>{anBind(p);const id=p.idx>>>0;gl.uniform3f(pr.u.uPick,(id&255)/255,((id>>>8)&255)/255,((id>>>16)&255)/255);anDraw(p);});return;}
+  if(pick){gl.disable(gl.BLEND);gl.disable(gl.CULL_FACE);list.forEach(({p})=>{anBind(p);gl.uniform3f(pr.u.uPick,p.idx/255,0,0);anDraw(p);});return;}
   gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
   const op=list.filter(x=>x.a>=0.99),tr=list.filter(x=>x.a<0.99);
   gl.disable(gl.CULL_FACE);gl.depthMask(true);
@@ -8380,26 +8236,10 @@ function anUpdateLabels(){
     el.style.display='';el._v=true;el.style.transform=`translate(${sx.toFixed(1)}px,${sy.toFixed(1)}px)`;});
 }
 function anPick(px,py,cb){
-  const gl=AN.gl,cv=AN.canvas;AN.mats=anMats();
-  const rect=cv.getBoundingClientRect(),sx=cv.width/Math.max(1,rect.width),sy=cv.height/Math.max(1,rect.height);
-  const x=Math.max(0,Math.min(cv.width-1,Math.floor(px*sx))),y=Math.max(0,Math.min(cv.height-1,Math.floor(cv.height-py*sy)));
-  const read=ex=>{
-    gl.viewport(0,0,cv.width,cv.height);gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.disable(gl.BLEND);gl.disable(gl.DITHER);
-    anDrawParts(true,ex);
-    // Read a 3×3 neighborhood so thin coronary vessels and small valves are easier to select.
-    // Prefer the exact pixel; otherwise choose the nearest covered pixel, not the largest part.
-    const x0=Math.max(0,x-1),y0=Math.max(0,y-1),w=Math.min(3,cv.width-x0),h=Math.min(3,cv.height-y0),buf=new Uint8Array(w*h*4);
-    gl.readPixels(x0,y0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,buf);gl.enable(gl.DITHER);
-    let best=0,bestD=1e9;
-    for(let j=0;j<h;j++)for(let i=0;i<w;i++){
-      const k=(j*w+i)*4,id=(buf[k]|(buf[k+1]<<8)|(buf[k+2]<<16));if(!id)continue;
-      const dx=(x0+i)-x,dy=(y0+j)-y,d=dx*dx+dy*dy;
-      if(d<bestD){bestD=d;best=id;}
-    }
-    return best;
-  };
+  const gl=AN.gl,cv=AN.canvas;AN.mats=anMats();const dpr=cv.width/AN.stage.clientWidth,x=Math.floor(px*dpr),y=Math.floor(cv.height-py*dpr);
+  const read=ex=>{gl.viewport(0,0,cv.width,cv.height);gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);anDrawParts(true,ex);const b=new Uint8Array(4);gl.readPixels(x,y,1,1,gl.RGBA,gl.UNSIGNED_BYTE,b);return b[0];};
   let id=0;if(AN.xray||AN.cut.on)id=read(true);if(!id)id=read(false);
-  return id>0&&id<=AN.parts.length?AN.parts[id-1]:null;
+  return id?AN.parts[id-1]:null;
 }
 /* ---------- selection / camera ---------- */
 function anGoto(o){AN.camT=Object.assign({yaw:AN.cam.yaw,pitch:AN.cam.pitch,dist:AN.cam.dist,t:AN.cam.t.slice()},o);}
@@ -8566,7 +8406,7 @@ function renderAnatomy3D(){
 }
 window.renderAnatomy3D=renderAnatomy3D;window.__AN=AN;
 
-function anDiscText(){return AN.heart&&AN.heart.generated?'Original MedEx procedural teaching model, built from generated chamber surfaces and individual vascular, valve and internal structures. Proportions are idealised; this is not a patient scan or a clinically validated model. Confirm details against an anatomical atlas.':AN.heart&&AN.heart.model==='bp'?'Anatomical model reconstructed from the <b>BodyParts3D</b> human anatomy dataset (Life Science Integrated Database Center, CC BY-SA 2.1 JP; Mitsuhashi et al., Nucleic Acids Res 2009). Chamber regions, aortic valve, conduction course and flow paths are derived/schematic. Always confirm details against an atlas (e.g. Netter, Gray’s).':'Procedurally generated teaching model (not a patient scan): proportions are idealised. Always confirm details against an atlas (e.g. Netter, Gray’s).';}
+function anDiscText(){return AN.heart&&AN.heart.model==='bp'?'Anatomical model reconstructed from the <b>BodyParts3D</b> human anatomy dataset (Life Science Integrated Database Center, CC BY-SA 2.1 JP; Mitsuhashi et al., Nucleic Acids Res 2009). Chamber regions, aortic valve, conduction course and flow paths are derived/schematic. Always confirm details against an atlas (e.g. Netter, Gray’s).':'Procedurally generated teaching model (not a patient scan): proportions are idealised. Always confirm details against an atlas (e.g. Netter, Gray’s).';}
 
 })();
 </script>
