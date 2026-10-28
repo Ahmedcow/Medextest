@@ -5,10 +5,10 @@
  *  - Manifest + icons are precached; offline navigation falls back to the shell.
  *  - Cache name is a single constant to bump on release.
  */
-const VERSION='v42.6';
+const VERSION='v43.0';
 const SHELL_CACHE='medex-shell-'+VERSION;
 const RUNTIME_CACHE='medex-runtime-'+VERSION;
-const SHELL=['./','./index.html','./manifest.webmanifest','./icons/medex-192.png','./icons/medex-512.png'];
+const SHELL=['./','./index.html','./manifest.webmanifest','./icons/medex-192.png','./icons/medex-512.png','./heart-bp3d.bin?v=1'];
 const MAX_RUNTIME_ENTRIES=80;
 const CDN_HOSTS=new Set(['cdn.jsdelivr.net','cdnjs.cloudflare.com','fonts.googleapis.com','fonts.gstatic.com']);
 

@@ -1,0 +1,12 @@
+heart-bp3d.bin — 3D heart anatomy data used by MedEx "Heart 3D"
+
+Derived from BodyParts3D (release 3.0):
+  BodyParts3D, Copyright (C) 2008 Life Science Integrated Database Center
+  licensed by CC Display-Inheritance 2.1 Japan
+  https://creativecommons.org/licenses/by-sa/2.1/jp/
+  Mitsuhashi N, et al. BodyParts3D: 3D structure database for anatomical concepts.
+  Nucleic Acids Res. 2009;37:D782-D785. doi:10.1093/nar/gkn613  (data DOI 10.18908/lsdba.nbdc00837-000)
+
+Modifications: meshes re-oriented/scaled, vessels trimmed, heart wall partitioned into chamber regions,
+simplified (quadric decimation), ambient-occlusion and epicardial-fat shading baked, flow and conduction
+paths added. This derived data is distributed under the same CC BY-SA 2.1 JP licence.
