@@ -7,6 +7,12 @@ Derived from BodyParts3D (release 3.0):
   Mitsuhashi N, et al. BodyParts3D: 3D structure database for anatomical concepts.
   Nucleic Acids Res. 2009;37:D782-D785. doi:10.1093/nar/gkn613  (data DOI 10.18908/lsdba.nbdc00837-000)
 
-Modifications: meshes re-oriented/scaled, vessels trimmed, heart wall partitioned into chamber regions,
-simplified (quadric decimation), ambient-occlusion and epicardial-fat shading baked, flow and conduction
-paths added. This derived data is distributed under the same CC BY-SA 2.1 JP licence.
+Modifications (v6 model): meshes re-oriented/scaled, heart wall partitioned into chamber regions and
+smoothed; aorta, arch branches, pulmonary arteries/veins, SVC and IVC re-modelled as smooth, tapered,
+thick-walled vessels fitted to centrelines extracted from the BodyParts3D meshes (procedurally generated
+surfaces, with open cut ends); right and left atrial auricles (appendages) re-modelled as separate
+conformal parts; aortic root with sinuses of Valsalva added; simplified (quadric decimation),
+ambient-occlusion and epicardial-fat shading baked, flow and conduction paths added.
+Coronary arteries and cardiac veins are generated schematic tubes following the groove anatomy.
+This is a single-individual, educational model; it is not intended for surgical or diagnostic planning.
+This derived data is distributed under the same CC BY-SA 2.1 JP licence.

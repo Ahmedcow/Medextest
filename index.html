@@ -6387,7 +6387,7 @@ if('serviceWorker' in navigator){
 if('serviceWorker' in navigator){
   window.addEventListener('load',async()=>{
     try{
-      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=43.1',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
+      const registration=await navigator.serviceWorker.register(new URL('./sw.js?v=44.0',document.baseURI),{scope:new URL('./',document.baseURI).pathname});
       watchPWARegistration(registration);
       registration.update().catch(()=>{});
     }catch(e){ console.warn('PWA service worker:',e); }
@@ -7614,36 +7614,63 @@ function heartFields(){
 const VS=`attribute vec3 aPos;attribute vec3 aNrm;attribute vec2 aAux;attribute float aReg;uniform mat4 uVP;uniform mat4 uV;varying vec3 vW;varying vec3 vN;varying vec2 vA;varying float vR;
 void main(){vW=aPos;vA=aAux;vR=aReg;vN=(uV*vec4(aNrm,0.0)).xyz;gl_Position=uVP*vec4(aPos,1.0);}`;
 const FS=`precision highp float;varying vec3 vW;varying vec3 vN;varying vec2 vA;varying float vR;
-uniform vec3 uCol;uniform vec3 uInner;uniform vec3 uGlowCol;uniform float uAlpha;uniform float uShin;uniform float uSpec;uniform float uGlow;uniform float uPickMode;uniform float uClipOn;uniform float uTex;uniform float uBump;
+uniform vec3 uCol;uniform vec3 uInner;uniform vec3 uGlowCol;uniform float uAlpha;uniform float uShin;uniform float uSpec;uniform float uGlow;uniform float uPickMode;uniform float uClipOn;uniform float uTex;uniform float uBump;uniform float uKind;
 uniform vec4 uClip;uniform vec3 uPick;uniform mat4 uV;
 float hs(vec3 p){p=fract(p*0.3183099+vec3(0.1,0.2,0.3));p*=17.0;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 float vn(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.0-2.0*f);
  return mix(mix(mix(hs(i),hs(i+vec3(1,0,0)),f.x),mix(hs(i+vec3(0,1,0)),hs(i+vec3(1,1,0)),f.x),f.y),mix(mix(hs(i+vec3(0,0,1)),hs(i+vec3(1,0,1)),f.x),mix(hs(i+vec3(0,1,1)),hs(i+vec3(1,1,1)),f.x),f.y),f.z);}
 float fbm(vec3 p){return vn(p)*0.65+vn(p*2.3)*0.35;}
+float fbm3(vec3 p){return vn(p)*0.5+vn(p*2.1)*0.3+vn(p*4.3)*0.2;}
 void main(){
- if(vR<0.0)discard;
+ if(vR<-0.03)discard;   /* partition seams: tolerate quantisation so no pin-holes appear between chamber regions */
  if(uClipOn>0.5&&dot(vW,uClip.xyz)>uClip.w)discard;
  if(uPickMode>0.5){gl_FragColor=vec4(uPick,1.0);return;}
  vec3 n=normalize(vN);vec3 base=uCol;bool back=!gl_FrontFacing;
  if(back){n=-n;base=uInner;}
  bool inn=vA.x<-0.5;if(inn&&!back)base=uInner;float fat=(back||inn)?0.0:vA.x,ao=vA.y;
- /* procedural relief: muscle grain / fat lobules */
- float bs=uBump*(1.0+fat*2.2);
- if(bs>0.0){vec3 P=vW*(back?22.0:15.0)*(1.0+fat*0.9);float e=0.4;float c=fbm(P);
-  vec3 g=vec3(fbm(P+vec3(e,0,0))-c,fbm(P+vec3(0,e,0))-c,fbm(P+vec3(0,0,e))-c);
-  vec3 gv=(uV*vec4(g,0.0)).xyz;n=normalize(n-gv*bs*1.7);}
+ float K=uKind;
+ vec3 V=vec3(0.0,0.0,1.0);
+ /* ---- cut-face (cap) materials: fascicular muscle / layered vessel wall ---- */
+ if(K>8.5){
+  vec3 q=vW;float g=vn(vec3(q.x*22.0,q.y*6.0+q.z*5.0,q.z*22.0))*0.55+vn(vec3(q.x*60.0,q.y*14.0,q.z*60.0))*0.45;
+  float band=vn(q*2.4);
+  vec3 c0=(K<9.5)?vec3(0.50,0.13,0.11):vec3(0.84,0.62,0.55);vec3 c1=(K<9.5)?vec3(0.74,0.28,0.22):vec3(0.93,0.78,0.70);
+  vec3 col=mix(c0,c1,0.25+0.6*g)*(0.88+0.24*band);
+  float lt=0.62+0.38*max(dot(normalize(vN),normalize(vec3(0.35,0.6,0.72))),0.0);
+  gl_FragColor=vec4(col*lt,uAlpha);return;}
+ /* ---- relief ---- */
+ float bs=uBump*(1.0+fat*2.0);
+ if(bs>0.0){float sc=(K<0.5?28.0:(K<2.5?34.0:24.0))*(1.0+fat*0.9);vec3 P=vW*sc;float e=0.35;float c=fbm3(P);
+  vec3 g=vec3(fbm3(P+vec3(e,0,0))-c,fbm3(P+vec3(0,e,0))-c,fbm3(P+vec3(0,0,e))-c);
+  vec3 gv=(uV*vec4(g,0.0)).xyz;n=normalize(n-gv*bs*(back?1.2:0.85));}
+ /* ---- colour: tissue-specific variation ---- */
+ float m1=fbm3(vW*2.6+1.7),m2=fbm3(vW*7.5+4.1);
+ if(K<0.5){ /* myocardium: blotchy blood content, darker brown-red patches */
+  base*=0.84+0.30*m1;base=mix(base,base*vec3(1.10,0.84,0.78),smoothstep(0.55,0.9,m2)*0.55);}
+ else if(K<2.5){ /* vessel adventitia: paler, slightly desaturated, finely mottled */
+  float l=dot(base,vec3(0.33));base=mix(base,vec3(l),0.14);base*=0.90+0.22*m1;base*=0.95+0.10*vn(vW*60.0);
+  base=mix(base,base*vec3(1.06,1.02,0.92),smoothstep(0.6,0.9,m2)*0.5);}
+ else if(K<3.5){base*=0.94+0.12*m2;}
+ else if(K<5.5){base*=0.92+0.16*m2;}
  base*=1.0+(vn(vW*5.0)-0.5)*uTex;
- if(fat>0.02){float lump=vn(vW*18.0);vec3 fatCol=mix(vec3(0.93,0.76,0.34),vec3(0.98,0.88,0.52),lump);base=mix(base,fatCol,clamp(fat*1.15,0.0,1.0));}
+ if(fat>0.02){float lump=vn(vW*18.0),lump2=vn(vW*41.0);vec3 fatCol=mix(vec3(0.90,0.70,0.30),vec3(0.99,0.90,0.56),lump*0.7+lump2*0.3);base=mix(base,fatCol,clamp(fat*1.15,0.0,1.0));}
+ /* ---- lighting ---- */
  vec3 L1=normalize(vec3(0.35,0.6,0.72));vec3 L2=normalize(vec3(-0.7,-0.2,0.5));vec3 L3=normalize(vec3(0.0,-0.4,-0.9));
- float nl=dot(n,L1);float d1=max(nl,0.0);float wrap=clamp((nl+0.45)/1.45,0.0,1.0);
+ float nl=dot(n,L1);float d1=max(nl,0.0);
  float d2=max(dot(n,L2),0.0);float hemi=0.5+0.5*n.y;
- vec3 V=vec3(0.0,0.0,1.0);vec3 Hh=normalize(L1+V);float ndh=max(dot(n,Hh),0.0);
- float sp=(pow(ndh,uShin)*uSpec+pow(ndh,uShin*5.0)*uSpec*0.9)*(1.0-fat*0.75);
- float rim=pow(1.0-max(dot(n,V),0.0),3.0);
- vec3 sss=vec3(0.55,0.10,0.07)*pow(1.0-d1,2.0)*0.34*(1.0-fat*0.6);
- vec3 col=base*((0.30+0.22*hemi)*ao+0.62*d1*(0.55+0.45*ao)+0.30*d2*ao+0.10*max(dot(n,L3),0.0))+base*sss*ao+vec3(sp)*(0.4+0.6*ao)+rim*0.12*mix(base,vec3(1.0),0.5);
+ vec3 Hh=normalize(L1+V);float ndh=max(dot(n,Hh),0.0);float ndv=max(dot(n,V),0.0);
+ float fres=pow(1.0-ndv,4.0);
+ float wet=1.0-fat*0.75;
+ float sp=(pow(ndh,uShin)*uSpec*0.8+pow(ndh,uShin*6.0)*uSpec*0.9)*wet;
+ /* soft studio reflection (gives a moist, not plastic, sheen) */
+ vec3 R=reflect(-V,n);vec3 env=mix(vec3(0.16,0.15,0.17),vec3(1.0,0.98,0.95),smoothstep(-0.25,0.95,R.y*0.8+R.x*0.25));
+ vec3 refl=env*(uSpec*0.22+fres*0.30)*wet;
+ /* wrapped diffuse + red subsurface at the terminator */
+ float wrap=clamp((nl+0.5)/1.5,0.0,1.0);
+ vec3 sss=vec3(0.60,0.12,0.08)*pow(1.0-clamp(nl*0.5+0.5,0.0,1.0),2.0)*0.30*(1.0-fat*0.6)*(K>0.5&&K<2.5?0.5:1.0);
+ vec3 col=base*((0.26+0.22*hemi)*ao+0.60*mix(d1,wrap,0.35)*(0.55+0.45*ao)+0.28*d2*ao+0.10*max(dot(n,L3),0.0))+base*sss*ao+vec3(sp)*(0.35+0.65*ao)+refl*(0.4+0.6*ao);
  col=mix(col,col*vec3(1.0,0.82,0.78),back?0.35:0.0);
- col=mix(col,uGlowCol,uGlow*(0.30+0.7*rim));col+=uGlowCol*uGlow*0.14;
+ col=mix(col,uGlowCol,uGlow*(0.30+0.7*fres));col+=uGlowCol*uGlow*0.14;
  gl_FragColor=vec4(col,uAlpha);}`;
 const PVS=`attribute vec3 aPos;uniform mat4 uVP;uniform float uSize;void main(){vec4 p=uVP*vec4(aPos,1.0);gl_Position=p;gl_PointSize=uSize/p.w;}`;
 const PFS=`precision mediump float;uniform vec3 uCol;void main(){vec2 q=gl_PointCoord-0.5;float d=length(q);if(d>0.5)discard;gl_FragColor=vec4(uCol,smoothstep(0.5,0.15,d));}`;
@@ -7662,7 +7689,7 @@ function uploadPart(gl,part){const g=part.geom;if(!g.n)computeNormals(g);
   /* release CPU copies of big geometry */ part.nTri=N/3;}
 
 /* ---------- scan-based heart (BodyParts3D mesh asset) ---------- */
-const BP_URL='heart-bp3d.bin?v=5';
+const BP_URL='heart-bp3d.bin?v=6';
 function bpFetch(progress){
   return fetch(BP_URL).then(r=>{
     if(!r.ok)throw new Error('heart asset HTTP '+r.status);
@@ -7706,16 +7733,16 @@ function bpAssemble(D){
   const has=k=>!!M[k];
   /* chambers: closed myocardial shell split by region */
   const W=(color,inner)=>({color,inner,wall:true,stencil:true,tex:0.06,bump:0.22,shin:30,spec:0.3});
-  const wallDefs=[['ra','Right atrium',C.myoA,C.inR,[-1,0,0.3]],['rauricle','Right auricle',C.myoA,C.inR,[-0.2,0.6,1]],['rv','Right ventricle',C.myo,C.inR,[-0.2,-0.2,1]],
-    ['rvot','RV outflow tract (conus arteriosus)',C.myo,C.inR,[0.1,0.7,1]],['la','Left atrium',C.myoA,C.inL,[0.3,0.4,-1]],['lauricle','Left auricle',C.myoA,C.inL,[1,0.5,0.6]],['lv','Left ventricle',C.myo,C.inL,[1,-0.3,0.2]]];
-  const lt={rvot:'Conus arteriosus'};
-  wallDefs.forEach(([id,name,col,inn,d])=>{if(!has(id))return;P(id,name,'chambers',M[id],W(col,inn));const p=parts[parts.length-1];p.label=lab(M[id],lt[id]||name,d);});
+  const wallDefs=[['ra','Right atrium',C.myoA,C.inR,[-1,0,0.3]],['rapatch','Right atrium (anterior wall)',C.myo,C.inR,[-0.2,0.2,1]],['lapatch','Left atrium (anterior wall)',C.myo,C.inL,[0.6,0.2,0.8]],['rauricle','Right atrial auricle (appendage)',C.myoA,C.inR,[-0.2,0.6,1]],['rv','Right ventricle',C.myo,C.inR,[-0.2,-0.2,1]],
+    ['rvot','RV outflow tract (conus arteriosus)',C.myo,C.inR,[0.1,0.7,1]],['la','Left atrium',C.myoA,C.inL,[0.3,0.4,-1]],['lauricle','Left atrial auricle (appendage)',C.myoA,C.inL,[1,0.5,0.6]],['lv','Left ventricle',C.myo,C.inL,[1,-0.3,0.2]]];
+  const lt={rvot:'Conus arteriosus',rauricle:'Right auricle',lauricle:'Left auricle'};
+  wallDefs.forEach(([id,name,col,inn,d])=>{if(!has(id))return;if(id==='rauricle'||id==='lauricle')inn=col.map(x=>x*0.94);P(id,name,'chambers',M[id],W(col,inn));const p=parts[parts.length-1];if(id!=='rapatch'&&id!=='lapatch')p.label=lab(M[id],lt[id]||name,d);});
   if(has('ivs'))P('ivs','Interventricular septum','chambers',M.ivs,Object.assign(W(C.septum,C.septum),{internal:true}));
   if(has('ias'))P('ias','Interatrial septum & fossa ovalis','chambers',M.ias,Object.assign(W(C.fossa,C.fossa),{internal:true}));
   parts.forEach(p=>{if(p.internal){let c=[0,0,0];const g=p.geom,n=g.p.length/3;for(let i=0;i<g.p.length;i+=3){c[0]+=g.p[i];c[1]+=g.p[i+1];c[2]+=g.p[i+2];}p.label={t:p.id==='ivs'?'Interventricular septum':'Interatrial septum',a:[c[0]/n,c[1]/n,c[2]/n]};}});
   /* vessels (single-surface tubes: no stencil cap, translucent in X-ray) */
   const V=(color,inner,extra)=>Object.assign({color,inner,wall:true,tex:0.03,bump:0.12,shin:46,spec:0.4},extra||{});
-  const art=[['ascao','Ascending aorta',[0.2,0.1,1],'Ascending aorta'],['archao','Aortic arch',[0,1,0.3],'Aortic arch'],['descao','Descending thoracic aorta',[0,0.1,-1],'Descending aorta'],['brach','Brachiocephalic trunk',[0,0.3,1],null],
+  const art=[['aroot','Aortic root (sinuses of Valsalva)',[-0.9,0.3,0.5],'Aortic root'],['ascao','Ascending aorta',[0.2,0.1,1],'Ascending aorta'],['archao','Aortic arch',[0,1,0.3],'Aortic arch'],['descao','Descending thoracic aorta',[0,0.1,-1],'Descending aorta'],['brach','Brachiocephalic trunk',[0,0.3,1],null],
     ['lcca','Left common carotid artery',[0,0.3,1],null],['rcca','Right common carotid artery',[-0.2,0.3,1],null],['lsa','Left subclavian artery',[0.5,1,0],null],['rsa','Right subclavian artery',[-0.5,1,0],null]];
   art.forEach(([id,name,d,lb])=>{if(!has(id))return;const p=P(id,name,'arteries',M[id],V(C.aorta,C.aoIn));if(lb)p.label=lab(M[id],lb,d);});
   [['pt','Pulmonary trunk',[0.1,0.2,1],'Pulmonary trunk'],['rpa','Right pulmonary artery',[-1,0.3,0.2],'Right pulmonary artery'],['lpa','Left pulmonary artery',[1,0.3,-0.2],'Left pulmonary artery']].forEach(([id,name,d,lb])=>{
@@ -7963,7 +7990,7 @@ overview:{s:'The heart is a four-chambered muscular pump (≈ 250–350 g, 12 cm
  r:'Surface marking: a quadrilateral joining the 2nd left costal cartilage, 3rd right costal cartilage, 6th right costal cartilage and the apex.',
  v:'Sympathetic supply T1–T4/5 (cardiac accelerator); parasympathetic supply from the vagus nerve to the SA and AV nodes; both form the cardiac plexus.',
  c:'Tap any structure, or use the Structures list, to see its relations, supply and clinical correlates. Use the cut-plane and X-ray tools to look inside.'},
-ra:{s:'Receives deoxygenated blood from the SVC, IVC and coronary sinus and passes it through the tricuspid valve to the right ventricle.',
+ra:{hl:['ra','rapatch'],s:'Receives deoxygenated blood from the SVC, IVC and coronary sinus and passes it through the tricuspid valve to the right ventricle.',
  f:['Smooth posterior part (sinus venarum) and rough anterior part with pectinate muscles, separated by the crista terminalis.','Fossa ovalis on the interatrial septum – remnant of the foetal foramen ovale.','Openings: SVC (no valve), IVC (Eustachian valve), coronary sinus (Thebesian valve).','Koch’s triangle (tendon of Todaro, coronary sinus orifice, septal tricuspid leaflet) overlies the AV node.'],
  r:'Forms the right border of the heart; lies to the right of the ascending aorta and in front of the right pulmonary veins.',
  v:'Right coronary artery (atrial branches, SA-nodal artery). Veins drain to the coronary sinus and by anterior cardiac veins directly into the RA.',
@@ -7981,7 +8008,7 @@ rvot:{s:'Smooth-walled, funnel-shaped upper part of the right ventricle that lea
  f:['Also called the infundibulum or conus arteriosus.','Smooth because it derives from the embryonic bulbus cordis, unlike the trabeculated inflow part.'],
  r:'Passes upward and to the left in front of the aortic root.',v:'Conus branch of the RCA (anastomoses with a LAD branch – circle of Vieussens).',
  c:'Infundibular stenosis is one component of tetralogy of Fallot; RVOT is a common origin of idiopathic ventricular tachycardia.'},
-la:{s:'Receives oxygenated blood from the four pulmonary veins and delivers it through the mitral valve to the left ventricle.',
+la:{hl:['la','lapatch'],s:'Receives oxygenated blood from the four pulmonary veins and delivers it through the mitral valve to the left ventricle.',
  f:['Forms most of the base (posterior surface) of the heart.','Smooth-walled body; pectinate muscles are confined to the auricle.','Interatrial septum carries the valve of the foramen ovale on its left side.'],
  r:'Lies directly in front of the oesophagus and behind the aortic root and pulmonary trunk.',
  v:'Left circumflex artery (atrial branches). Oblique vein of the LA (Marshall) drains to the coronary sinus.',
@@ -7995,6 +8022,11 @@ lv:{s:'Pumps oxygenated blood into the aorta at systemic pressure (~120 mmHg), s
  r:'Left lung and pleura lie lateral to it; the diaphragm lies inferiorly.',
  v:'LAD – anterior wall, apex, anterior two-thirds of septum; circumflex – lateral wall; RCA/PDA – inferior wall and posterior third of septum.',
  c:'Most myocardial infarcts involve the LV. Hypertrophy follows hypertension and aortic stenosis. Rupture of the free wall or septum is a post-MI emergency (days 3–7).'},
+aroot:{hl:['aroot'],s:'Aortic root: the bulging proximal segment of the ascending aorta that contains the aortic valve cusps and the three aortic sinuses (of Valsalva).',
+ f:['Extends from the basal attachment of the cusps (virtual basal ring) to the sinotubular junction.','Right and left sinuses give origin to the right and left coronary arteries; the posterior sinus is non-coronary.','The sinuses allow the cusps to open without obstructing the coronary ostia and create eddy currents that help the cusps close.'],
+ r:'Lies in the centre of the heart, in front of the left atrium and behind the right ventricular outflow tract; the right atrial appendage lies to its right and the pulmonary trunk in front and left.',
+ v:'Coronary arteries arise from its sinuses; supplied by vasa vasorum.',
+ c:'Root dilatation (Marfan syndrome, bicuspid aortic valve) causes aortic regurgitation; sinus of Valsalva aneurysm may rupture into the right heart; root replacement (Bentall) re-implants the coronary ostia.'},
 ascao:{s:'First part of the aorta (≈ 5 cm), rising from the aortic valve to the sternal angle level inside the pericardium.',
  f:['Aortic sinuses (of Valsalva) are three dilatations behind the valve cusps; the right and left sinuses give origin to the coronary arteries.','The non-coronary (posterior) sinus has no coronary ostium.','No branches other than the coronary arteries.'],
  r:'Posterior to the pulmonary trunk and right atrial appendage; right of the pulmonary trunk; in front of the right pulmonary artery and left atrium.',
@@ -8098,7 +8130,7 @@ rpl:{s:'Right posterolateral branch: terminal branch of a right-dominant RCA sup
 sepbr:{s:'Interventricular septal branches: small perforating arteries from the LAD (anterior two-thirds) and PDA (posterior third) that supply the interventricular septum.',f:['The LAD septal perforators also supply the bundle branches.','The AV node is usually supplied by the RCA (AV nodal artery).'],r:'Pierce the septum at right angles from the anterior and posterior interventricular grooves.',v:'LAD and posterior descending artery.',c:'Septal infarction can cause conduction blocks and ventricular septal rupture.'}
 };
 const AN_GROUPS=[['chambers','Chambers'],['arteries','Great arteries'],['veins','Veins'],['coronary','Coronary arteries'],['valves','Valves'],['internal','Septa & internal features'],['conduction','Conduction system'],['landmarks','Surface landmarks']];
-const AN_QUIZ=['ra','rv','la','lv','rauricle','lauricle','ascao','archao','descao','pt','rpa','lpa','svc','ivc','rpv','lpv','cs','brach','lcca','lsa','rca','lad','lcx','pda','tricuspid','mitral','aortic','pulmonic','ivs','ias','lvpap','modband','san','avn','his','rbb','lbb','purkinje','gcv','pectinate'];
+const AN_QUIZ=['ra','rv','la','lv','rauricle','lauricle','aroot','ascao','archao','descao','pt','rpa','lpa','svc','ivc','rpv','lpv','cs','brach','lcca','lsa','rca','lad','lcx','pda','tricuspid','mitral','aortic','pulmonic','ivs','ias','lvpap','modband','san','avn','his','rbb','lbb','purkinje','gcv','pectinate'];
 
 /* ---------- Anatomy 3D page ---------- */
 const AN={ready:false,failed:false,sel:null,layers:{chambers:true,arteries:true,veins:true,coronary:true,valves:true,internal:true,conduction:true,landmarks:false},
@@ -8184,7 +8216,7 @@ function anDrawCap(){
   gl.bindBuffer(gl.ARRAY_BUFFER,AN.capBuf);gl.bufferData(gl.ARRAY_BUFFER,d,gl.DYNAMIC_DRAW);
   gl.vertexAttribPointer(AN.locP,3,gl.FLOAT,false,36,0);gl.vertexAttribPointer(AN.locN,3,gl.FLOAT,false,36,12);gl.vertexAttribPointer(AN.locA,2,gl.FLOAT,false,36,24);gl.vertexAttribPointer(AN.locR,1,gl.FLOAT,false,36,32);
   gl.uniform1f(pr.u.uPickMode,0);gl.uniform1f(pr.u.uClipOn,0);const cc=AN.capCol||[0.80,0.30,0.27];gl.uniform3f(pr.u.uCol,cc[0],cc[1],cc[2]);gl.uniform3f(pr.u.uInner,cc[0],cc[1],cc[2]);gl.uniform1f(pr.u.uAlpha,1);
-  gl.uniform1f(pr.u.uShin,16);gl.uniform1f(pr.u.uSpec,0.12);gl.uniform1f(pr.u.uTex,0.06);gl.uniform1f(pr.u.uBump,0.2);gl.uniform1f(pr.u.uGlow,0);
+  gl.uniform1f(pr.u.uShin,16);gl.uniform1f(pr.u.uSpec,0.12);gl.uniform1f(pr.u.uTex,0.06);gl.uniform1f(pr.u.uBump,0.2);gl.uniform1f(pr.u.uGlow,0);gl.uniform1f(pr.u.uKind,9);
   gl.disable(gl.CULL_FACE);gl.drawArrays(gl.TRIANGLES,0,6);
   gl.disable(gl.STENCIL_TEST);gl.uniform1f(pr.u.uClipOn,1);
 }
@@ -8196,7 +8228,8 @@ function anDrawParts(pick,excludeWalls){
   gl.uniform1f(pr.u.uPickMode,pick?1:0);gl.uniform3f(pr.u.uGlowCol,0.55,0.92,1.0);
   const t=performance.now()/1000,list=[];
   AN.parts.forEach(p=>{if(!AN.layers[p.layer])return;const a=anPartAlpha(p,sel);if(a<=0.001)return;if(pick){if(a<0.5)return;if(excludeWalls&&p.wall)return;}list.push({p,a});});
-  const setU=(p,a)=>{gl.uniform3fv(pr.u.uCol,p.color);gl.uniform3fv(pr.u.uInner,p.inner);gl.uniform1f(pr.u.uAlpha,a);gl.uniform1f(pr.u.uShin,p.shin);gl.uniform1f(pr.u.uSpec,p.spec);gl.uniform1f(pr.u.uTex,p.tex);gl.uniform1f(pr.u.uBump,p.bump||0);
+  const KIND={chambers:0,arteries:1,veins:2,coronary:3,valves:4,internal:5,conduction:6,landmarks:7};
+  const setU=(p,a)=>{gl.uniform1f(pr.u.uKind,p.kind!=null?p.kind:(KIND[p.layer]||0));gl.uniform3fv(pr.u.uCol,p.color);gl.uniform3fv(pr.u.uInner,p.inner);gl.uniform1f(pr.u.uAlpha,a);gl.uniform1f(pr.u.uShin,p.shin);gl.uniform1f(pr.u.uSpec,p.spec);gl.uniform1f(pr.u.uTex,p.tex);gl.uniform1f(pr.u.uBump,p.bump||0);
     const on=sel&&sel.has(p.id)&&!(AN.focus&&!AN.quiz.on);gl.uniform1f(pr.u.uGlow,on?0.5+0.22*Math.sin(t*4):0);};
   if(pick){gl.disable(gl.BLEND);gl.disable(gl.CULL_FACE);list.forEach(({p})=>{anBind(p);gl.uniform3f(pr.u.uPick,p.idx/255,0,0);anDraw(p);});return;}
   gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
@@ -8269,6 +8302,7 @@ function anGoto(o){AN.camT=Object.assign({yaw:AN.cam.yaw,pitch:AN.cam.pitch,dist
 function anView(name){const v=AN_VIEWS[name];anGoto({yaw:v.yaw,pitch:v.pitch,dist:Math.max(AN.cam.dist,10)});AN.auto=false;anSync();}
 function anSelect(id,o){
   o=o||{};
+  if(id==='rapatch')id='ra';else if(id==='lapatch')id='la';
   if(AN.quiz.on&&AN.quiz.state==='asking'){anQuizAnswer(id);return;}
   AN.sel=id;const info=anInfo(id);const ids=info&&info.hl?info.hl:[id];
   ids.forEach(i=>{const p=anPart(i);if(p){if(!AN.layers[p.layer])AN.layers[p.layer]=true;if(p.internal&&!AN.xray&&!AN.cut.on&&!AN.focus){AN.xray=true;AN.xrayNote=true;}}});
@@ -8305,7 +8339,7 @@ function anInfoHTML(){
 function anListHTML(){
   const f=AN.filter.trim().toLowerCase();let out=`<input class="an3-search" type="search" data-act="filter" placeholder="Search structures…" value="${anEsc(AN.filter)}" aria-label="Search structures">`;
   AN_GROUPS.forEach(([layer,label])=>{
-    let items=AN.parts.filter(p=>p.layer===layer&&p.id!=='apex').map(p=>({id:p.id,name:p.name,col:p.color}));
+    let items=AN.parts.filter(p=>p.layer===layer&&p.id!=='apex'&&p.id!=='rapatch'&&p.id!=='lapatch').map(p=>({id:p.id,name:p.name,col:p.color}));
     if(layer==='landmarks'){items=[{id:'apex',name:'Apex of the heart',col:[0.45,0.9,1]},{id:'avgroove',name:'Coronary (AV) groove',col:[0.96,0.8,0.4]},{id:'aivgroove',name:'Anterior interventricular groove',col:[0.96,0.8,0.4]},{id:'pivgroove',name:'Posterior interventricular groove',col:[0.96,0.8,0.4]}];}
     if(f)items=items.filter(x=>x.name.toLowerCase().includes(f));if(!items.length)return;
     const open=f?true:AN.open[layer]!==false;
