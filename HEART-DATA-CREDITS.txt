@@ -1,4 +1,4 @@
-heart-bp3d.bin — 3D heart anatomy data used by MedEx "Heart 3D"
+heart-bp3d.bin — 3D heart anatomy data used by MedEx "Heart 3D" (model v5.2)
 
 Derived from BodyParts3D (release 3.0):
   BodyParts3D, Copyright (C) 2008 Life Science Integrated Database Center
@@ -7,12 +7,20 @@ Derived from BodyParts3D (release 3.0):
   Mitsuhashi N, et al. BodyParts3D: 3D structure database for anatomical concepts.
   Nucleic Acids Res. 2009;37:D782-D785. doi:10.1093/nar/gkn613  (data DOI 10.18908/lsdba.nbdc00837-000)
 
-Modifications (v6 model): meshes re-oriented/scaled, heart wall partitioned into chamber regions and
-smoothed; aorta, arch branches, pulmonary arteries/veins, SVC and IVC re-modelled as smooth, tapered,
-thick-walled vessels fitted to centrelines extracted from the BodyParts3D meshes (procedurally generated
-surfaces, with open cut ends); right and left atrial auricles (appendages) re-modelled as separate
-conformal parts; aortic root with sinuses of Valsalva added; simplified (quadric decimation),
-ambient-occlusion and epicardial-fat shading baked, flow and conduction paths added.
-Coronary arteries and cardiac veins are generated schematic tubes following the groove anatomy.
-This is a single-individual, educational model; it is not intended for surgical or diagnostic planning.
+Source meshes used (full-resolution BodyParts3D STL files, FMA concept ids):
+  wall of heart (FMA7274); aortic, pulmonary and tricuspid/mitral valves (FMA7234, FMA7235, FMA7246);
+  papillary muscles (FMA7260, 7261, 7262, 7266, 9352); ascending/arch/descending aorta (FMA3736, 3768, 3784);
+  pulmonary trunk/arteries (FMA66326); pulmonary veins (FMA66643); SVC (FMA4720); IVC (FMA10951);
+  brachiocephalic, carotid and subclavian branches; coronary arteries and cardiac veins
+  (FMA3802, 3818, 3840, 3862, 3895, 4685, 76994, 71669, 71670, 4706, 4707, 4713, 71567, 76751 and branches).
+
+Modifications (v5.2): the heart wall and vessels were voxelised, the chamber cavities were separated
+(LV, RV, RA, LA) with a watershed on the hollow interior of the wall, vessel lumens were hollowed and
+opened at their cut ends, aortic and pulmonary root conduits were generated where the source wall has open
+orifices, regions were labelled (chambers, septa, vessels, branches), and the outer surfaces were remeshed
+and Taubin-smoothed; the aortic and pulmonary trees are single continuous surfaces; blood-flow animation paths are computed through the hollow lumen. The aortic valve leaflets, the ligamentum arteriosum and the epicardial-fat /
+ambient-occlusion shading were generated for this model. Interatrial and interventricular septa labels are
+rule-based approximations.
+This is a single-individual, educational model; it is not intended for surgical or diagnostic planning
+and has not been reviewed by an anatomist.
 This derived data is distributed under the same CC BY-SA 2.1 JP licence.

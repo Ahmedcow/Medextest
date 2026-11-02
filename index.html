@@ -7689,7 +7689,7 @@ function uploadPart(gl,part){const g=part.geom;if(!g.n)computeNormals(g);
   /* release CPU copies of big geometry */ part.nTri=N/3;}
 
 /* ---------- scan-based heart (BodyParts3D mesh asset) ---------- */
-const BP_URL='heart-bp3d.bin?v=6';
+const BP_URL='heart-bp3d.bin?v=17';
 function bpFetch(progress){
   return fetch(BP_URL).then(r=>{
     if(!r.ok)throw new Error('heart asset HTTP '+r.status);
@@ -7745,6 +7745,7 @@ function bpAssemble(D){
   const art=[['aroot','Aortic root (sinuses of Valsalva)',[-0.9,0.3,0.5],'Aortic root'],['ascao','Ascending aorta',[0.2,0.1,1],'Ascending aorta'],['archao','Aortic arch',[0,1,0.3],'Aortic arch'],['descao','Descending thoracic aorta',[0,0.1,-1],'Descending aorta'],['brach','Brachiocephalic trunk',[0,0.3,1],null],
     ['lcca','Left common carotid artery',[0,0.3,1],null],['rcca','Right common carotid artery',[-0.2,0.3,1],null],['lsa','Left subclavian artery',[0.5,1,0],null],['rsa','Right subclavian artery',[-0.5,1,0],null]];
   art.forEach(([id,name,d,lb])=>{if(!has(id))return;const p=P(id,name,'arteries',M[id],V(C.aorta,C.aoIn));if(lb)p.label=lab(M[id],lb,d);});
+  if(has('ligart')){const p=P('ligart','Ligamentum arteriosum','arteries',M.ligart,V([0.82,0.76,0.58],[0.75,0.7,0.52],{spec:0.2}));p.label=lab(M.ligart,'Ligamentum arteriosum',[1,0.4,0.3]);}
   [['pt','Pulmonary trunk',[0.1,0.2,1],'Pulmonary trunk'],['rpa','Right pulmonary artery',[-1,0.3,0.2],'Right pulmonary artery'],['lpa','Left pulmonary artery',[1,0.3,-0.2],'Left pulmonary artery']].forEach(([id,name,d,lb])=>{
     if(!has(id))return;const p=P(id,name,'arteries',M[id],V(C.pa,C.paIn,{spec:0.34}));p.label=lab(M[id],lb,d);});
   [['svc','Superior vena cava',[-1,0,0.4],'Superior vena cava'],['ivc','Inferior vena cava',[-1,0,0.4],'Inferior vena cava']].forEach(([id,name,d,lb])=>{
@@ -7762,10 +7763,10 @@ function bpAssemble(D){
   /* valves (leaflets with chordae tendineae) and papillary muscles */
   const VL={color:C.valve,inner:[0.85,0.8,0.65],shin:40,spec:0.35,bump:0.08,internal:true};
   const cen=g=>{let c=[0,0,0];const n=g.p.length/3;for(let i=0;i<g.p.length;i+=3){c[0]+=g.p[i];c[1]+=g.p[i+1];c[2]+=g.p[i+2];}return [c[0]/n,c[1]/n,c[2]/n];};
-  [['tricuspid','Tricuspid valve','Tricuspid valve'],['mitral','Mitral (bicuspid) valve','Mitral valve'],['pulmonic','Pulmonary valve','Pulmonary valve']].forEach(([id,name,t])=>{
+  [['tricuspid','Tricuspid valve','Tricuspid valve'],['mitral','Mitral (bicuspid) valve','Mitral valve'],['pulmonic','Pulmonary valve','Pulmonary valve'],['aortic','Aortic valve','Aortic valve']].forEach(([id,name,t])=>{
     if(!has(id))return;const p=P(id,name,'valves',M[id],Object.assign({},VL));p.label={t,a:cen(M[id])};});
   /* aortic valve: absent from the scan data -> the real pulmonary-valve mesh (same semilunar design) re-seated on the aortic root */
-  if(has('pulmonic')){
+  if(has('pulmonic')&&!has('aortic')){
     const g=M.pulmonic,pc=lm.pvl_c;let ax=v3.norm(lm.pvl_pca);if(v3.dot(ax,v3.norm(lm.pvl_ax))<0)ax=v3.mul(ax,-1);
     const an=v3.norm(lm.aon),R=lm.aoR2*0.95,s=R/Math.max(0.2,lm.pvl_R),ac=[lm.aoc[0]-an[0]*0.22,lm.aoc[1]-an[1]*0.22,lm.aoc[2]-an[2]*0.22];
     /* rotation taking ax -> an (Rodrigues) */
@@ -7985,6 +7986,9 @@ function buildHeartAsync(progress,done){
 
 /* ---------- teaching content ---------- */
 const AN_INFO={
+ligart:{s:'The ligamentum arteriosum is a short fibrous cord (≈ 0.5–1 cm) joining the concavity of the aortic arch to the left pulmonary artery / origin of the pulmonary trunk. It is the remnant of the fetal ductus arteriosus, which closes functionally within hours to days after birth.',
+ f:['Relations: the left recurrent laryngeal nerve hooks around it and the aortic arch; the left phrenic and vagus nerves cross the arch nearby.','Clinical: a patent ductus arteriosus (PDA) leaves a continuous "machinery" murmur; prostaglandin E1 keeps the duct open, indomethacin/ibuprofen closes it.'],
+ r:'Hoarseness can result from left recurrent laryngeal nerve injury by an aortic arch aneurysm or surgery near the ligamentum.'},
 overview:{s:'The heart is a four-chambered muscular pump (≈ 250–350 g, 12 cm × 9 cm × 6 cm) lying in the middle mediastinum inside the pericardium, about two-thirds to the left of the midline.',
  f:['Base (posterior): mainly the left atrium, faces T6–T9. Apex: formed by the left ventricle, points down, forward and left – beat felt in the 5th left intercostal space, mid-clavicular line.','Surfaces: sternocostal (anterior – mostly RV), diaphragmatic (inferior – LV and part of RV), and right/left pulmonary surfaces.','Borders: right (RA), left (LV and left auricle), inferior (RV and apex), superior (both atria and great vessels).','Right heart pumps deoxygenated blood to the lungs; left heart pumps oxygenated blood to the body (≈ 5 L/min at rest).','Auscultation: aortic – right 2nd ICS; pulmonary – left 2nd ICS; tricuspid – left lower sternal border; mitral – apex (5th ICS, mid-clavicular line).'],
  r:'Surface marking: a quadrilateral joining the 2nd left costal cartilage, 3rd right costal cartilage, 6th right costal cartilage and the apex.',

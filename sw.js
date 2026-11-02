@@ -1,12 +1,14 @@
-/* MedEx service worker — v44.0
+/* MedEx service worker — v45.10
+ * v45.10: Heart v5 (real BodyParts3D heart wall + generated roots) asset heart-bp3d.bin?v=17; precache URL matches the page.
+ *
  * Changes vs v43.0:
- *  - Heart model bumped to heart-bp3d.bin?v=6 (rebuilt vessels, atrial auricles, SVC/IVC); precache URL matches the page.
+ *  - Heart model bumped to heart-bp3d.bin?v=17 (rebuilt vessels, atrial auricles, SVC/IVC); precache URL matches the page.
  *  - Previous behaviour kept: separate shell/runtime caches, CDN caching, offline navigation fallback.
  */
-const VERSION='v44.0';
+const VERSION='v45.10';
 const SHELL_CACHE='medex-shell-'+VERSION;
 const RUNTIME_CACHE='medex-runtime-'+VERSION;
-const SHELL=['./','./index.html','./manifest.webmanifest','./icons/medex-192.png','./icons/medex-512.png','./heart-bp3d.bin?v=6'];
+const SHELL=['./','./index.html','./manifest.webmanifest','./icons/medex-192.png','./icons/medex-512.png','./heart-bp3d.bin?v=17'];
 const MAX_RUNTIME_ENTRIES=80;
 const CDN_HOSTS=new Set(['cdn.jsdelivr.net','cdnjs.cloudflare.com','fonts.googleapis.com','fonts.gstatic.com']);
 
