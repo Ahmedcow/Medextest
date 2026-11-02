@@ -1,4 +1,4 @@
-heart-bp3d.bin — 3D heart anatomy data used by MedEx "Heart 3D" (model v5.2)
+heart-bp3d.bin — 3D heart anatomy data used by MedEx "Heart 3D" (model v5.4)
 
 Derived from BodyParts3D (release 3.0):
   BodyParts3D, Copyright (C) 2008 Life Science Integrated Database Center
@@ -14,12 +14,13 @@ Source meshes used (full-resolution BodyParts3D STL files, FMA concept ids):
   brachiocephalic, carotid and subclavian branches; coronary arteries and cardiac veins
   (FMA3802, 3818, 3840, 3862, 3895, 4685, 76994, 71669, 71670, 4706, 4707, 4713, 71567, 76751 and branches).
 
-Modifications (v5.2): the heart wall and vessels were voxelised, the chamber cavities were separated
+Modifications (v5.4): the heart wall and vessels were voxelised, the chamber cavities were separated
 (LV, RV, RA, LA) with a watershed on the hollow interior of the wall, vessel lumens were hollowed and
 opened at their cut ends, aortic and pulmonary root conduits were generated where the source wall has open
 orifices, regions were labelled (chambers, septa, vessels, branches), and the outer surfaces were remeshed
-and Taubin-smoothed; the aortic and pulmonary trees are single continuous surfaces; blood-flow animation paths are computed through the hollow lumen. The aortic valve leaflets, the ligamentum arteriosum and the epicardial-fat /
-ambient-occlusion shading were generated for this model. Interatrial and interventricular septa labels are
+and Taubin-smoothed; the aortic and pulmonary trees are single continuous surfaces; blood-flow animation paths are computed through the hollow lumen. The aorta (root with sinuses, ascending, arch, descending) was regenerated as one tube along the scan centreline; the right and left
+atrial auricles, the mitral valve (anterior and posterior leaflets with three scallops, open posture), tricuspid valve (3 leaflets, open posture), aortic valve (3 cusps), chordae tendineae fanning to the papillary-muscle heads, the ligamentum arteriosum
+and the epicardial-fat / ambient-occlusion shading were generated for this model (the pulmonary valve and papillary muscles are from BodyParts3D). Interatrial and interventricular septa labels are
 rule-based approximations.
 This is a single-individual, educational model; it is not intended for surgical or diagnostic planning
 and has not been reviewed by an anatomist.
