@@ -7689,7 +7689,7 @@ function uploadPart(gl,part){const g=part.geom;if(!g.n)computeNormals(g);
   /* release CPU copies of big geometry */ part.nTri=N/3;}
 
 /* ---------- scan-based heart (BodyParts3D mesh asset) ---------- */
-const BP_URL='heart-bp3d.bin?v=17';
+const BP_URL='heart-bp3d.bin?v=20';
 function bpFetch(progress){
   return fetch(BP_URL).then(r=>{
     if(!r.ok)throw new Error('heart asset HTTP '+r.status);
@@ -7740,8 +7740,8 @@ function bpAssemble(D){
   if(has('ivs'))P('ivs','Interventricular septum','chambers',M.ivs,Object.assign(W(C.septum,C.septum),{internal:true}));
   if(has('ias'))P('ias','Interatrial septum & fossa ovalis','chambers',M.ias,Object.assign(W(C.fossa,C.fossa),{internal:true}));
   parts.forEach(p=>{if(p.internal){let c=[0,0,0];const g=p.geom,n=g.p.length/3;for(let i=0;i<g.p.length;i+=3){c[0]+=g.p[i];c[1]+=g.p[i+1];c[2]+=g.p[i+2];}p.label={t:p.id==='ivs'?'Interventricular septum':'Interatrial septum',a:[c[0]/n,c[1]/n,c[2]/n]};}});
-  /* vessels (single-surface tubes: no stencil cap, translucent in X-ray) */
-  const V=(color,inner,extra)=>Object.assign({color,inner,wall:true,tex:0.03,bump:0.12,shin:46,spec:0.4},extra||{});
+  /* vessels (real hollow tubes with a solid wall: stencil-capped so the cut shows the wall section, translucent in X-ray) */
+  const V=(color,inner,extra)=>Object.assign({color,inner,wall:true,stencil:true,tex:0.03,bump:0.12,shin:46,spec:0.4},extra||{});
   const art=[['aroot','Aortic root (sinuses of Valsalva)',[-0.9,0.3,0.5],'Aortic root'],['ascao','Ascending aorta',[0.2,0.1,1],'Ascending aorta'],['archao','Aortic arch',[0,1,0.3],'Aortic arch'],['descao','Descending thoracic aorta',[0,0.1,-1],'Descending aorta'],['brach','Brachiocephalic trunk',[0,0.3,1],null],
     ['lcca','Left common carotid artery',[0,0.3,1],null],['rcca','Right common carotid artery',[-0.2,0.3,1],null],['lsa','Left subclavian artery',[0.5,1,0],null],['rsa','Right subclavian artery',[-0.5,1,0],null]];
   art.forEach(([id,name,d,lb])=>{if(!has(id))return;const p=P(id,name,'arteries',M[id],V(C.aorta,C.aoIn));if(lb)p.label=lab(M[id],lb,d);});
@@ -8206,8 +8206,8 @@ function anPartAlpha(p,sel){let a=p.alpha;const isSel=!!(sel&&sel.has(p.id));
 function anBind(p){const gl=AN.gl;gl.bindBuffer(gl.ARRAY_BUFFER,p.vbo);gl.vertexAttribPointer(AN.locP,3,gl.FLOAT,false,36,0);gl.vertexAttribPointer(AN.locN,3,gl.FLOAT,false,36,12);gl.vertexAttribPointer(AN.locA,2,gl.FLOAT,false,36,24);gl.vertexAttribPointer(AN.locR,1,gl.FLOAT,false,36,32);if(p.ibo)gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,p.ibo);}
 function anDraw(p){const gl=AN.gl;if(p.ibo)gl.drawElements(gl.TRIANGLES,p.count,gl.UNSIGNED_INT,0);else gl.drawArrays(gl.TRIANGLES,0,p.count);}
 function anDrawCap(){
-  const gl=AN.gl,pr=AN.prog,sp=AN.parts.filter(p=>p.stencil);
-  if(!sp.length||sp.some(p=>!AN.layers[p.layer]))return;
+  const gl=AN.gl,pr=AN.prog,sp=AN.parts.filter(p=>p.stencil&&AN.layers[p.layer]);
+  if(!sp.length)return;
   gl.clear(gl.STENCIL_BUFFER_BIT);gl.enable(gl.STENCIL_TEST);gl.stencilFunc(gl.ALWAYS,0,255);gl.stencilOp(gl.KEEP,gl.KEEP,gl.INVERT);
   gl.colorMask(false,false,false,false);gl.depthMask(false);gl.disable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);gl.disable(gl.BLEND);
   gl.uniform1f(pr.u.uPickMode,1);gl.uniform3f(pr.u.uPick,0,0,0);
