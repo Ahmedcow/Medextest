@@ -1,10 +1,10 @@
-/* MedEx service worker — v46.1
- * v46.1: 3D heart section removed from the app (view, nav button, styles, scripts, heart-bp3d.bin); old caches are dropped on activate.
+/* MedEx service worker — v46.2
+ * v46.2: 3D heart section removed from the app (view, nav button, styles, scripts, heart-bp3d.bin); old caches are dropped on activate.
  *
  * Changes vs v43.0:
  *  - Previous behaviour kept: separate shell/runtime caches, CDN caching, offline navigation fallback.
  */
-const VERSION='v46.1';
+const VERSION='v46.2';
 const SHELL_CACHE='medex-shell-'+VERSION;
 const RUNTIME_CACHE='medex-runtime-'+VERSION;
 const SHELL=['./','./index.html','./manifest.webmanifest','./icons/medex-192.png','./icons/medex-512.png'];

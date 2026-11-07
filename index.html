@@ -4521,10 +4521,22 @@ function renderImport(){
 
   <div class="card admin-print-card" style="margin-top:16px">
     <div class="category-head"><div><h3 style="margin:0">Print Question Bank as PDF</h3><div class="mini" style="margin-top:4px">Create a clean A4 question sheet, grouped by Module → Subject → Lecture, with the MedEx signature and subject/lecture footer.</div></div><span class="pill">Admin only</span></div>
-    <div class="admin-print-grid" style="margin-top:14px">
+    <div class="actions" style="margin-top:14px"><button type="button" class="btn primary" id="printModeSimple" onclick="setPrintMode('simple')">Simple</button><button type="button" class="btn" id="printModeAdvanced" onclick="setPrintMode('advanced')">Advanced · multiple lectures</button></div>
+    <div id="printSimpleWrap" class="admin-print-grid" style="margin-top:14px">
       <div class="field"><label>Module</label><select id="printModule" onchange="updateAdminPrintFilters()"><option value="">All modules</option></select></div>
       <div class="field"><label>Subject</label><select id="printSubject" onchange="updateAdminPrintFilters()"><option value="">All subjects</option></select></div>
-      <div class="field"><label>Lecture</label><select id="printLecture"><option value="">All lectures</option></select></div>
+      <div class="field"><label>Lecture</label><select id="printLecture" onchange="updateAdminPrintFilters()"><option value="">All lectures</option></select></div>
+    </div>
+    <div id="printAdvancedWrap" class="hidden" style="margin-top:14px">
+      <div class="mini">Select an entire module, a whole subject, specific lectures, or any mixture of branches.</div>
+      <div class="exam-builder">
+        <div class="exam-builder-toolbar">
+          <input class="exam-builder-search" id="printTreeSearch" oninput="ptSearch(this.value)" placeholder="Search module, subject, or lecture…" aria-label="Search module, subject, or lecture">
+          <div class="exam-builder-actions"><button class="btn" type="button" onclick="ptSelectAll()">Select all</button><button class="btn" type="button" onclick="ptClear()">Clear</button></div>
+        </div>
+        <div id="printTree" class="exam-tree"></div>
+      </div>
+      <div class="exam-selection-summary"><div><strong>Selection</strong><div id="printSelectedCount" class="mini" style="margin-top:4px">No specific selection — all questions</div></div><div class="exam-selection-paths" id="printSelectionPaths"></div></div>
     </div>
     <div class="admin-print-options">
       <label class="admin-print-check"><input type="checkbox" id="printAnswers" checked> Show correct answer column</label>
@@ -4577,6 +4589,7 @@ function renderImport(){
   renderAdminQuestionList();
   renderModuleVisibility();
   updateAdminPrintFilters();
+  ptRender();
   loadAdminNotifications();
 }
 
@@ -4601,22 +4614,97 @@ function updateAdminPrintFilters(){
   const lectures=adminPrintUnique('lecture',{module,subject});
   fillAdminPrintSelect('printSubject',subjects,subject);
   fillAdminPrintSelect('printLecture',lectures,lecture);
-  const selectedModule=document.getElementById('printModule')?.value||'';
-  const selectedSubject=document.getElementById('printSubject')?.value||'';
-  const selectedLecture=document.getElementById('printLecture')?.value||'';
-  const rows=adminPrintSource().filter(q=>(!selectedModule||q.module===selectedModule)&&(!selectedSubject||q.subject===selectedSubject)&&(!selectedLecture||q.lecture===selectedLecture));
+  const rows=adminPrintRows();
   const count=document.getElementById('adminPrintCount');
   if(count) count.textContent=`${rows.length} question${rows.length===1?'':'s'} selected · grouped automatically by Module → Subject → Lecture`;
+  const selectedModule=document.getElementById('printModule')?.value||'';
   if(!document.getElementById('printModule')?.dataset.ready){
     const modules=adminPrintUnique('module');
     fillAdminPrintSelect('printModule',modules,selectedModule);
     document.getElementById('printModule').dataset.ready='1';
   }
 }
+
+/* ---- Advanced multi-lecture selector for the admin print bank (same look and behaviour as the Start exam builder) ---- */
+let printMode='simple', printSel=new Set(), printExp=new Set(), printSearchText='';
+function ptKey(m,s,l){return JSON.stringify([String(m||''),String(s||''),String(l||'')]);}
+function ptQ(q){return {m:String(q.module||'Uncategorised'),s:String(q.subject||'General'),l:String(q.lecture||'General')};}
+function adminPrintRows(){
+  const src=adminPrintSource();
+  if(printMode==='advanced'){
+    if(!printSel.size) return src;
+    return src.filter(q=>{const t=ptQ(q);return printSel.has(ptKey(t.m,t.s,t.l));});
+  }
+  const module=document.getElementById('printModule')?.value||'',subject=document.getElementById('printSubject')?.value||'',lecture=document.getElementById('printLecture')?.value||'';
+  return src.filter(q=>(!module||q.module===module)&&(!subject||q.subject===subject)&&(!lecture||q.lecture===lecture));
+}
+function setPrintMode(mode){
+  printMode=mode==='advanced'?'advanced':'simple';
+  document.getElementById('printSimpleWrap')?.classList.toggle('hidden',printMode==='advanced');
+  document.getElementById('printAdvancedWrap')?.classList.toggle('hidden',printMode!=='advanced');
+  document.getElementById('printModeSimple')?.classList.toggle('primary',printMode==='simple');
+  document.getElementById('printModeAdvanced')?.classList.toggle('primary',printMode==='advanced');
+  ptRender(); updateAdminPrintFilters();
+}
+function ptTreeData(){
+  const map=new Map();
+  adminPrintSource().forEach(q=>{const t=ptQ(q);
+    if(!map.has(t.m))map.set(t.m,new Map()); const sm=map.get(t.m);
+    if(!sm.has(t.s))sm.set(t.s,new Map()); const lm=sm.get(t.s); lm.set(t.l,(lm.get(t.l)||0)+1);});
+  const cmp=(a,b)=>String(a[0]).localeCompare(String(b[0]),undefined,{numeric:true,sensitivity:'base'});
+  return [...map.entries()].sort(cmp).map(([module,subs])=>({module,subjects:[...subs.entries()].sort(cmp).map(([subject,lecs])=>({subject,lectures:[...lecs.entries()].sort(cmp).map(([lecture,count])=>({lecture,count}))}))}));
+}
+function ptLectureKeys(module,subject){
+  const out=[]; ptTreeData().forEach(m=>{ if(m.module!==module)return; m.subjects.forEach(sb=>{ if(subject!==undefined&&sb.subject!==subject)return; sb.lectures.forEach(l=>out.push(ptKey(m.module,sb.subject,l.lecture))); }); });
+  return out;
+}
+function ptState(keys){const n=keys.filter(k=>printSel.has(k)).length;return {checked:keys.length>0&&n===keys.length,partial:n>0&&n<keys.length};}
+function ptMatch(text,q){return !q||String(text).toLowerCase().includes(q);}
+function ptRender(){
+  const tree=document.getElementById('printTree'); if(!tree)return;
+  const q=String(printSearchText||'').trim().toLowerCase(), parts=[];
+  ptTreeData().forEach(m=>{
+    const mHit=ptMatch(m.module,q);
+    const subs=m.subjects.map(sb=>{const sHit=mHit||ptMatch(sb.subject,q); const lecs=sb.lectures.filter(l=>sHit||ptMatch(l.lecture,q)); return lecs.length?{sb,lecs}:null;}).filter(Boolean);
+    if(!subs.length)return;
+    const mKeys=ptLectureKeys(m.module), mSt=ptState(mKeys), mOpen=!!q||printExp.has('m:'+m.module);
+    const mTotal=m.subjects.reduce((n,sb)=>n+sb.lectures.reduce((a,l)=>a+l.count,0),0);
+    let subHtml='';
+    subs.forEach(({sb,lecs})=>{
+      const sKeys=ptLectureKeys(m.module,sb.subject), sSt=ptState(sKeys), sOpen=!!q||printExp.has('s:'+m.module+'|||'+sb.subject);
+      const sTotal=sb.lectures.reduce((a,l)=>a+l.count,0);
+      const lecHtml=lecs.map(l=>'<div class="exam-node-row"><button type="button" class="exam-node-toggle spacer" aria-hidden="true" tabindex="-1">▸</button><input type="checkbox" data-pt="l" data-m="'+esc(m.module)+'" data-s="'+esc(sb.subject)+'" data-l="'+esc(l.lecture)+'" '+(printSel.has(ptKey(m.module,sb.subject,l.lecture))?'checked':'')+'><span class="exam-node-title">'+esc(l.lecture)+'</span><span class="exam-node-meta">'+l.count+' Q</span></div>').join('');
+      subHtml+='<div class="exam-node"><div class="exam-node-row"><button type="button" class="exam-node-toggle" data-pt-toggle="s" data-m="'+esc(m.module)+'" data-s="'+esc(sb.subject)+'" aria-label="Expand or collapse '+esc(sb.subject)+'">'+(sOpen?'▾':'▸')+'</button><input type="checkbox" data-pt="s" data-m="'+esc(m.module)+'" data-s="'+esc(sb.subject)+'" '+(sSt.checked?'checked':'')+' data-partial="'+(sSt.partial?1:0)+'"><span class="exam-node-title exam-node-clickable" data-pt-toggle="s" data-m="'+esc(m.module)+'" data-s="'+esc(sb.subject)+'">'+esc(sb.subject)+'</span><span class="exam-node-meta">'+sTotal+' Q</span></div><div class="exam-node-children '+(sOpen?'':'hidden')+'">'+lecHtml+'</div></div>';
+    });
+    parts.push('<div class="exam-node"><div class="exam-node-row"><button type="button" class="exam-node-toggle" data-pt-toggle="m" data-m="'+esc(m.module)+'" aria-label="Expand or collapse '+esc(m.module)+'">'+(mOpen?'▾':'▸')+'</button><input type="checkbox" data-pt="m" data-m="'+esc(m.module)+'" '+(mSt.checked?'checked':'')+' data-partial="'+(mSt.partial?1:0)+'"><span class="exam-node-title exam-node-clickable" data-pt-toggle="m" data-m="'+esc(m.module)+'">'+esc(m.module)+'</span><span class="exam-node-meta">'+mTotal+' Q</span></div><div class="exam-node-children '+(mOpen?'':'hidden')+'">'+subHtml+'</div></div>');
+  });
+  tree.innerHTML=parts.join('')||'<div class="exam-builder-hint">No module, subject, or lecture matches your search.</div>';
+  tree.querySelectorAll('input[data-pt]').forEach(i=>{ if(i.dataset.partial==='1')i.indeterminate=true; });
+  tree.onclick=ev=>{const t=ev.target.closest('[data-pt-toggle]'); if(!t||!tree.contains(t))return; ev.preventDefault();
+    const k=t.dataset.ptToggle==='m'?'m:'+t.dataset.m:'s:'+t.dataset.m+'|||'+t.dataset.s; if(printExp.has(k))printExp.delete(k);else printExp.add(k); ptRender();};
+  tree.onchange=ev=>{const i=ev.target.closest('input[data-pt]'); if(!i)return; const on=i.checked, ty=i.dataset.pt, m=i.dataset.m, sb=i.dataset.s;
+    const keys=ty==='l'?[ptKey(m,sb,i.dataset.l)]:ty==='s'?ptLectureKeys(m,sb):ptLectureKeys(m);
+    keys.forEach(k=>on?printSel.add(k):printSel.delete(k));
+    if(on&&ty==='m')printExp.add('m:'+m); if(on&&ty==='s')printExp.add('s:'+m+'|||'+sb);
+    ptRender(); updateAdminPrintFilters();};
+  ptSummary();
+}
+function ptSummary(){
+  const rows=adminPrintSource(), sel=[...printSel].map(k=>{try{return JSON.parse(k);}catch(e){return ['','',''];}});
+  const n=printSel.size?rows.filter(q=>{const t=ptQ(q);return printSel.has(ptKey(t.m,t.s,t.l));}).length:rows.length;
+  const c=document.getElementById('printSelectedCount');
+  if(c)c.textContent=printSel.size?`${new Set(sel.map(p=>p[0])).size} module${new Set(sel.map(p=>p[0])).size===1?'':'s'} · ${new Set(sel.map(p=>p[0]+'|||'+p[1])).size} subject${new Set(sel.map(p=>p[0]+'|||'+p[1])).size===1?'':'s'} · ${printSel.size} lecture${printSel.size===1?'':'s'} · ${n} questions`:'No specific selection — all questions';
+  const el=document.getElementById('printSelectionPaths');
+  if(el)el.innerHTML=sel.slice(0,10).map(p=>`<span class="exam-selection-chip">${esc(p[0])} → ${esc(p[1])} → ${esc(p[2])}</span>`).join('')+(sel.length>10?`<span class="mini">+${sel.length-10} more selected lectures</span>`:'');
+}
+function ptSearch(v){printSearchText=v||'';ptRender();}
+function ptSelectAll(){printSel.clear();adminPrintSource().forEach(q=>{const t=ptQ(q);printSel.add(ptKey(t.m,t.s,t.l));});ptRender();updateAdminPrintFilters();}
+function ptClear(){printSel.clear();ptRender();updateAdminPrintFilters();}
 function resetAdminPrintFilters(){
   const m=document.getElementById('printModule'),s=document.getElementById('printSubject'),l=document.getElementById('printLecture');
   if(m)m.value=''; if(s)s.value=''; if(l)l.value='';
-  updateAdminPrintFilters();
+  printSel.clear(); printSearchText=''; const ts=document.getElementById('printTreeSearch'); if(ts)ts.value='';
+  updateAdminPrintFilters(); ptRender();
 }
 function adminPrintEscapeHTML(v){return esc(v==null?'':String(v));}
 function adminPrintCleanOption(value,index){
@@ -4657,7 +4745,7 @@ function printAdminQuestionBankPDF(){
   const lecture=document.getElementById('printLecture')?.value||'';
   const showAnswers=document.getElementById('printAnswers')?.checked!==false;
   const showExplanations=document.getElementById('printExplanations')?.checked===true;
-  const rows=source.filter(q=>(!module||q.module===module)&&(!subject||q.subject===subject)&&(!lecture||q.lecture===lecture));
+  const rows=adminPrintRows();
   if(!rows.length){toast('No questions match the selected Module / Subject / Lecture.','error');return;}
 
   const groups=[]; const groupMap=new Map();
